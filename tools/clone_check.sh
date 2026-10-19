@@ -13,7 +13,7 @@
 #
 # Usage:
 #   tools/clone_check.sh                      # default: -profile laptop,test
-#   tools/clone_check.sh laptop,test_cellpose
+#   tools/clone_check.sh laptop,test
 #   tools/clone_check.sh laptop -params-file /abs/path/params.yml
 #
 # Any arguments after the profile are passed through to `nextflow run`. Use
