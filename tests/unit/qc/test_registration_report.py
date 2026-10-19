@@ -216,3 +216,13 @@ def test_whole_page_still_renders(tmp_path, with_registration):
     page = build(minimal_metrics(), registration=reg)
     assert page.rstrip().endswith("</html>")
     assert ("Stitching and registration" in page) is with_registration
+
+
+def test_slide_report_carries_the_slide_registration(tmp_path):
+    from merge_report import build as build_slide
+    from test_merge_report import core
+
+    reg = load_registration(write_qc(tmp_path / "slide_ashlar_qc"))
+    page = build_slide("slide", [core("slide_core001"), core("slide_core002")], reg)
+    assert "Stitching and registration" in page
+    assert "Stitching and registration" not in build_slide("slide", [core("slide_core001")])
