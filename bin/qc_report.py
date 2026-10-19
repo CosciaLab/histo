@@ -8,6 +8,7 @@ channel; every chart has a table twin.
 from __future__ import annotations
 
 import argparse
+import csv
 import html
 import json
 import math
@@ -831,10 +832,341 @@ def cycle_ratio_section(ratio: dict[str, Any]) -> str:
 
 
 def inline_png(path: Path) -> str:
-    """Return a PNG file as a base64 data URI."""
+    """Return a PNG or JPEG file as a base64 data URI."""
     import base64
 
-    return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+    mime = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+# Ashlar's --qc-output layout (josenimo/ashlar, histo-qc branch); bump with the image.
+ASHLAR_QC_SCHEMA = 1
+
+
+def _num(value: str) -> float | None:
+    """Parse a CSV cell from Ashlar's QC tables; empty means not applicable or non-finite."""
+    return float(value) if value not in ("", None) else None
+
+
+def load_registration(qc_dir: Path) -> dict[str, Any]:
+    """Read an Ashlar QC directory, or say why it cannot be used."""
+    qc_json = qc_dir / "qc.json"
+    if not qc_json.exists():
+        return {"available": False, "reason": f"no qc.json in {qc_dir.name}"}
+    summary = json.loads(qc_json.read_text())
+    if summary.get("stub"):
+        return {"available": False, "reason": "stub run"}
+    if summary.get("schema_version") != ASHLAR_QC_SCHEMA:
+        return {
+            "available": False,
+            "reason": f"Ashlar QC schema {summary.get('schema_version')}, "
+            f"this report reads {ASHLAR_QC_SCHEMA}",
+        }
+    with (qc_dir / "tiles.csv").open(newline="") as f:
+        tiles = list(csv.DictReader(f))
+    with (qc_dir / "edges.csv").open(newline="") as f:
+        edges = list(csv.DictReader(f))
+    overlays = [qc_dir / n for n in summary.get("images", {}).get("overlays", [])]
+    pdfs = sorted(qc_dir.glob("*_ashlar_report.pdf"))
+    return {
+        "available": True,
+        "name": qc_dir.name,
+        "summary": summary,
+        "tiles": tiles,
+        "edges": edges,
+        "overlays": [p for p in overlays if p.exists()],
+        "pdf": pdfs[0].name if pdfs else None,
+    }
+
+
+def tile_map_svg(tiles: list[dict[str, str]], edges: list[dict[str, str]], tile_size: list[int]) -> str:
+    """Draw cycle-1 tiles at their stitched positions with every neighbour pair.
+
+    Thick lines placed tiles, thin ones were accepted but unused, dashed red ones were
+    rejected. Each tooltip states the status in words too.
+    """
+    cycle0 = [t for t in tiles if t["cycle"] == "0"]
+    if not cycle0:
+        return ""
+    th, tw = tile_size
+    ys = [float(t["y"]) for t in cycle0]
+    xs = [float(t["x"]) for t in cycle0]
+    y0, x0 = min(ys), min(xs)
+    extent_h = max(ys) - y0 + th
+    extent_w = max(xs) - x0 + tw
+    width = 800.0
+    scale = width / extent_w
+    height = extent_h * scale
+    pos = {t["tile"]: (float(t["x"]) - x0, float(t["y"]) - y0) for t in cycle0}
+    out = [
+        f'<svg class="chart" viewBox="0 0 {width:.0f} {height:.0f}" width="100%" '
+        f'height="{min(height, 560):.0f}" role="img" preserveAspectRatio="xMidYMin meet">'
+    ]
+    for t in cycle0:
+        x, y = pos[t["tile"]]
+        fg = t["foreground"] == "1"
+        tip = (
+            f"tile {t['tile']}: {'foreground' if fg else 'background'}, "
+            f"{float(t['model_distance_um']):.2f} µm from the stage model, "
+            f"component {t['component']}"
+        )
+        out.append(
+            f'<rect x="{x * scale:.1f}" y="{y * scale:.1f}" width="{tw * scale:.1f}" '
+            f'height="{th * scale:.1f}" fill="{"var(--wash)" if fg else "var(--plane)"}" '
+            f'fill-opacity="0.45" stroke="var(--axis)" stroke-width="1" tabindex="0" '
+            f'data-tip="{esc(tip)}"/>'
+        )
+    for e in edges:
+        (ax, ay), (bx, by) = pos[e["t1"]], pos[e["t2"]]
+        x1, y1 = (ax + tw / 2) * scale, (ay + th / 2) * scale
+        x2, y2 = (bx + tw / 2) * scale, (by + th / 2) * scale
+        reason = e["reject_reason"]
+        if reason != "none":
+            style = f'stroke="{STATUS["critical"]}" stroke-width="2" stroke-dasharray="4 3"'
+            status = f"rejected ({reason})"
+        elif e["in_tree"] == "1":
+            style = 'stroke="var(--series)" stroke-width="3"'
+            status = "used to place tiles"
+        else:
+            style = 'stroke="var(--series)" stroke-width="1" stroke-opacity="0.6"'
+            status = "accepted, not needed"
+        err = _num(e["error_raw"])
+        tip = (
+            f"tiles {e['t1']}-{e['t2']}: {status}; error {err:.2f}, "
+            if err is not None
+            else f"tiles {e['t1']}-{e['t2']}: {status}; "
+        ) + f"shift {float(e['shift_um']):.2f} µm"
+        out.append(
+            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" {style} '
+            f'stroke-linecap="round" tabindex="0" data-tip="{esc(tip)}"/>'
+        )
+    out.append("</svg>")
+    return "".join(out)
+
+
+def registration_section(reg: dict[str, Any] | None) -> str:
+    """Render Ashlar's stitching and registration QC, or state why it is unavailable.
+
+    Ashlar counts cycles from 0; this page counts from 1 like the PDF report.
+    """
+    if reg is None:
+        return ""
+    if not reg.get("available"):
+        return f"""
+<section>
+  <h2>Stitching and registration</h2>
+  <p class="note">Not computed: {esc(reg.get("reason", "unavailable"))}.</p>
+</section>
+"""
+    summary = reg["summary"]
+    st = summary["stitching"]
+    cycles = summary["registration"]
+    n = 1
+
+    def fmt(v: float | None, spec: str = ".2f") -> str:
+        return "–" if v is None else format(v, spec)
+
+    rejected = st["n_edges"] - st["n_edges_accepted"]
+    rows = [
+        status_row(
+            "Every neighbouring tile pair aligned",
+            rejected == 0,
+            f"all {st['n_edges']} pairs accepted"
+            if rejected == 0
+            else f"{rejected} of {st['n_edges']} rejected: {st['n_edges_rejected_error']} on error, "
+            f"{st['n_edges_rejected_shift']} on shift",
+        ),
+        status_row(
+            "Stitched tiles form one connected mosaic",
+            st["n_components"] == 1,
+            "one component"
+            if st["n_components"] == 1
+            else f"{st['n_components']} components; {st['n_tiles_outside_largest_component']} "
+            "tiles were placed by the stage model alone",
+        ),
+    ]
+    for c in cycles:
+        failed = c["n_discard_error"] + c["n_discard_shift"] + c["n_kept_like_null"]
+        rows.append(
+            status_row(
+                f"Cycle {c['cycle'] + n}: every foreground tile registered",
+                failed == 0,
+                f"{c['n_discard_background']} background tiles skipped"
+                if failed == 0
+                else f"{c['n_discard_error']} failed, {c['n_discard_shift']} too far from the model, "
+                f"{c['n_kept_like_null']} kept but no better than chance; "
+                f"{c['n_discard_background']} background skipped",
+            )
+        )
+    warnings = summary.get("warnings") or []
+    rows.append(
+        status_row(
+            "Ashlar raised no data warnings",
+            not warnings,
+            "none" if not warnings else "; ".join(warnings[:3]) + ("…" if len(warnings) > 3 else ""),
+        )
+    )
+
+    res_p95 = [c["residual_um_percentiles"]["p95"] for c in cycles]
+    res_p95 = [v for v in res_p95 if v is not None]
+    angles = [abs(c["cycle_angle"]) for c in cycles if c["cycle_angle"] is not None]
+    tiles_html = [
+        tile("Tiles", thousands(st["n_tiles"]), f"{len(cycles) + 1} cycles"),
+        tile(
+            "Pairs accepted",
+            f"{st['n_edges_accepted']} / {st['n_edges']}",
+            f"error threshold {fmt(st['max_error'])}",
+        ),
+        tile(
+            "Worst cycle residual",
+            f"{max(res_p95):.2f} µm" if res_p95 else "–",
+            "p95 distance from the rigid model",
+        ),
+        tile("Largest rotation", f"{max(angles):.2f}°" if angles else "–", "between cycles"),
+    ]
+
+    cycle_rows = []
+    for c in cycles:
+        off = c["cycle_offset_um"]
+        res = c["residual_um_percentiles"]
+        cycle_rows.append(
+            [
+                str(c["cycle"] + n),
+                f"{fmt(off[0], '.1f')}, {fmt(off[1], '.1f')}",
+                fmt(c["cycle_angle"]),
+                fmt(c["tile_angle_mad"]),
+                f"{c['n_discard']} / {c['n_tiles']}",
+                f"{c['n_discard_error']} / {c['n_discard_background']} / {c['n_discard_shift']}",
+                str(c["n_kept_like_null"]),
+                f"{fmt(res['p50'])} / {fmt(res['p95'])}",
+            ]
+        )
+    cycle_table = (
+        table(
+            [
+                "Cycle",
+                "Offset y, x (µm)",
+                "Angle (°)",
+                "Tile angle MAD (°)",
+                "Discarded",
+                "Failed / background / shift",
+                "Kept, no better than chance",
+                "Residual p50 / p95 (µm)",
+            ],
+            cycle_rows,
+        )
+        if cycles
+        else ""
+    )
+    discard_chart = hbar_chart(
+        [(f"cycle {c['cycle'] + n}", c["discard_fraction"] * 100) for c in cycles],
+        "% of tiles",
+        lambda v: f"{v:.0f}%",
+    )
+
+    errors = [e for e in (_num(e["error_raw"]) for e in reg["edges"]) if e is not None]
+    error_chart = ""
+    if errors and st["max_error"] is not None:
+        upper = max(max(errors), st["max_error"]) * 1.05
+        bins = 30
+        width = upper / bins
+        counts = [0] * bins
+        for e in errors:
+            counts[min(bins - 1, int(e / width))] += 1
+        error_chart = column_chart(
+            counts,
+            width,
+            "alignment error (−log NCC, lower is better)",
+            "tile pairs",
+            ref_x=st["max_error"],
+            ref_label="rejection threshold",
+            fmt=lambda v: f"{v:.1f}",
+        )
+
+    figs = "".join(
+        figure(
+            inline_png(p),
+            f"cycle {n} (magenta) and cycle {int(p.stem.removeprefix('overlay_cycle')) + n} (green)",
+            "white where they agree",
+        )
+        for p in reg["overlays"]
+    )
+    gallery = f'<div class="gallery">{figs}</div>' if figs else ""
+    pdf = (
+        f"""<p class="note">Full detail, with per-tile maps and Ashlar's own plots:
+  <a href="../preprocessing/registration/{esc(reg["name"])}/{esc(reg["pdf"])}">{esc(reg["pdf"])}</a>,
+  beside <code>qc.json</code>, <code>tiles.csv</code> and <code>edges.csv</code>.</p>"""
+        if reg.get("pdf")
+        else ""
+    )
+    sm = st["stage_model"]
+    stitch_table = table(
+        ["Statistic", "Value"],
+        [
+            ["Pairs accepted / total", f"{st['n_edges_accepted']} / {st['n_edges']}"],
+            [
+                "Rejected on error / on shift",
+                f"{st['n_edges_rejected_error']} / {st['n_edges_rejected_shift']}",
+            ],
+            ["Error threshold (null distribution percentile)", fmt(st["max_error"])],
+            [
+                "Pair error p50 / random strips p50",
+                f"{fmt(st['edge_error_percentiles']['p50'])} / {fmt(st['null_error_percentiles']['p50'])}",
+            ],
+            [
+                "Pairs no better than random",
+                "–" if st["edges_like_null_fraction"] is None else f"{st['edges_like_null_fraction']:.0%}",
+            ],
+            ["Spanning tree components", str(st["n_components"])],
+            ["Foreground tiles", f"{st['n_foreground_tiles']} / {st['n_tiles']}"],
+            ["Stage scale y / x", f"{fmt(sm['scale_y'], '.4f')} / {fmt(sm['scale_x'], '.4f')}"],
+            [
+                "Stage rotation / shear (°)",
+                f"{fmt(sm['rotation_deg'], '.3f')} / {fmt(sm['shear_deg'], '.3f')}",
+            ],
+            [
+                "Tile distance from stage model p50 / p95 (µm)",
+                f"{fmt(st['model_residual_um_percentiles']['p50'])} / "
+                f"{fmt(st['model_residual_um_percentiles']['p95'])}",
+            ],
+            ["Ashlar", esc(summary["ashlar_version"])],
+        ],
+    )
+    return f"""
+<section>
+  <h2>Stitching and registration</h2>
+  <p class="note">From Ashlar's own alignment state. Cycle {n} tiles are stitched to each
+  other; every later cycle is registered tile by tile to cycle {n}. A tile Ashlar could not
+  trust is placed by the stage model instead, which is usually fine at the tissue edge and a
+  problem in its middle. Errors are &minus;log normalised cross-correlation, judged against
+  random non-overlapping strips of the same images.</p>
+  <div class="tiles">{"".join(tiles_html)}</div>
+  {"".join(rows)}
+</section>
+
+<section>
+  <h3>Cycle {n}: tile pairs</h3>
+  <p class="note">Tiles at their stitched positions, shaded when Ashlar counts them as
+  foreground. Thick lines placed the tiles, thin lines agreed but were not needed, dashed
+  red lines were rejected. A cluster of red lines inside tissue is where stitching failed.</p>
+  {tile_map_svg(reg["tiles"], reg["edges"], summary["tile_size"])}
+  {error_chart}
+  {details("Show as table", stitch_table)}
+</section>
+
+<section>
+  <h3>Later cycles against cycle {n}</h3>
+  <p class="note">Discarded tiles were placed by the model: <em>failed</em> found no
+  overlap, <em>background</em> had a background reference tile, <em>shift</em> registered
+  too far from the model. <em>No better than chance</em> counts kept tiles whose error is
+  worse than the cycle {n} rejection threshold. Residual is each usable tile's distance from
+  the rigid prediction; a large one means local misalignment.</p>
+  {discard_chart}
+  {cycle_table}
+  {gallery}
+  {pdf}
+</section>
+"""
 
 
 def figure(src: str, caption: str, sub: str = "") -> str:
@@ -1234,7 +1566,10 @@ drawn: {n_thin} of {n_all} would be, and at high resolution they bury the branch
 
 
 def build(
-    metrics: dict[str, Any], images: dict[str, Any] | None = None, asset_dir: Path | None = None
+    metrics: dict[str, Any],
+    images: dict[str, Any] | None = None,
+    asset_dir: Path | None = None,
+    registration: dict[str, Any] | None = None,
 ) -> str:
     img = metrics["image"]
     cells = metrics["cells"]
@@ -1422,6 +1757,8 @@ def build(
 
 {cycle_ratio_section(metrics["cycle_ratio"]) if metrics.get("cycle_ratio") else ""}
 
+{registration_section(registration)}
+
 <section>
   <h2>Cell area distribution</h2>
   <p class="note">{area_note}</p>
@@ -1455,12 +1792,18 @@ def main() -> int:
         help="qc_images.json from qc_images.py. Its PNGs are read from the same directory "
         "and inlined as base64, so the output stays a single self-contained file.",
     )
+    ap.add_argument(
+        "--registration",
+        type=Path,
+        help="Ashlar --qc-output directory; its overlays are inlined like the crops.",
+    )
     args = ap.parse_args()
 
     metrics = json.loads(args.metrics.read_text())
     images = json.loads(args.images.read_text()) if args.images else None
     asset_dir = args.images.parent if args.images else None
-    page = build(metrics, images, asset_dir)
+    registration = load_registration(args.registration) if args.registration else None
+    page = build(metrics, images, asset_dir, registration)
     args.out.write_text(page)
 
     print(f"[qc_report] {args.out} ({len(page.encode()) / 1024:.0f} KB)")
