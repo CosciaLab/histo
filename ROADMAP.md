@@ -147,8 +147,6 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
   stub-aware `eval` for ashlar and backsub. Upstream backsub moved to a Seqera container; taking
   it means pre-staging a new image.
 - **Singularity bind mounts** in `conf/slurm.config` are a commented TODO.
-- **`NXF_SINGULARITY_CACHEDIR`**: `conf/slurm.config` says it is set in the environment,
-  CLAUDE.md says in config. Make them agree.
 
 ## Deferred deliberately
 
