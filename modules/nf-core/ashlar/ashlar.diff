@@ -1,18 +1,89 @@
 Changes in component 'nf-core/ashlar'
-'modules/nf-core/ashlar/environment.yml' is unchanged
+Changes in 'ashlar/environment.yml':
+--- modules/nf-core/ashlar/environment.yml
++++ modules/nf-core/ashlar/environment.yml
+@@ -1,8 +1,13 @@
+ ---
+ # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
++# PATCH: the fork is not on bioconda; this mirrors the image build (untested with -profile conda).
+ channels:
+   - conda-forge
+   - bioconda
+ dependencies:
+-  - bioconda::ashlar=1.19.0
+-  - tifffile=2024.9.20
++  - conda-forge::python=3.10
++  - conda-forge::openjdk=11
++  - conda-forge::numpy<2
++  - pip
++  - pip:
++      - git+https://github.com/josenimo/ashlar.git@v1.22.0+jose.1
+
 'modules/nf-core/ashlar/meta.yml' is unchanged
 Changes in 'ashlar/main.nf':
 --- modules/nf-core/ashlar/main.nf
 +++ modules/nf-core/ashlar/main.nf
-@@ -14,7 +14,7 @@
+@@ -2,10 +2,9 @@
+     tag "$meta.id"
+     label 'process_single'
+ 
++    // PATCH: josenimo/ashlar fork (rotation correction, -c -1, --qc-output); see docs/decisions.md.
+     conda "${moduleDir}/environment.yml"
+-    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
+-        'https://depot.galaxyproject.org/singularity/ashlar:1.19.0--pyhdfd78af_0' :
+-        'quay.io/biocontainers/ashlar:1.19.0--pyhdfd78af_0' }"
++    container "docker.io/josenimo/jose_ashlar:1.22.0-jose.1"
+ 
+     input:
+     tuple val(meta), path(images, stageAs: 'image*/*')
+@@ -14,7 +13,8 @@
  
      output:
      tuple val(meta), path("*.ome.tif"), emit: tif
 -    tuple val("${task.process}"), val('ashlar'), eval("ashlar --version | sed 's/^.*ashlar //'"), emit: versions_ashlar, topic: versions
++    tuple val(meta), path("*_ashlar_qc"), emit: qc, optional: true
 +    tuple val("${task.process}"), val('ashlar'), eval(workflow.stubRun ? 'echo stub' : "ashlar --version | sed 's/^.*ashlar //'"), emit: versions_ashlar, topic: versions
  
      when:
      task.ext.when == null || task.ext.when
+@@ -33,17 +33,24 @@
+     if ( !dfp_validated ) { error "Please input only zero, one, or N dfp files, where N is the number of input images" }
+     if ( !ffp_validated ) { error "Please input only zero, one, or N ffp files, where N is the number of input images" }
+ 
++    // PATCH: QC is written before the mosaic, so a failed write still leaves it in the work dir.
++    def qc_dir  = "${prefix}_ashlar_qc"
++    def qc_args = task.ext.qc ? "--qc-output ${qc_dir} --report ${qc_dir}/${prefix}_ashlar_report.pdf" : ""
++    def tee_log = task.ext.qc ? "2>&1 | tee ${qc_dir}/ashlar.log" : ""
++
+     """
+     export JAVA_TOOL_OPTIONS='-XX:+PerfDisableSharedMem'
+     export XDG_CACHE_HOME=.cache
+     export MPLCONFIGDIR=.matplotlib
++    ${task.ext.qc ? "mkdir -p ${qc_dir}" : ""}
+ 
+     ashlar \\
+         -o ${prefix}.ome.tif \\
+         ${images} \\
+         ${args} \\
++        ${qc_args} \\
+         ${dfp} \\
+-        ${ffp}
++        ${ffp} ${tee_log}
+ 
+     sed -i -E 's/UUID="urn:uuid:[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}"/                                                    /g' ${prefix}.ome.tif
+     """
+@@ -59,9 +66,11 @@
+     if ( !dfp_validated ) { error "Please input only zero, one, or N dfp files, where N is the number of input images" }
+     if ( !ffp_validated ) { error "Please input only zero, one, or N ffp files, where N is the number of input images" }
+ 
++    def qc_dir        = "${prefix}_ashlar_qc"
+     """
+     export JAVA_TOOL_OPTIONS='-XX:+PerfDisableSharedMem'
+ 
+     touch ${prefix}.ome.tif
++    ${task.ext.qc ? "mkdir -p ${qc_dir} && echo '{\"schema_version\": 1, \"stub\": true}' > ${qc_dir}/qc.json && touch ${qc_dir}/tiles.csv ${qc_dir}/edges.csv ${qc_dir}/ashlar.log" : ""}
+     """
+ }
 
 'modules/nf-core/ashlar/tests/main.nf.test.snap' is unchanged
 'modules/nf-core/ashlar/tests/nextflow.config' is unchanged
