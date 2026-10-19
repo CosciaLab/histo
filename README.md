@@ -33,8 +33,8 @@ Preprocessing (from mcmicro):
 
 1. Illumination correction (BaSiCPy)
 2. Stitching and registration (Ashlar)
-3. Background subtraction (backsub), optional: `--use_backsub`
-4. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+4. Background subtraction (backsub), optional: `--use_backsub`; per core on a TMA
 
 Downstream (from sopa):
 
@@ -43,8 +43,8 @@ Downstream (from sopa):
 7. Aggregation of mean channel intensity per cell
 8. QC report per sample, and for a TMA a merged object per slide
 
-Input is `ome_tif` mIF. H&E is planned, not supported. `--use_preprocessing false` starts from an
-already stitched image. At startup the run stops if the Ashlar or Coreograph channel is not `dna`
+Input is `ome_tif` mIF. H&E is planned, not supported. `use_preprocessing: false` starts from an
+already stitched image; `preprocessing_only: true` stops after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna`
 in the marker sheet; `--skip_reference_dna_check` overrides.
 
 ## Usage

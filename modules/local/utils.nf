@@ -97,7 +97,7 @@ def getChannels(channels, Boolean allow_null = false) {
         if (allow_null) {
             return null
         }
-        exit 1, "The channels parameter is required but was not set."
+        exit 1, "cellpose_channels is required but was not set."
     }
 
     if (!(channels instanceof CharSequence) && !(channels instanceof Number)) {

@@ -8,7 +8,7 @@ nextflow run josenimo/histo -r dev \
     -params-file params.yml
 ```
 
-Always give three profiles: a container engine, a size, and an executor.
+Give a container engine, a size and, on the cluster, `slurm` (plus `mdc` at the MDC).
 
 Parameters go in `-params-file`, never in `-c`. Custom config files can set anything **except**
 parameters.
@@ -76,7 +76,8 @@ Paths must be absolute.
 
 ## Parameters
 
-Only `input`, `outdir` and a segmentation backend are required. Everything below has a default.
+Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend with its
+channels. Everything else has a default.
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -118,7 +119,8 @@ patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
 Memory is not the constraint — a 5000 px patch is about 50 MB.
 
-Get the dimensions with `scratch/inspect-ome.py stitched.ome.tif`.
+Get the dimensions with
+`python -c "import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)"`.
 
 ## Profiles
 

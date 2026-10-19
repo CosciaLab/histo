@@ -41,7 +41,7 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 [nf-metro](https://github.com/seqeralabs/nf-metro):
 
 ```bash
-pip install nf-metro
+pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
 nf-metro validate docs/pipeline_paths.mmd
 nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg
 ```

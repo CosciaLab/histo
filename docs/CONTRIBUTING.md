@@ -4,23 +4,23 @@ title: Contributing
 
 # `josenimo/histo`: Contributing guidelines
 
-A personal pipeline with one maintainer and no community contribution process. Contact the
-maintainer if you found a bug or want to use it.
+A personal pipeline with one maintainer and no community contribution process. Report bugs as
+a GitHub issue; contact the maintainer if you want to use it.
 
 ## Where the conventions live
 
 - [`CLAUDE.md`](../CLAUDE.md): project context, priorities, module and container rules, testing,
   cluster rules for agents. Wins over generic nf-core defaults.
 - [`AGENTS.md`](../AGENTS.md): nf-core agent guidelines, vendored verbatim.
-- [`ROADMAP.md`](../ROADMAP.md): status and the tracker for open work. GitHub Issues is unused.
+- [`ROADMAP.md`](../ROADMAP.md): status and the tracker for open work. GitHub Issues is for bug reports.
 
 ## Before committing
 
 ```bash
 prek                                  # formatting, linting, custom guard hooks
 nf-core pipelines lint                # nf-core conventions
-nf-test test tests/                   # pipeline tests
-nextflow run . -profile test -stub    # DAG and channel shapes, no containers needed
+nf-test test --tag stub,validation    # what CI runs; exemplar tests are cluster-only
+nextflow run . -profile test -stub --outdir results   # DAG and channel shapes, no containers
 ```
 
 `-stub` is the only loop that works on an Apple Silicon laptop, since the containers are amd64

@@ -83,5 +83,5 @@ Data:
 
 Assertions are properties, not checksums: channel names, TMA core count, which processes ran
 and how often, nuclear stain chosen by `channel_role`, subtraction blocks on every core,
-background channels unchanged by subtraction, `versions.yml` complete. Cell-count windows are
-commented out until the first green run supplies baselines.
+background channels unchanged by subtraction, `versions.yml` complete. Cell counts must stay within ±2% of the
+baselines in ROADMAP.
