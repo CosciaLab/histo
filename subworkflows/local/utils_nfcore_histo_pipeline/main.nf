@@ -532,7 +532,18 @@ def rejectUnknownParams(params) {
         'modules_testdata_base_path',
     ] as Set
 
-    def unknown = (params.keySet() - declared - injected).sort()
+    // Removed in 1.2 but accepted until 2.0 (ROADMAP), since the old usage.md example set both.
+    def deprecated = [
+        technology: 'always ome_tif',
+        aggregate_channels: 'always on',
+    ]
+    deprecated.each { name, now ->
+        if (params.containsKey(name)) {
+            log.warn("${name} is deprecated and ignored (${now}). Delete it from your params file; from 2.0 it stops the run.")
+        }
+    }
+
+    def unknown = (params.keySet() - declared - injected - deprecated.keySet()).sort()
     if (!unknown) {
         return params
     }

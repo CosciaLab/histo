@@ -16,12 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fluorescence annotation (`FLUO_ANNOTATION`) and its parameters `use_fluorescence_annotation`,
   `fluorescence_cell_type_key` and `marker_cell_dict`. A params file that still sets any of them
   now stops at startup as an unknown parameter; delete those lines.
-- Parameters `technology` (always `ome_tif`), `aggregate_channels` (always on), `image_scale`
-  (sopa has no such option), and the transcript-only `aggregate_genes` and `min_transcripts`.
-  As above, a params file that still sets them stops at startup.
+- Parameters `image_scale` (sopa has no such option) and the transcript-only `aggregate_genes`
+  and `min_transcripts`. As above, a params file that still sets them stops at startup.
 - Profiles `wave` and `arm64`, which pulled containers at launch; the unused `test_cellpose*`
   profiles; and the sopa instrument profiles (`hyperion_base`, `macsima_base`,
   `phenocycler_base_*`).
+
+### Deprecated
+
+- `technology` (now always `ome_tif`) and `aggregate_channels` (now always on) are ignored with a
+  warning. They will stop the run from 2.0.
 
 ### Changed
 

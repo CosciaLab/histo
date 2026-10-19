@@ -62,6 +62,11 @@ One larger change, after quantification.
 3. **`PATCH_SEGMENTATION_CELLPOSE` CPUs.** It is `process_single` but used 133% CPU; set it in
    `base.config`.
 
+## v2.0: breaking changes
+
+1. **Reject `technology` and `aggregate_channels`.** Ignored with a warning since 1.2; drop the
+   `deprecated` map in `rejectUnknownParams`, so they become unknown parameters.
+
 ## Before every release
 
 Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreograph),

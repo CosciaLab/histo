@@ -27,6 +27,43 @@ nextflow_function {
         }
     }
 
+    test("technology and aggregate_channels are accepted with a deprecation warning until 2.0") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    technology: 'ome_tif',
+                    aggregate_channels: true
+                ]
+                """
+            }
+        }
+        then {
+            def log = file("${metaDir}/nextflow.log").text
+            assert function.success
+            assert log.contains("technology is deprecated and ignored")
+            assert log.contains("aggregate_channels is deprecated and ignored")
+        }
+    }
+
+    test("other removed parameters are still rejected") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    aggregate_genes: true
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("aggregate_genes") }
+        }
+    }
+
     test("a doubled prefix is rejected and the message names the parameter meant") {
         when {
             function {
