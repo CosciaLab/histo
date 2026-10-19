@@ -114,4 +114,5 @@ workflow PREPROCESS_IMAGES {
     images       = ch_images          // channel: [ val(meta), path(image) ] one per sample, or one per TMA core
     markers      = ch_effective_markers  // channel: [ val(meta), path(csv) ] the channels each image actually has
     unsubtracted = ch_unsubtracted    // channel: [ val(meta), path(tif) ] Ashlar's output, pre-subtraction
+    registration_qc = ASHLAR.out.qc   // channel: [ val(meta), path(dir) ] Ashlar QC, one per Ashlar task
 }

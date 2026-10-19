@@ -116,6 +116,11 @@ workflow HISTO {
 
     ch_preprocessed = ch_annotated
 
+    // Ashlar's QC directory, keyed by its own meta.id (sample, or slide on a TMA).
+    def ch_registration_qc = params.use_preprocessing
+        ? PREPROCESS_IMAGES.out.registration_qc
+        : channel.empty()
+
     // QC needs the aggregated intensity matrix. Nothing writes to the store after this point,
     // so QC and the merge can read it concurrently.
     if (params.use_qc) {
@@ -123,7 +128,7 @@ workflow HISTO {
             ? PREPROCESS_IMAGES.out.unsubtracted
             : channel.empty()
 
-        QC(ch_preprocessed, ch_markers, ch_unsubtracted)
+        QC(ch_preprocessed, ch_markers, ch_unsubtracted, ch_registration_qc)
         ch_versions = ch_versions.mix(QC.out.versions)
     }
 
@@ -142,9 +147,15 @@ workflow HISTO {
 
         // One slide-level QC page from the per-core metrics, grouped on the same key as the merge.
         if (params.use_qc) {
+            // The slide's Ashlar QC joins on the same id; [] when Ashlar QC is absent.
             ch_slide_metrics = QC.out.metrics
                 .map { meta, metrics -> [[id: meta.slide, sample: meta.slide], metrics] }
                 .groupTuple()
+                .map { meta, metrics -> [meta.id, meta, metrics] }
+                .join(ch_registration_qc.map { meta, dir -> [meta.id, dir] }, remainder: true)
+                // Indexed, not destructured: remainder rows with no metrics side are only [id, null, dir].
+                .filter { row -> row[1] != null }
+                .map { row -> [row[1], row[2], row.size() > 3 && row[3] ? row[3] : []] }
 
             MERGE_REPORT(ch_slide_metrics)
             ch_versions = ch_versions.mix(MERGE_REPORT.out.versions)

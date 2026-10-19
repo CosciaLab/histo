@@ -48,7 +48,10 @@ nextflow_workflow {
                 // Two cycles in, one stitched image out.
                 { assert workflow.out.images.size() == 1 },
                 // The marker sheet must be emitted even without backsub; SET_CHANNEL_NAMES consumes it.
-                { assert workflow.out.markers.size() == 1 }
+                { assert workflow.out.markers.size() == 1 },
+                // Ashlar QC (use_qc defaults to true), keyed like Ashlar's own task.
+                { assert workflow.out.registration_qc.size() == 1 },
+                { assert workflow.out.registration_qc[0][1].endsWith('testsample_ashlar_qc') }
             )
         }
     }
@@ -99,7 +102,10 @@ nextflow_workflow {
                 // One marker sheet per core, keyed by core: keyed by slide, the join keeps only one core.
                 { assert workflow.out.markers.size() == 2 },
                 { assert workflow.out.markers.collect { it[0].id }.sort() == ['testslide_core001', 'testslide_core002'] },
-                { assert workflow.out.markers.every { it[1].endsWith('markers.csv') } }
+                { assert workflow.out.markers.every { it[1].endsWith('markers.csv') } },
+                // Ashlar runs before dearraying: one QC directory for the slide, not per core.
+                { assert workflow.out.registration_qc.size() == 1 },
+                { assert workflow.out.registration_qc[0][0].id == 'testslide' }
             )
         }
     }
