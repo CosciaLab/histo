@@ -1,14 +1,3 @@
-<!--
-# josenimo/histo pull request
-
-PRs go against `dev`, unless preparing a release, which goes against `main`.
-
-Conventions: [docs/CONTRIBUTING.md](https://github.com/josenimo/histo/blob/main/docs/CONTRIBUTING.md),
-[CLAUDE.md](https://github.com/josenimo/histo/blob/main/CLAUDE.md).
-
-Delete whatever is not relevant.
--->
-
 ## Description
 
 <!-- What changed, and why. The reason matters more than the what. -->
