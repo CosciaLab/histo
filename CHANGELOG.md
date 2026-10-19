@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `preprocessing_only`: stop after preprocessing and keep only the stitched images. Requires
+  `use_preprocessing`; no segmentation backend is needed.
 - `mdc` profile: with `slurm`, requests nodes with Ceph storage (`--constraint=ceph`).
 
 ### Removed

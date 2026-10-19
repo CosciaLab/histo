@@ -634,8 +634,16 @@ def validateParams(params) {
 
     // Exactly one backend: with none, ch_resolved is unassigned and AGGREGATE fails obscurely.
     assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
-    assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
-        "or use a profile that does (for example -profile test)"
+
+    if (params.preprocessing_only) {
+        assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +
+            "pre-stitched input there is nothing to run."
+        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or QC.")
+    }
+    else {
+        assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
+            "or use a profile that does (for example -profile test)"
+    }
 
     // Dearraying (preprocessing only) sets meta.slide, which MERGE_SPATIALDATA groups on;
     // without it every core shares a null key and unrelated slides merge.

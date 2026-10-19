@@ -45,6 +45,8 @@ The `_backsub` suffix appears only on backsub's own two files. Core identity com
 slide name rather than from the filename it was cut out of, so a slide processed with and without
 background subtraction produces cores with matching names.
 
+With `preprocessing_only`, these files and `pipeline_info/` are the whole output.
+
 ### SpatialData directory
 
 <details markdown="1">

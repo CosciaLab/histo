@@ -36,6 +36,8 @@ nf-test test --tag stub
 - `tests/default.nf.test` covers pre-stitched input (`-profile test`): `BASICPY`, `ASHLAR` and
   `SET_CHANNEL_NAMES` must not run, segmentation tiles into two patches, all three QC steps
   run. `nf-core pipelines lint` requires this file name.
+- `tests/preprocessing_only.nf.test` runs the preprocessing half from a cycle samplesheet written
+  at test time, and checks nothing after it runs.
 
 ## Pre-release tests (cluster, by hand)
 

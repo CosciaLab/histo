@@ -475,5 +475,10 @@
         {
             "$ref": "#/$defs/qc_report"
         }
-    ]
+    ],
+    "properties": {
+        "preprocessing_only": {
+            "type": "boolean"
+        }
+    }
 }

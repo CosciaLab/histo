@@ -85,20 +85,21 @@ not work and never did: Nextflow reads the flag on its own, sets it true, and th
 before the pipeline sees it, so `--use_backsub false` would perform background subtraction. The
 pipeline stops at startup rather than letting that happen, for every boolean it declares.
 
-| Parameter                     | Default              | Change it when                                                                                         |
-| ----------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `use_preprocessing`           | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `ashlar_args`                 | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
-| `use_backsub`                 | `false`              | You have background channels to subtract.                                                              |
-| `skip_reference_dna_check`    | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
-| `use_tma_dearray`             | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
-| `use_cellpose`                | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
-| `cellpose_channels`           | none                 | Always. Use a marker name, e.g. `"DNA_1"`.                                                             |
-| `cellpose_diameter`           | none                 | Cells are not ~30 px across.                                                                           |
-| `patch_width_pixel`           | none                 | Always. See below.                                                                                     |
-| `patch_overlap_pixel`         | none                 | Set to roughly twice a cell diameter.                                                                  |
-| `use_tissue_segmentation`     | `false`              | Large empty areas you want skipped.                                                                    |
-| `aggregate_channels`          | none                 | Set `true` to get per-cell channel intensities.                                                        |
+| Parameter                  | Default              | Change it when                                                                                         |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
+| `preprocessing_only`       | `false`              | You only want stitched images. Stops after preprocessing: no segmentation, quantification or QC.       |
+| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
+| `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
+| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
+| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
+| `use_cellpose`             | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
+| `cellpose_channels`        | none                 | Always. Use a marker name, e.g. `"DNA_1"`.                                                             |
+| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                           |
+| `patch_width_pixel`        | none                 | Always. See below.                                                                                     |
+| `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
+| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
+| `aggregate_channels`       | none                 | Set `true` to get per-cell channel intensities.                                                        |
 
 Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.
 

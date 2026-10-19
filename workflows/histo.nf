@@ -64,86 +64,89 @@ workflow HISTO {
         ch_markers = channel.empty()
     }
 
-    (ch_spatialdata, versions) = TO_SPATIALDATA(ch_input_spatialdata)
-    ch_versions = ch_versions.mix(versions)
-
-    // Ashlar output has only Channel:0:N names; rename from the marker sheet. Must precede
-    // AGGREGATE (feature column names) and segmentation (cellpose_channels by marker name).
-    if (params.use_preprocessing) {
-        SET_CHANNEL_NAMES(ch_spatialdata.join(ch_markers))
-        ch_named = SET_CHANNEL_NAMES.out.sdata
-        ch_versions = ch_versions.mix(SET_CHANNEL_NAMES.out.versions)
-    }
-    else {
-        ch_named = ch_spatialdata
-    }
-
-    if (params.use_tissue_segmentation) {
-        (ch_tissue_seg, versions) = TISSUE_SEGMENTATION(ch_named, argsCLI("tissue_segmentation"))
-        ch_versions = ch_versions.mix(versions)
-    }
-    else {
-        ch_tissue_seg = ch_named
-    }
-
-    if (params.use_cellpose) {
-        (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
+    // preprocessing_only stops at the stitched images already published under preprocessing/.
+    if (!params.preprocessing_only) {
+        (ch_spatialdata, versions) = TO_SPATIALDATA(ch_input_spatialdata)
         ch_versions = ch_versions.mix(versions)
 
-        (ch_resolved, versions) = CELLPOSE(ch_image_patches)
+        // Ashlar output has only Channel:0:N names; rename from the marker sheet. Must precede
+        // AGGREGATE (feature column names) and segmentation (cellpose_channels by marker name).
+        if (params.use_preprocessing) {
+            SET_CHANNEL_NAMES(ch_spatialdata.join(ch_markers))
+            ch_named = SET_CHANNEL_NAMES.out.sdata
+            ch_versions = ch_versions.mix(SET_CHANNEL_NAMES.out.versions)
+        }
+        else {
+            ch_named = ch_spatialdata
+        }
+
+        if (params.use_tissue_segmentation) {
+            (ch_tissue_seg, versions) = TISSUE_SEGMENTATION(ch_named, argsCLI("tissue_segmentation"))
+            ch_versions = ch_versions.mix(versions)
+        }
+        else {
+            ch_tissue_seg = ch_named
+        }
+
+        if (params.use_cellpose) {
+            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
+            ch_versions = ch_versions.mix(versions)
+
+            (ch_resolved, versions) = CELLPOSE(ch_image_patches)
+            ch_versions = ch_versions.mix(versions)
+        }
+
+        if (params.use_stardist) {
+            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
+            ch_versions = ch_versions.mix(versions)
+
+            (ch_resolved, versions) = STARDIST(ch_image_patches)
+            ch_versions = ch_versions.mix(versions)
+        }
+
+        (ch_aggregated, versions) = AGGREGATE(ch_resolved, argsCLI("aggregate"))
         ch_versions = ch_versions.mix(versions)
-    }
 
-    if (params.use_stardist) {
-        (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
-        ch_versions = ch_versions.mix(versions)
-
-        (ch_resolved, versions) = STARDIST(ch_image_patches)
-        ch_versions = ch_versions.mix(versions)
-    }
-
-    (ch_aggregated, versions) = AGGREGATE(ch_resolved, argsCLI("aggregate"))
-    ch_versions = ch_versions.mix(versions)
-
-    // QC needs the aggregated intensity matrix. Nothing writes to the store after this point,
-    // so QC and the merge can read it concurrently.
-    if (params.use_qc) {
-        def ch_unsubtracted = params.use_preprocessing
-            ? PREPROCESS_IMAGES.out.unsubtracted
-            : channel.empty()
-
-        QC(ch_aggregated, ch_markers, ch_unsubtracted)
-        ch_versions = ch_versions.mix(QC.out.versions)
-    }
-
-    // TMA cores are merged last so each core is segmented and QCed on its own.
-    // `sample` is set because downstream processes tag on meta.sample.
-    if (params.use_tma_dearray) {
-        ch_cores_by_slide = ch_aggregated
-            .map { meta, sdata -> [[id: meta.slide, sample: meta.slide], sdata] }
-            .groupTuple()
-
-        MERGE_SPATIALDATA(ch_cores_by_slide)
-        ch_versions = ch_versions.mix(MERGE_SPATIALDATA.out.versions)
-
-        // Only the merged store is published; it already contains every core's elements.
-        ch_publish = MERGE_SPATIALDATA.out.merged
-
-        // One slide-level QC page from the per-core metrics, grouped on the same key as the merge.
+        // QC needs the aggregated intensity matrix. Nothing writes to the store after this point,
+        // so QC and the merge can read it concurrently.
         if (params.use_qc) {
-            ch_slide_metrics = QC.out.metrics
-                .map { meta, metrics -> [[id: meta.slide, sample: meta.slide], metrics] }
+            def ch_unsubtracted = params.use_preprocessing
+                ? PREPROCESS_IMAGES.out.unsubtracted
+                : channel.empty()
+
+            QC(ch_aggregated, ch_markers, ch_unsubtracted)
+            ch_versions = ch_versions.mix(QC.out.versions)
+        }
+
+        // TMA cores are merged last so each core is segmented and QCed on its own.
+        // `sample` is set because downstream processes tag on meta.sample.
+        if (params.use_tma_dearray) {
+            ch_cores_by_slide = ch_aggregated
+                .map { meta, sdata -> [[id: meta.slide, sample: meta.slide], sdata] }
                 .groupTuple()
 
-            MERGE_REPORT(ch_slide_metrics)
-            ch_versions = ch_versions.mix(MERGE_REPORT.out.versions)
-        }
-    }
-    else {
-        ch_publish = ch_aggregated
-    }
+            MERGE_SPATIALDATA(ch_cores_by_slide)
+            ch_versions = ch_versions.mix(MERGE_SPATIALDATA.out.versions)
 
-    PUBLISH_SPATIALDATA(ch_publish)
+            // Only the merged store is published; it already contains every core's elements.
+            ch_publish = MERGE_SPATIALDATA.out.merged
+
+            // One slide-level QC page from the per-core metrics, grouped on the same key as the merge.
+            if (params.use_qc) {
+                ch_slide_metrics = QC.out.metrics
+                    .map { meta, metrics -> [[id: meta.slide, sample: meta.slide], metrics] }
+                    .groupTuple()
+
+                MERGE_REPORT(ch_slide_metrics)
+                ch_versions = ch_versions.mix(MERGE_REPORT.out.versions)
+            }
+        }
+        else {
+            ch_publish = ch_aggregated
+        }
+
+        PUBLISH_SPATIALDATA(ch_publish)
+    }
 
     //
     // Collate and save software versions

@@ -72,6 +72,7 @@ nf-metro renders light only, so the figure keeps its own light surface on a dark
   starts at `TO_SPATIALDATA` and skips `SET_CHANNEL_NAMES`, because such an image is assumed to
   carry its own channel names.
 - Supplying illumination profiles in the samplesheet bypasses `BASICPY`.
+- `preprocessing_only` ends every path at the preprocessing outputs.
 - StarDist substitutes `PATCH_SEGMENTATION_STARDIST` and `RESOLVE_STARDIST` for the two Cellpose
   stations.
 
