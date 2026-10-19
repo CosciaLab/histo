@@ -944,6 +944,10 @@ def tile_map_svg(tiles: list[dict[str, str]], edges: list[dict[str, str]], tile_
     return "".join(out)
 
 
+def tiles_n(n: int, noun: str = "tile") -> str:
+    return f"{n} {noun}{'' if n == 1 else 's'}"
+
+
 def registration_section(reg: dict[str, Any] | None) -> str:
     """Render Ashlar's stitching and registration QC, or state why it is unavailable.
 
@@ -981,8 +985,8 @@ def registration_section(reg: dict[str, Any] | None) -> str:
             st["n_components"] == 1,
             "one component"
             if st["n_components"] == 1
-            else f"{st['n_components']} components; {st['n_tiles_outside_largest_component']} "
-            "tiles were placed by the stage model alone",
+            else f"{st['n_components']} components; "
+            f"{tiles_n(st['n_tiles_outside_largest_component'])} placed by the stage model alone",
         ),
     ]
     for c in cycles:
@@ -991,7 +995,7 @@ def registration_section(reg: dict[str, Any] | None) -> str:
             status_row(
                 f"Cycle {c['cycle'] + n}: every foreground tile registered",
                 failed == 0,
-                f"{c['n_discard_background']} background tiles skipped"
+                f"{tiles_n(c['n_discard_background'], 'background tile')} skipped"
                 if failed == 0
                 else f"{c['n_discard_error']} failed, {c['n_discard_shift']} too far from the model, "
                 f"{c['n_kept_like_null']} kept but no better than chance; "

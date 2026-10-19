@@ -200,7 +200,7 @@ class TestSection:
         qc = summary()
         qc["stitching"].update(n_components=2, n_tiles_outside_largest_component=1)
         html = registration_section(load_registration(write_qc(tmp_path / "q", qc)))
-        assert "2 components; 1 tiles were placed by the stage model alone" in html
+        assert "2 components; 1 tile placed by the stage model alone" in html
 
     def test_absence_is_stated_not_hidden(self):
         html = registration_section({"available": False, "reason": "stub run"})
