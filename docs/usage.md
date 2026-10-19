@@ -98,7 +98,6 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `patch_width_pixel`           | none                 | Always. See below.                                                                                     |
 | `patch_overlap_pixel`         | none                 | Set to roughly twice a cell diameter.                                                                  |
 | `use_tissue_segmentation`     | `false`              | Large empty areas you want skipped.                                                                    |
-| `use_fluorescence_annotation` | `false`              | You want marker-based cell typing.                                                                     |
 | `aggregate_channels`          | none                 | Set `true` to get per-cell channel intensities.                                                        |
 
 Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.

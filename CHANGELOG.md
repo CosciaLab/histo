@@ -5,6 +5,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## v1.2.0dev
 
+### Removed
+
+- Fluorescence annotation (`FLUO_ANNOTATION`) and its parameters `use_fluorescence_annotation`,
+  `fluorescence_cell_type_key` and `marker_cell_dict`. A params file that still sets any of them
+  now stops at startup as an unknown parameter; delete those lines.
+
 ## v1.1.0 - [2026-10-09]
 
 ### Added

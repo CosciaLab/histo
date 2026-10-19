@@ -67,8 +67,7 @@ nf-metro renders light only, so the figure keeps its own light surface on a dark
 
 ## What the map does not show
 
-- `TISSUE_SEGMENTATION` and `FLUO_ANNOTATION` are off in all three runs. Both sit between
-  `MAKE_IMAGE_PATCHES` and `AGGREGATE`.
+- `TISSUE_SEGMENTATION` is off in all three runs. It sits before `MAKE_IMAGE_PATCHES`.
 - `use_preprocessing = false` is a fourth entry point, for images arriving pre-stitched. It
   starts at `TO_SPATIALDATA` and skips `SET_CHANNEL_NAMES`, because such an image is assumed to
   carry its own channel names.

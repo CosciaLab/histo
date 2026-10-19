@@ -85,11 +85,6 @@ def extractSubArgs(Map args, String group) {
             patch_overlap_pixel: args.patch_overlap_pixel,
             scale: args.image_scale,
         ]
-    } else if (group == "fluorescence_annotation") {
-        return [
-            cell_type_key: args.fluorescence_cell_type_key,
-            marker_cell_dict: args.marker_cell_dict,
-        ]
     } else {
         exit 1, "Unknown argument group: ${group}"
     }

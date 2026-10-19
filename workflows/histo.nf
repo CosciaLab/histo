@@ -16,7 +16,6 @@ include { MERGE_SPATIALDATA       } from '../modules/local/merge_spatialdata'
 include { MERGE_REPORT       } from '../modules/local/merge_report'
 include { SET_CHANNEL_NAMES       } from '../modules/local/set_channel_names'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
-include { FLUO_ANNOTATION         } from '../modules/local/fluo_annotation'
 include { CELLPOSE                } from '../subworkflows/local/cellpose'
 include { STARDIST                } from '../subworkflows/local/stardist'
 include { QC                      } from '../subworkflows/local/qc'
@@ -106,16 +105,6 @@ workflow HISTO {
     (ch_aggregated, versions) = AGGREGATE(ch_resolved, argsCLI("aggregate"))
     ch_versions = ch_versions.mix(versions)
 
-    if (params.use_fluorescence_annotation) {
-        (ch_annotated, versions) = FLUO_ANNOTATION(ch_aggregated, argsCLI("fluorescence_annotation"))
-        ch_versions = ch_versions.mix(versions)
-    }
-    else {
-        ch_annotated = ch_aggregated
-    }
-
-    ch_preprocessed = ch_annotated
-
     // QC needs the aggregated intensity matrix. Nothing writes to the store after this point,
     // so QC and the merge can read it concurrently.
     if (params.use_qc) {
@@ -123,14 +112,14 @@ workflow HISTO {
             ? PREPROCESS_IMAGES.out.unsubtracted
             : channel.empty()
 
-        QC(ch_preprocessed, ch_markers, ch_unsubtracted)
+        QC(ch_aggregated, ch_markers, ch_unsubtracted)
         ch_versions = ch_versions.mix(QC.out.versions)
     }
 
     // TMA cores are merged last so each core is segmented and QCed on its own.
     // `sample` is set because downstream processes tag on meta.sample.
     if (params.use_tma_dearray) {
-        ch_cores_by_slide = ch_preprocessed
+        ch_cores_by_slide = ch_aggregated
             .map { meta, sdata -> [[id: meta.slide, sample: meta.slide], sdata] }
             .groupTuple()
 
@@ -151,7 +140,7 @@ workflow HISTO {
         }
     }
     else {
-        ch_publish = ch_preprocessed
+        ch_publish = ch_aggregated
     }
 
     PUBLISH_SPATIALDATA(ch_publish)

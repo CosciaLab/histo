@@ -66,10 +66,8 @@ Each cell table's `obs` says where its cells came from, so tables can be concate
 
 Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for usage details, or to the [documentation of `sopa` as a Python package](https://prism-oncology.github.io/sopa/). If you are not familiar with `SpatialData`, you can also use directly the extracted `AnnData` object (see below).
 
-`PUBLISH_SPATIALDATA` is what copies the store here, and it exists only for that. Aggregation
-and fluorescence annotation both write into the store, and which of them runs last depends on
-`use_fluorescence_annotation`, so publishing from either would publish a store the other then
-modifies.
+`PUBLISH_SPATIALDATA` copies the store here, and exists only for that: it runs after the last
+step that writes to the store.
 
 ### QC report
 
