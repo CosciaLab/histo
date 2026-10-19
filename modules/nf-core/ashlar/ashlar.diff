@@ -1,25 +1,25 @@
 Changes in component 'nf-core/ashlar'
-Changes in 'ashlar/environment.yml':
---- modules/nf-core/ashlar/environment.yml
-+++ modules/nf-core/ashlar/environment.yml
-@@ -1,8 +1,13 @@
- ---
- # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
-+# PATCH: the fork is not on bioconda; this mirrors the image build (untested with -profile conda).
- channels:
-   - conda-forge
-   - bioconda
- dependencies:
--  - bioconda::ashlar=1.19.0
--  - tifffile=2024.9.20
-+  - conda-forge::python=3.10
-+  - conda-forge::openjdk=11
-+  - conda-forge::numpy<2
-+  - pip
-+  - pip:
-+      - git+https://github.com/josenimo/ashlar.git@v1.22.0+jose.1
+Changes in 'ashlar/meta.yml':
+--- modules/nf-core/ashlar/meta.yml
++++ modules/nf-core/ashlar/meta.yml
+@@ -46,6 +46,16 @@
+           description: A pyramidal, tiled OME-TIFF file created from input images.
+           pattern: "*.ome.tif"
+           ontologies: []
++  qc:
++    - - meta:
++          type: map
++          description: |
++            Groovy Map containing sample information
++            e.g. [ id:'test' ]
++      - "*_ashlar_qc":
++          type: directory
++          description: Ashlar --qc-output (qc.json, CSVs, overlays) plus the PDF report and log; only with ext.qc.
++          pattern: "*_ashlar_qc"
+   versions_ashlar:
+     - - ${task.process}:
+           type: string
 
-'modules/nf-core/ashlar/meta.yml' is unchanged
 Changes in 'ashlar/main.nf':
 --- modules/nf-core/ashlar/main.nf
 +++ modules/nf-core/ashlar/main.nf
@@ -27,11 +27,12 @@ Changes in 'ashlar/main.nf':
      tag "$meta.id"
      label 'process_single'
  
-+    // PATCH: josenimo/ashlar fork (rotation correction, -c -1, --qc-output); see docs/decisions.md.
-     conda "${moduleDir}/environment.yml"
+-    conda "${moduleDir}/environment.yml"
 -    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
 -        'https://depot.galaxyproject.org/singularity/ashlar:1.19.0--pyhdfd78af_0' :
 -        'quay.io/biocontainers/ashlar:1.19.0--pyhdfd78af_0' }"
++    // PATCH: josenimo/ashlar fork (rotation correction, -c -1, --qc-output); see docs/decisions.md.
++    // Docker-only like coreograph: the fork is not on bioconda.
 +    container "docker.io/josenimo/jose_ashlar:1.22.0-jose.1"
  
      input:
@@ -88,4 +89,5 @@ Changes in 'ashlar/main.nf':
 'modules/nf-core/ashlar/tests/main.nf.test.snap' is unchanged
 'modules/nf-core/ashlar/tests/nextflow.config' is unchanged
 'modules/nf-core/ashlar/tests/main.nf.test' is unchanged
+'modules/nf-core/ashlar/environment.yml' was removed
 ************************************************************

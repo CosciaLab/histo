@@ -3,7 +3,7 @@ process ASHLAR {
     label 'process_single'
 
     // PATCH: josenimo/ashlar fork (rotation correction, -c -1, --qc-output); see docs/decisions.md.
-    conda "${moduleDir}/environment.yml"
+    // Docker-only like coreograph: the fork is not on bioconda.
     container "docker.io/josenimo/jose_ashlar:1.22.0-jose.1"
 
     input:

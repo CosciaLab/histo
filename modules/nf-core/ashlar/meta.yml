@@ -46,6 +46,16 @@ output:
           description: A pyramidal, tiled OME-TIFF file created from input images.
           pattern: "*.ome.tif"
           ontologies: []
+  qc:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'test' ]
+      - "*_ashlar_qc":
+          type: directory
+          description: Ashlar --qc-output (qc.json, CSVs, overlays) plus the PDF report and log; only with ext.qc.
+          pattern: "*_ashlar_qc"
   versions_ashlar:
     - - ${task.process}:
           type: string
