@@ -130,9 +130,9 @@ estimates and will change.
 | Profile       | For                    |
 | ------------- | ---------------------- |
 | `size_tiny`   | under ~1 GB, test data |
-| `size_small`  | up to ~10 GB           |
-| `size_medium` | ~10–40 GB              |
-| `size_huge`   | ~40 GB and up          |
+| `size_small`  | up to ~50 GB           |
+| `size_medium` | ~50–200 GB             |
+| `size_huge`   | ~200 GB and up         |
 
 **Executor** — `slurm`, or omit for local execution. Without it every task runs on the machine you
 launched from.
