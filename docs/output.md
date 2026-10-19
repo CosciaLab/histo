@@ -28,6 +28,14 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
   - `{sample}.ome.tif`, the stitched and registered mosaic from Ashlar. **This is the handoff
     boundary between the two halves of the pipeline**, and the file to inspect first when
     segmentation looks wrong.
+  - `{sample}_ashlar_qc/`, Ashlar's own account of how it stitched and registered, when
+    `use_qc` is true. On a TMA it is per slide, since Ashlar runs before dearraying.
+    `qc.json` summarises it; `edges.csv` has one row per neighbouring tile pair in cycle 1
+    (shift, error, why it was rejected), `tiles.csv` one row per tile per cycle (nominal and
+    final position, residual, angle, why it was discarded); `overlay_cycleN.jpg` puts cycle 1
+    in magenta over cycle N+1 in green at their final positions; `{sample}_ashlar_report.pdf`
+    has per-tile maps; `ashlar.log` is the console output. Ashlar counts cycles from 0 in the
+    JSON and CSVs; the reports count from 1.
 - `preprocessing/background_subtraction/`
   - `{sample}_backsub.ome.tif` and `{sample}_backsub.csv`. Only when `use_backsub` is true. The
     CSV is backsub's own marker sheet rather than a copy of the input: rows whose `remove` column
@@ -90,7 +98,8 @@ modifies.
   - The same metrics rendered for a person, plus the images. Self-contained: no external
     scripts, fonts or network access, so it can be copied anywhere and opened offline.
     Includes segmentation overlays at full resolution across the density range, a cross-cycle
-    nuclear-stain comparison, a Leiden clustering tree over a resolution sweep, the
+    nuclear-stain comparison, Ashlar's stitching and registration QC (not on TMA cores; it is
+    on the slide report), a Leiden clustering tree over a resolution sweep, the
     cluster-by-marker profile, and representative cells per cluster. Every chart has a table
     view beneath it.
 - `qc/{sample}_qc_images/`
@@ -100,7 +109,8 @@ modifies.
   - **Dearrayed slides only.** One page for the whole slide, from the per-core metrics: cells
     per core against the slide total, the integrity checks rolled up so a check passes only
     when every core passes and the ones that failed are named, and mean intensity per channel
-    with one column per core. That last table is the comparison a single core's report cannot
+    with one column per core, and the slide's Ashlar stitching and registration QC. The
+    per-core table is the comparison a single core's report cannot
     make — its own page shows a channel against its own histogram, which says whether the
     channel has signal, not whether it has the same signal as the rest of the slide. Core
     detail that is only actionable on one core, the crops, the clusters, the per-channel

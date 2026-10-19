@@ -83,6 +83,9 @@ dearrayed core is subtracted individually and its own unsubtracted twin is what 
 against. Drawing this edge aborts nf-metro 1.1.0's renderer with a `CurveInvariantError`, so it
 is written down here instead.
 
+For the same reason a second edge is absent: `ASHLAR` also sends its QC directory to
+`QC_REPORT` (mIF and WSI lines) and to `MERGE_REPORT` (TMA line, per slide).
+
 That ordering is the reason the TMA line lists `COREOGRAPH` before `BACKSUB`. The two orders
 produce the same pixels, since subtraction has no whole-slide term, but subtracting first leaves
 only a slide-sized before-image that cannot be paired with a core-sized store, and the

@@ -72,6 +72,20 @@ Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_a
 `coreograph_args`). Both may be `-1` for the last channel. The run stops at startup when either
 index lands on a channel that is not `dna`; set `skip_reference_dna_check: true` to run anyway.
 
+### When stitching or registration looks wrong
+
+Open the "Stitching and registration" section of the QC report (the slide report on a TMA),
+then `preprocessing/registration/{sample}_ashlar_qc/` for detail. What the section shows, and
+what to try in `ashlar_args`:
+
+| Symptom in the report                                | Likely cause                                                           | Try                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Rejected pairs or several components inside tissue   | Stage error larger than `--maximum-shift`, or a weak alignment channel | Raise `--maximum-shift`; check `-c` is a bright nuclear stain |
+| Pair errors overlap the random-strip errors          | Alignment channel has little structure                                 | A different `-c`; `--filter-sigma 1` for noisy images         |
+| One cycle with many tiles too far from the model     | Tissue moved or deformed in that cycle                                 | Raise `--maximum-shift`; inspect that cycle's overlay         |
+| Kept tiles no better than chance                     | Registration locked onto noise in background tiles                     | Usually harmless at the tissue edge; check the overlay        |
+| Overlay shows doubled nuclei everywhere in one cycle | Coarse cycle offset or rotation failed                                 | Check that cycle's dashed outline in the Ashlar PDF           |
+
 Paths must be absolute.
 
 ## Parameters

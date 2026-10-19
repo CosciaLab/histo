@@ -3,6 +3,20 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- Stitching and registration QC. Ashlar runs from `josenimo/jose_ashlar:1.22.0-jose.1` and, with
+  `use_qc`, publishes `preprocessing/registration/{sample}_ashlar_qc/` (summary JSON, per-pair
+  and per-tile CSVs, cycle overlays, Ashlar's PDF report, console log). The QC report, or the
+  slide report on a TMA, gains a "Stitching and registration" section.
+
+### Changed
+
+- Ashlar 1.19.0 (BioContainers) is replaced by the fork, which adds rotation correction between
+  cycles. Pre-stage the new image before running.
+
 ## v1.1.0 - [2026-10-09]
 
 ### Added

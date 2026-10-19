@@ -34,13 +34,8 @@ from real datasets. Belongs in the Phase 7 QC report.
 
 ## 4. Ashlar registration QC
 
-The feature lives on an upstream development branch. Consuming it here is trivial; the cost is
-maintaining a merged Ashlar and its container. Options:
-
-- Patch the module to a personal container (`jose_ashlar-1.21.0` exists). Fast, but a patch to
-  carry forever.
-- Merge and contribute upstream. Slow, and the right answer if generally useful.
-- Wait. The residual is one QC input among several.
+Done through the `josenimo/jose_ashlar` image (see [decisions.md](decisions.md)). Left: offer
+`--qc-output` upstream, which would let the module return to a bioconda image.
 
 ## 5. Dearray first, then process each core in parallel
 
