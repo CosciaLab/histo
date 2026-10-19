@@ -41,7 +41,7 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 [nf-metro](https://github.com/seqeralabs/nf-metro):
 
 ```bash
-pip install nf-metro
+pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
 nf-metro validate docs/pipeline_paths.mmd
 nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg
 ```
@@ -67,12 +67,12 @@ nf-metro renders light only, so the figure keeps its own light surface on a dark
 
 ## What the map does not show
 
-- `TISSUE_SEGMENTATION` and `FLUO_ANNOTATION` are off in all three runs. Both sit between
-  `MAKE_IMAGE_PATCHES` and `AGGREGATE`.
+- `TISSUE_SEGMENTATION` is off in all three runs. It sits before `MAKE_IMAGE_PATCHES`.
 - `use_preprocessing = false` is a fourth entry point, for images arriving pre-stitched. It
   starts at `TO_SPATIALDATA` and skips `SET_CHANNEL_NAMES`, because such an image is assumed to
   carry its own channel names.
 - Supplying illumination profiles in the samplesheet bypasses `BASICPY`.
+- `preprocessing_only` ends every path at the preprocessing outputs.
 - StarDist substitutes `PATCH_SEGMENTATION_STARDIST` and `RESOLVE_STARDIST` for the two Cellpose
   stations.
 

@@ -71,7 +71,7 @@ workflow PIPELINE_INITIALISATION {
         before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
     }
 
-    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
+    command = "nextflow run ${workflow.manifest.name} -profile singularity,size_small,slurm -params-file params.yml"
 
     UTILS_NFSCHEMA_PLUGIN(
         workflow,
@@ -208,7 +208,7 @@ workflow PIPELINE_COMPLETION {
     }
 
     workflow.onError {
-        log.error "Pipeline failed. Please refer to troubleshooting docs for common issues: https://nf-co.re/docs/running/troubleshooting"
+        log.error "Pipeline failed. Read the failing task's .command.err in its work directory, then .nextflow.log."
     }
 }
 
@@ -217,74 +217,6 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-
-//
-// Generate methods description for MultiQC
-//
-def toolCitationText() {
-    def citation_text = [
-        "Tools used in the workflow included:",
-        "Sopa (Blampey et al. 2024),",
-        "AnnData (Virshup et al. 2021),",
-        "Scanpy (Wolf et al. 2018),",
-        "Space Ranger (10x Genomics)",
-        "SpatialData (Marconato et al. 2023) and",
-    ].join(' ').trim()
-
-    return citation_text
-}
-
-def toolBibliographyText() {
-    def reference_text = [
-        '<li>Di Tommaso, P., Chatzou, M., Floden, E. W., Barja, P. P., Palumbo, E., & Notredame, C. (2017). Nextflow enables reproducible computational workflows. Nature Biotechnology, 35(4), 316-319. doi: <a href="https://doi.org/10.1038/nbt.3820">10.1038/nbt.3820</a></li>',
-        '<li>Ewels, P. A., Peltzer, A., Fillinger, S., Patel, H., Alneberg, J., Wilm, A., Garcia, M. U., Di Tommaso, P., & Nahnsen, S. (2020). The nf-core framework for community-curated bioinformatics pipelines. Nature Biotechnology, 38(3), 276-278. doi: <a href="https://doi.org/10.1038/s41587-020-0439-x">10.1038/s41587-020-0439-x</a></li>',
-        '<li>Grüning, B., Dale, R., Sjödin, A., Chapman, B. A., Rowe, J., Tomkins-Tinch, C. H., Valieris, R., Köster, J., & Bioconda Team. (2018). Bioconda: sustainable and comprehensive software distribution for the life sciences. Nature Methods, 15(7), 475–476. doi: <a href="https://doi.org/10.1038/s41592-018-0046-7">10.1038/s41592-018-0046-7</a></li>',
-        '<li>da Veiga Leprevost, F., Grüning, B. A., Alves Aflitos, S., Röst, H. L., Uszkoreit, J., Barsnes, H., Vaudel, M., Moreno, P., Gatto, L., Weber, J., Bai, M., Jimenez, R. C., Sachsenberg, T., Pfeuffer, J., Vera Alvarez, R., Griss, J., Nesvizhskii, A. I., & Perez-Riverol, Y. (2017). BioContainers: an open-source and community-driven framework for software standardization. Bioinformatics (Oxford, England), 33(16), 2580–2582. doi: <a href="https://doi.org/10.1093/bioinformatics/btx192">10.1093/bioinformatics/btx192</a></li>',
-        '<li>Quentin Blampey, Kevin Mulder, Margaux Gardet, Stergios Christodoulidis, Charles-Antoine Dutertre, Fabrice André, Florent Ginhoux & Paul-Henry Cournède. Sopa: a technology-invariant pipeline for analyses of image-based spatial omics. Nat Commun 2024 June 11. doi: <a href="https://dx.doi.org/10.1038/s41587-020-0439-x">10.1038/s41587-020-0439-x</a></li>',
-        '<li>Virshup I, Rybakov S, Theis FJ, Angerer P, Wolf FA. bioRxiv 2021.12.16.473007. doi: <a href="https://doi.org/10.1101/2021.12.16.473007">10.1101/2021.12.16.473007</a></li>',
-        '<li>Wolf F, Angerer P, Theis F. SCANPY: large-scale single-cell gene expression data analysis. Genome Biol 19, 15 (2018). doi: <a href="https://doi.org/10.1186/s13059-017-1382-0">10.1186/s13059-017-1382-0</a></li>',
-        '<li>10x Genomics Space Ranger 2.1.0 [Online]: <a href="https://www.10xgenomics.com/support/software/space-ranger">10xgenomics.com/support/software/space-ranger</a></li>',
-        '<li>Marconato L, Palla G, Yamauchi K, Virshup I, Heidari E, Treis T, Toth M, Shrestha R, Vöhringer H, Huber W, Gerstung M, Moore J, Theis F, Stegle O. SpatialData: an open and universal data framework for spatial omics. bioRxiv 2023.05.05.539647; doi:<a href="https://doi.org/10.1101/2023.05.05.539647"> 10.1101/2023.05.05.539647</a></li>',
-    ].join(' ').trim()
-
-    return reference_text
-}
-
-def methodsDescriptionText(mqc_methods_yaml) {
-    // Convert  to a named map so can be used as with familiar NXF ${workflow} variable syntax in the MultiQC YML file
-    def meta = [:]
-    meta.workflow = workflow.toMap()
-    meta["manifest_map"] = workflow.manifest.toMap()
-
-    // Pipeline DOI
-    if (meta.manifest_map.doi) {
-        // Using a loop to handle multiple DOIs
-        // Removing `https://doi.org/` to handle pipelines using DOIs vs DOI resolvers
-        // Removing ` ` since the manifest.doi is a string and not a proper list
-        def temp_doi_ref = ""
-        def manifest_doi = meta.manifest_map.doi.tokenize(",")
-        manifest_doi.each { doi_ref ->
-            temp_doi_ref += "(doi: <a href=\'https://doi.org/${doi_ref.replace("https://doi.org/", "").replace(" ", "")}\'>${doi_ref.replace("https://doi.org/", "").replace(" ", "")}</a>), "
-        }
-        meta["doi_text"] = temp_doi_ref.substring(0, temp_doi_ref.length() - 2)
-    }
-    else {
-        meta["doi_text"] = ""
-    }
-    meta["nodoi_text"] = meta.manifest_map.doi ? "" : "<li>If available, make sure to update the text to include the Zenodo DOI of version of the pipeline used. </li>"
-
-    // Tool references
-    meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    meta["tool_bibliography"] = toolBibliographyText()
-
-
-    def methods_text = mqc_methods_yaml.text
-
-    def engine = new groovy.text.SimpleTemplateEngine()
-    def description_html = engine.createTemplate(methods_text).make(meta)
-
-    return description_html.toString()
-}
 
 // dfp/ffp must be given for every cycle of a sample or none; a mix silently misaligns
 // profiles against images in Ashlar. JSON Schema cannot check across rows.
@@ -600,7 +532,18 @@ def rejectUnknownParams(params) {
         'modules_testdata_base_path',
     ] as Set
 
-    def unknown = (params.keySet() - declared - injected).sort()
+    // Removed in 1.2 but accepted until 2.0 (ROADMAP), since the old usage.md example set both.
+    def deprecated = [
+        technology: 'always ome_tif',
+        aggregate_channels: 'always on',
+    ]
+    deprecated.each { name, now ->
+        if (params.containsKey(name)) {
+            log.warn("${name} is deprecated and ignored (${now}). Delete it from your params file; from 2.0 it stops the run.")
+        }
+    }
+
+    def unknown = (params.keySet() - declared - injected - deprecated.keySet()).sort()
     if (!unknown) {
         return params
     }
@@ -625,17 +568,21 @@ def rejectUnknownParams(params) {
 }
 
 def validateParams(params) {
-    if (params.containsKey("read")) {
-        error("You use a deprecated Sopa params format. We flattened all parameters to conform to the future nextflow 26.04 strict syntax check.\nSee the nf-core/sopa docs for more details on the new syntax usage: https://nf-co.re/sopa/docs/usage/.")
-    }
-
     def STAINING_BASED_METHODS = ['use_stardist', 'use_cellpose']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
 
     // Exactly one backend: with none, ch_resolved is unassigned and AGGREGATE fails obscurely.
     assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
-    assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
-        "or use a profile that does (for example -profile test)"
+
+    if (params.preprocessing_only) {
+        assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +
+            "pre-stitched input there is nothing to run."
+        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or QC.")
+    }
+    else {
+        assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
+            "or use a profile that does (for example -profile test)"
+    }
 
     // Dearraying (preprocessing only) sets meta.slide, which MERGE_SPATIALDATA groups on;
     // without it every core shares a null key and unrelated slides merge.

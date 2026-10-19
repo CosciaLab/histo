@@ -19,13 +19,13 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Path to a comma-separated samplesheet. Its shape depends on use_preprocessing: one row per acquisition cycle when true, one row per sample when false.",
-                    "help_text": "Two shapes are accepted and the correct one is validated at runtime, so no fixed schema is declared here.\n\nuse_preprocessing = true (default): columns sample, cycle_number, image_tiles, and optionally dfp and ffp. Validated against assets/schema_input_cycle.json.\n\nuse_preprocessing = false: columns sample, id, data_path. Validated against assets/schema_input.json. Use this for pre-stitched images, dearrayed TMA cores re-entering the pipeline, and toy_dataset.",
+                    "help_text": "Two shapes are accepted and the correct one is validated at runtime, so no fixed schema is declared here.\n\nuse_preprocessing = true (default): one row per cycle, with columns sample, cycle_number, image_tiles and marker_sheet, and optionally dfp and ffp. Validated against assets/schema_input_cycle.json.\n\nuse_preprocessing = false: one row per stitched image, with column data_path and optionally sample (default: the file name). Validated against assets/schema_input.json. Use this for pre-stitched images and for dearrayed TMA cores re-entering the pipeline.",
                     "fa_icon": "fas fa-file-csv"
                 },
                 "outdir": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "The output directory where the results will be saved. You have to use absolute paths to storage on Cloud infrastructure.",
+                    "description": "The output directory where the results will be saved. Use an absolute path.",
                     "fa_icon": "fas fa-folder-open"
                 },
                 "email": {
@@ -47,12 +47,17 @@
                 "use_preprocessing": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below. When false the samplesheet must point at images sopa can already read, which covers pre-stitched images and dearrayed cores re-entering the pipeline.",
+                    "description": "Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below. When false, each samplesheet row is an already stitched OME-TIFF, such as a dearrayed core re-entering the pipeline.",
                     "fa_icon": "fas fa-toggle-on"
+                },
+                "preprocessing_only": {
+                    "type": "boolean",
+                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and QC. Requires use_preprocessing; no segmentation backend is needed."
                 },
                 "skip_reference_dna_check": {
                     "type": "boolean",
-                    "fa_icon": "fas fa-toggle-off"
+                    "fa_icon": "fas fa-toggle-off",
+                    "description": "Run even when Ashlar's alignment channel or Coreograph's dearray channel is not a dna channel in the marker sheet. A warning is logged instead of stopping."
                 },
                 "ashlar_args": {
                     "type": "string",
@@ -207,41 +212,22 @@
                 }
             }
         },
-        "reader": {
-            "title": "Reader",
-            "type": "object",
-            "description": "Parameters related to the SpatialData reader",
-            "default": "",
-            "properties": {
-                "technology": {
-                    "type": "string",
-                    "description": "Reader used to build the SpatialData object. 'ome_tif' for real data, a stitched OME-TIFF from Ashlar; 'toy_dataset' for sopa's synthetic data, used in tests.",
-                    "enum": ["ome_tif", "toy_dataset"],
-                    "default": "ome_tif"
-                }
-            },
-            "fa_icon": "fas fa-arrows-alt-h"
-        },
         "patches": {
             "title": "Patches",
             "type": "object",
-            "description": "Creation of the image and transcript patches before segmentation",
+            "description": "Tiling of the image before segmentation",
             "default": "",
             "properties": {
                 "patch_width_pixel": {
                     "type": "number",
                     "description": "Width and height of each segmentation patch, in pixels. Choose it so the image yields roughly 16 to 200 patches: patch_width = sqrt(width * height / target_patches).",
-                    "help_text": "This parameter sets how segmentation parallelises, and it is not automatic. Tiled segmentation is the reason this pipeline scales, but only if the tiling suits the image.\n\nToo large and you get one patch and no parallelism at all: a 3138 x 2511 image at patch_width_pixel = 5000 produces a single task. Too small and you get thousands of tasks, each paying container startup and scheduler overhead; a 115000 x 115000 image at 2000 produces 3364 of them.\n\nMemory is not the constraint. A 5000 pixel patch of one channel is about 50 MB. Task count is the constraint, so aim for a few times your cluster's concurrency and no more.\n\nRough guide, patches = ceil(width/p) * ceil(height/p):\n  3k x 3k      -> 1000 gives 9,    2000 gives 4,    5000 gives 1\n  25k x 25k    -> 2000 gives 169,  5000 gives 25,   8000 gives 16\n  50k x 50k    -> 5000 gives 100,  8000 gives 49,   10000 gives 25\n  115k x 115k  -> 8000 gives 225,  10000 gives 144, 15000 gives 64\n\nGet the dimensions before running: scratch/inspect-ome.py on the stitched image, or showinf -nopix on a raw cycle and multiply by the tile grid.",
+                    "help_text": "This parameter sets how segmentation parallelises, and it is not automatic. Tiled segmentation is the reason this pipeline scales, but only if the tiling suits the image.\n\nToo large and you get one patch and no parallelism at all: a 3138 x 2511 image at patch_width_pixel = 5000 produces a single task. Too small and you get thousands of tasks, each paying container startup and scheduler overhead; a 115000 x 115000 image at 2000 produces 3364 of them.\n\nMemory is not the constraint. A 5000 pixel patch of one channel is about 50 MB. Task count is the constraint, so aim for a few times your cluster's concurrency and no more.\n\nRough guide, patches = ceil(width/p) * ceil(height/p):\n  3k x 3k      -> 1000 gives 9,    2000 gives 4,    5000 gives 1\n  25k x 25k    -> 2000 gives 169,  5000 gives 25,   8000 gives 16\n  50k x 50k    -> 5000 gives 100,  8000 gives 49,   10000 gives 25\n  115k x 115k  -> 8000 gives 225,  10000 gives 144, 15000 gives 64\n\nGet the dimensions of a stitched image with: python -c \"import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)\"",
                     "fa_icon": "fas fa-th-large"
                 },
                 "patch_overlap_pixel": {
                     "type": "number",
-                    "description": "Number of overlapping pixels between the patches. We advise to choose approximately twice the diameter of a cell",
+                    "description": "Overlap between neighbouring patches, in pixels. About twice a cell diameter.",
                     "fa_icon": "fas fa-clone"
-                },
-                "image_scale": {
-                    "type": "string",
-                    "description": "The scale to be used for the image patches (e.g., `\"scale1\"`). By default, uses the highest resolution scale."
                 }
             },
             "fa_icon": "far fa-square"
@@ -275,16 +261,12 @@
         "filtering": {
             "title": "Cell filtering",
             "type": "object",
-            "description": "Filtering low-quality cells during and after segmentation",
+            "description": "Filtering low-quality cells during segmentation and aggregation",
             "default": "",
             "properties": {
                 "min_area_pixels2": {
                     "type": "number",
                     "description": "Cells with an area less than this value will be filtered. The unit is in pixels^2, and used by Stardist/Cellpose."
-                },
-                "min_transcripts": {
-                    "type": "number",
-                    "description": "Cells with less transcripts than this value will be filtered."
                 },
                 "min_intensity_ratio": {
                     "type": "number",
@@ -296,20 +278,12 @@
         "aggregation": {
             "title": "Aggregation",
             "type": "object",
-            "description": "Aggregation of genes and channels inside each cell",
+            "description": "Per-cell channel intensities",
             "default": "",
             "properties": {
-                "aggregate_genes": {
-                    "type": "boolean",
-                    "description": "Whether to aggregate the genes (counts) inside each cell"
-                },
-                "aggregate_channels": {
-                    "type": "boolean",
-                    "description": "Whether to aggregate the channels (intensity) inside each cell"
-                },
                 "expand_radius_ratio": {
-                    "type": "string",
-                    "description": "Cells polygons will be expanded by `expand_radius_ratio * mean_radius` for channels averaging **only**. This help better aggregate boundary stainings"
+                    "type": "number",
+                    "description": "Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities only. Helps capture membrane stainings at the cell boundary."
                 }
             },
             "fa_icon": "fas fa-calculator"
@@ -351,7 +325,7 @@
                 },
                 "cellpose_channels": {
                     "type": ["string", "integer"],
-                    "description": "Channel name(s) to use for cellpose segmentation. If multiple, separate by space, comma or pipe characters. May be given as a number when channel names are integers, which is currently the case because marker names are not yet written into the OME-XML."
+                    "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters."
                 },
                 "flow_threshold": {
                     "type": "number",
@@ -404,7 +378,7 @@
                 },
                 "stardist_channels": {
                     "type": ["string", "integer"],
-                    "description": "Optional channel name(s) to use for stardist segmentation. If multiple, separate by space, comma or pipe characters. May be given as a number when channel names are integers, which is currently the case because marker names are not yet written into the OME-XML."
+                    "description": "Optional channel(s) to segment with StarDist. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters."
                 },
                 "stardist_kwargs": {
                     "type": "string",
@@ -412,27 +386,6 @@
                 }
             },
             "fa_icon": "fas fa-tools"
-        },
-        "fluorescence_annotation": {
-            "title": "Fluorescence annotation",
-            "type": "object",
-            "description": "Parameters related to the fluorescence-based cell-type annotation method",
-            "default": "",
-            "properties": {
-                "use_fluorescence_annotation": {
-                    "type": "boolean",
-                    "description": "Whether to run cell-type annotation based on a marker-to-cell dictionary"
-                },
-                "fluorescence_cell_type_key": {
-                    "type": "string",
-                    "description": "Key of `sdata.obs` containing the cell-types"
-                },
-                "marker_cell_dict": {
-                    "type": "string",
-                    "description": "Dictionary mapping whose keys are marker channel names and values are the cell types associated to each marker. Should be provided as a string representation of a python dictionary."
-                }
-            },
-            "fa_icon": "fas fa-scroll"
         },
         "qc_report": {
             "title": "QC report",
@@ -470,9 +423,6 @@
             "$ref": "#/$defs/generic_options"
         },
         {
-            "$ref": "#/$defs/reader"
-        },
-        {
             "$ref": "#/$defs/patches"
         },
         {
@@ -492,9 +442,6 @@
         },
         {
             "$ref": "#/$defs/stardist"
-        },
-        {
-            "$ref": "#/$defs/fluorescence_annotation"
         },
         {
             "$ref": "#/$defs/qc_report"
