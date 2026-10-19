@@ -5,7 +5,6 @@
 */
 include { paramsSummaryMap        } from 'plugin/nf-schema'
 include { softwareVersionsToYAML  } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { methodsDescriptionText  } from '../subworkflows/local/utils_nfcore_histo_pipeline'
 
 include { PREPROCESS_IMAGES       } from '../subworkflows/local/preprocess_images'
 include { TO_SPATIALDATA          } from '../modules/local/to_spatialdata'
