@@ -134,6 +134,8 @@ estimates and will change.
 **Executor** — `slurm`, or omit for local execution. Without it every task runs on the machine you
 launched from.
 
+**MDC** — add `mdc` after `slurm` to request nodes with Ceph storage (`--constraint=ceph`).
+
 **Containers** — `singularity` on the cluster. Images must be pre-staged; see
 [containers.md](containers.md).
 

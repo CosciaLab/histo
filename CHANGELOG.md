@@ -5,6 +5,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## v1.2.0dev
 
+### Added
+
+- `mdc` profile: with `slurm`, requests nodes with Ceph storage (`--constraint=ceph`).
+
 ### Removed
 
 - Fluorescence annotation (`FLUO_ANNOTATION`) and its parameters `use_fluorescence_annotation`,
