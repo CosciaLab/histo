@@ -1100,7 +1100,7 @@ def clustering_section(images: dict[str, Any], asset_dir: Path) -> str:
     tree_block = ""
     if clustering.get("tree") and clustering.get("sweep"):
         chosen = clustering["resolution"]
-        by_word = clustering.get("resolution_chosen_by", "silhouette")
+        by_word = clustering.get("resolution_chosen_by", "stability")
         floor = clustering.get("stability_floor", 0.9)
         all_edges = clustering["tree"].get("edges") or []
         n_all = len(all_edges)

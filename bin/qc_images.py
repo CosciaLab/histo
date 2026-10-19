@@ -602,8 +602,8 @@ def main() -> int:
     ap.add_argument(
         "--resolution",
         type=float,
-        help="pin the resolution used for the heatmap and the cell snapshots. Omit to let "
-        "the best mean silhouette across the sweep choose it.",
+        help="pin the resolution used for the heatmap and the cell snapshots. Omit to use "
+        "the finest resolution that is stable across random seeds.",
     )
     ap.add_argument(
         "--arcsinh-cofactor",
