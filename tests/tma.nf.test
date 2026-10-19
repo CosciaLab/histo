@@ -42,7 +42,10 @@ nextflow_pipeline {
                 { assert names("QC_REPORT").size() == 2 },
                 { assert names("MERGE_SPATIALDATA").size() == 1 },
                 { assert names("MERGE_REPORT").size() == 1 },
-                { assert names("PUBLISH_SPATIALDATA").size() == 1 }
+                { assert names("PUBLISH_SPATIALDATA").size() == 1 },
+
+                // A missing entry means a module lost its version capture.
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('MERGE_REPORT') }
             )
         }
     }
