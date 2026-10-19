@@ -19,8 +19,8 @@ Delete whatever is not relevant.
 - [ ] Commits are small and single-concern.
 - [ ] `prek` passes, including the custom guard hooks.
 - [ ] `nf-core pipelines lint` passes; errors and all solvable warnings resolved.
-- [ ] `nf-test test tests/` passes. Snapshots regenerated rather than hand-edited if outputs changed.
-- [ ] `nextflow run . -profile test -stub` passes.
+- [ ] `nf-test test --tag stub,validation` passes. Snapshots regenerated rather than hand-edited if outputs changed.
+- [ ] `nextflow run . -profile test -stub --outdir results` passes.
 - [ ] **If a module's outputs changed, its `stub:` block was updated in the same commit.**
 - [ ] New or changed modules emit `versions.yml` or a `versions` topic.
 - [ ] `nextflow_schema.json` regenerated with `nf-core pipelines schema build`, not hand-edited.
