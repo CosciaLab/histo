@@ -100,7 +100,6 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                     |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
-| `aggregate_channels`       | none                 | Set `true` to get per-cell channel intensities.                                                        |
 
 Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.
 
@@ -149,15 +148,12 @@ input: /abs/path/samplesheet.csv
 outdir: /abs/path/results
 
 use_preprocessing: true
-technology: ome_tif
 
 use_cellpose: true
 cellpose_channels: "DNA_1"
 cellpose_diameter: 35
 patch_width_pixel: 1500
 patch_overlap_pixel: 50
-
-aggregate_channels: true
 ```
 
 ## Running on the cluster

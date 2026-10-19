@@ -207,21 +207,6 @@
                 }
             }
         },
-        "reader": {
-            "title": "Reader",
-            "type": "object",
-            "description": "Parameters related to the SpatialData reader",
-            "default": "",
-            "properties": {
-                "technology": {
-                    "type": "string",
-                    "description": "Reader used to build the SpatialData object. 'ome_tif' for real data, a stitched OME-TIFF from Ashlar; 'toy_dataset' for sopa's synthetic data, used in tests.",
-                    "enum": ["ome_tif", "toy_dataset"],
-                    "default": "ome_tif"
-                }
-            },
-            "fa_icon": "fas fa-arrows-alt-h"
-        },
         "patches": {
             "title": "Patches",
             "type": "object",
@@ -238,10 +223,6 @@
                     "type": "number",
                     "description": "Number of overlapping pixels between the patches. We advise to choose approximately twice the diameter of a cell",
                     "fa_icon": "fas fa-clone"
-                },
-                "image_scale": {
-                    "type": "string",
-                    "description": "The scale to be used for the image patches (e.g., `\"scale1\"`). By default, uses the highest resolution scale."
                 }
             },
             "fa_icon": "far fa-square"
@@ -282,10 +263,6 @@
                     "type": "number",
                     "description": "Cells with an area less than this value will be filtered. The unit is in pixels^2, and used by Stardist/Cellpose."
                 },
-                "min_transcripts": {
-                    "type": "number",
-                    "description": "Cells with less transcripts than this value will be filtered."
-                },
                 "min_intensity_ratio": {
                     "type": "number",
                     "description": "Cells whose mean channel intensity is less than `min_intensity_ratio * quantile_90` will be filtered."
@@ -299,14 +276,6 @@
             "description": "Aggregation of genes and channels inside each cell",
             "default": "",
             "properties": {
-                "aggregate_genes": {
-                    "type": "boolean",
-                    "description": "Whether to aggregate the genes (counts) inside each cell"
-                },
-                "aggregate_channels": {
-                    "type": "boolean",
-                    "description": "Whether to aggregate the channels (intensity) inside each cell"
-                },
                 "expand_radius_ratio": {
                     "type": "string",
                     "description": "Cells polygons will be expanded by `expand_radius_ratio * mean_radius` for channels averaging **only**. This help better aggregate boundary stainings"
@@ -447,9 +416,6 @@
         },
         {
             "$ref": "#/$defs/generic_options"
-        },
-        {
-            "$ref": "#/$defs/reader"
         },
         {
             "$ref": "#/$defs/patches"

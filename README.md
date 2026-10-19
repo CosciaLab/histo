@@ -1,7 +1,8 @@
 # josenimo/histo
 
 Processing, segmentation and quantification of multiplex immunofluorescence (mIF) images.
-H&E is planned and not supported: `technology` accepts `ome_tif` only.
+Input is raw cycles in any format Ashlar reads (Bio-Formats), or a stitched OME-TIFF.
+H&E is planned and not supported.
 
 > [!WARNING]
 > **Version 1.2.0dev.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
@@ -43,9 +44,9 @@ Downstream (from sopa):
 7. Aggregation of mean channel intensity per cell
 8. QC report per sample, and for a TMA a merged object per slide
 
-Input is `ome_tif` mIF. H&E is planned, not supported. `use_preprocessing: false` starts from an
-already stitched image; `preprocessing_only: true` stops after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna`
-in the marker sheet; `--skip_reference_dna_check` overrides.
+`use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops
+after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna` in
+the marker sheet; `--skip_reference_dna_check` overrides.
 
 ## Usage
 
