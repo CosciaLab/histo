@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `-profile test` is stub-only: sopa's synthetic `toy_dataset` reader is gone.
 
+### Known broken
+
+- QC_IMAGES with `use_stardist`: it reads `cellpose_boundaries` only. See ROADMAP, v1.3.
+
 ## v1.1.0 - [2026-10-09]
 
 ### Added

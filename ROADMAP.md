@@ -48,6 +48,12 @@ unmeasured.
    `{sample}_qc.json` and the report; check `MERGE_SPATIALDATA` carries the columns. Needs 1.
    2–3 days.
 
+## v1.3: StarDist
+
+1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) defaults to
+   `cellpose_boundaries`; sopa writes `stardist_boundaries`. Pass the key from the backend
+   in use, and add a StarDist stub test. StarDist has never run on real data.
+
 ## Segmentation upgrade (later)
 
 One larger change, after quantification.
