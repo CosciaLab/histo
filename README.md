@@ -4,7 +4,7 @@ Processing, segmentation and quantification of multiplex immunofluorescence (mIF
 H&E is planned and not supported: `technology` accepts `ome_tif` only.
 
 > [!WARNING]
-> **Version 1.1.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
+> **Version 1.2.0dev.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
 > sheet columns are stable. QC thresholds were calibrated on a single slide, so check your results.
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
