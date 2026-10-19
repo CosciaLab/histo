@@ -38,6 +38,8 @@ nf-test test --tag stub
   run. `nf-core pipelines lint` requires this file name.
 - `tests/preprocessing_only.nf.test` runs the preprocessing half from a cycle samplesheet written
   at test time, and checks nothing after it runs.
+- `tests/tma.nf.test` runs a dearrayed slide end to end: cores merge into one store, and
+  `MERGE_REPORT` runs with `use_qc` and not without.
 
 ## Pre-release tests (cluster, by hand)
 

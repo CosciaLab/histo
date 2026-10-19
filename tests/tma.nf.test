@@ -1,0 +1,84 @@
+// The TMA path end to end under -stub: cores are merged per slide, and MERGE_REPORT runs only with QC.
+// -profile test supplies segmentation params; laptop puts tests/stub_bin on PATH for ashlar.
+
+nextflow_pipeline {
+
+    name "TMA: slide-level merge and report"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    test("with QC, every core gets a report and the slide gets one more") {
+
+        when {
+            // Absolute paths, since nf-test launches from its own directory.
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_tma_dearray = true
+                cellpose_channels = "DNA_6"
+                use_qc = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                // The Coreograph stub emits two cores.
+                { assert names("AGGREGATE").size() == 2 },
+                { assert names("QC_REPORT").size() == 2 },
+                { assert names("MERGE_SPATIALDATA").size() == 1 },
+                { assert names("MERGE_REPORT").size() == 1 },
+                { assert names("PUBLISH_SPATIALDATA").size() == 1 }
+            )
+        }
+    }
+
+    test("without QC, the slide is still merged but has no report") {
+
+        when {
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_tma_dearray = true
+                cellpose_channels = "DNA_6"
+                use_qc = false
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("AGGREGATE").size() == 2 },
+                { assert names("QC_").isEmpty() },
+                { assert names("MERGE_SPATIALDATA").size() == 1 },
+                { assert names("MERGE_REPORT").isEmpty() },
+                { assert names("PUBLISH_SPATIALDATA").size() == 1 }
+            )
+        }
+    }
+}
