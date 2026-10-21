@@ -287,6 +287,8 @@ def read_marker_cycles(path: Path) -> list[dict[str, Any]]:
                 # None, not "", so "the sheet does not say" stays distinguishable.
                 "channel_role": (r.get("channel_role") or "").strip().lower() or None,
                 "channel_compartment": (r.get("channel_compartment") or "").strip().lower() or None,
+                # Read by project_channels.py, not by QC.
+                "segmentation": (r.get("segmentation") or "").strip().lower() or None,
                 # Not lowercased: channel names are matched exactly.
                 "background": (r.get("background") or "").strip() or None,
             }
