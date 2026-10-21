@@ -35,7 +35,7 @@ body:
       label: Relevant files
       description: |
         Please drag and drop the relevant files here. Create a `.zip` archive if the extension is not allowed.
-        Useful: `.nextflow.log` _(hidden, in the launch directory)_, the failing task's `.command.err` and `.command.log` _(in its `work/` directory)_, your params file and any custom config.
+        Useful: `.nextflow.log` _(hidden, in the launch directory)_, the failing task's `.command.err`, `.command.out` and `.command.log` _(in its `work/` directory)_, your params file and any custom config.
 
   - type: textarea
     id: system

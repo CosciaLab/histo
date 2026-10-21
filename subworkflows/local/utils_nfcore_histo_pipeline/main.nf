@@ -208,7 +208,7 @@ workflow PIPELINE_COMPLETION {
     }
 
     workflow.onError {
-        log.error "Pipeline failed. Read the failing task's .command.err in its work directory, then .nextflow.log."
+        log.error "Pipeline failed. Read the failing task's .command.err and .command.out in its work directory (with use_qc, Ashlar's errors are in .command.out), then .nextflow.log."
     }
 }
 
