@@ -36,7 +36,13 @@ Memory: 8.7 GB peak RSS in `BASICPY` on the WSI run; 1.7 GB peak across 49 tasks
 smaller runs. `TO_SPATIALDATA` reported exactly 8.00 GiB, likely a ceiling, so treat it as
 unmeasured.
 
-## v1.2: quantification
+## v1.3: StarDist
+
+1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) defaults to
+   `cellpose_boundaries`; sopa writes `stardist_boundaries`. Pass the key from the backend
+   in use, and add a StarDist stub test. StarDist has never run on real data.
+
+## v1.4: quantification
 
 1. **Aggregation beyond the mean.** sopa's CLI writes the mean and `obs.area` only, and sopa
    has no quantiles, SD or morphology, so patching its module will not help. Own step after
@@ -48,19 +54,13 @@ unmeasured.
    `{sample}_qc.json` and the report; check `MERGE_SPATIALDATA` carries the columns. Needs 1.
    2–3 days.
 
-## v1.3: StarDist
-
-1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) defaults to
-   `cellpose_boundaries`; sopa writes `stardist_boundaries`. Pass the key from the backend
-   in use, and add a StarDist stub test. StarDist has never run on real data.
-
 ## Segmentation upgrade (later)
 
 One larger change, after quantification.
 
 1. **Cellpose-SAM.** sopa 2.2.9 already selects `cpsam` under cellpose ≥ 4. Needs a new image
    (cellpose 4), GPU on SLURM (`process_gpu` exists but nothing uses it), and a check of what
-   `--diameter` means for cpsam. Replaces the diameter-derived filter with v1.2 item 2. 3–5 days.
+   `--diameter` means for cpsam. Replaces the diameter-derived filter with v1.4 item 2. 3–5 days.
 2. **Pre-staged Cellpose weights.** `CELLPOSE_LOCAL_MODELS_PATH` points at an empty directory
    (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights; this breaks the
    no-network rule. Bump sopa to 2.2.11 for `sopa download cellpose --model-dir` and set a
@@ -136,7 +136,7 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (v1.2 item 2). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (v1.4 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** apart from `size_tiny`. Rewrite from large-slide runs, read
   in Seqera Platform (`-with-tower`).
