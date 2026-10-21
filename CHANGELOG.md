@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Stitched images therefore differ slightly from 1.1.0. A QC failure never stops the mosaic.
 - `use_qc`, `preprocessing_only` and `ashlar_args` descriptions cover the Ashlar QC output.
 
+### Fixed
+
+- A sample that failed before QC no longer aborts the run with a Groovy `MissingMethodException`
+  that hid the real error; QC skips it and other samples' tasks finish.
+
 ### Known broken
 
 - QC_IMAGES with `use_stardist`: it reads `cellpose_boundaries` only. See ROADMAP, v1.3.
