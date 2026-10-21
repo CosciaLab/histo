@@ -21,8 +21,9 @@ workflow QC {
     def ch_qc_input = ch_sdata
         .join(ch_unsubtracted, remainder: true)
         .join(ch_markers, remainder: true)
+        // Indexed, not destructured: a marker sheet with no store (upstream failure) is only [meta, null, csv].
+        .filter { row -> row[1] != null }
         .map { meta, sdata, tif, markers -> [meta, sdata, tif ?: [], markers ?: []] }
-        .filter { _meta, sdata, _tif, _markers -> sdata }
 
     QC_METRICS(ch_qc_input)
     ch_versions = ch_versions.mix(QC_METRICS.out.versions)
