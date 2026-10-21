@@ -39,9 +39,6 @@ nextflow_pipeline {
                 { assert names("RESOLVE_CELLPOSE").size() == 1 },
                 { assert names("AGGREGATE").size() == 1 },
 
-                // Enabled in conf/test.config so this path is exercised.
-                { assert names("FLUO_ANNOTATION").size() == 1 },
-
                 // Not a TMA, so no slide-level steps.
                 { assert names("MERGE_SPATIALDATA").isEmpty() },
                 { assert names("MERGE_REPORT").isEmpty() },

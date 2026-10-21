@@ -11,8 +11,8 @@ process PUBLISH_SPATIALDATA {
     tuple val(meta), path(sdata_path), emit: sdata
 
     script:
-    // Empty publish sink: publishDir on AGGREGATE or FLUO_ANNOTATION would publish a store
-    // that may still be mutated. No tool, so no versions (see .lint-allow-no-versions).
+    // Empty publish sink, so the store is published once, after the last step that writes to it.
+    // No tool, so no versions (see .lint-allow-no-versions).
     """
     true
     """

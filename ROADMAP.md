@@ -8,17 +8,17 @@ time, estimated before the release; treat them as rough.
 
 ## Status
 
-| Phase                  | State                                                          |
-| ---------------------- | -------------------------------------------------------------- |
-| 0. Freeze and diagnose | Done                                                           |
-| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut     |
-| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                     |
-| 3. TMA path            | Done: per-core processing, per-slide merge and QC page         |
-| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`             |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented               |
-| 6. Testing             | Done; exemplar releases checked by hand on the cluster         |
-| 7. QC report           | Metrics, images and reports in; thresholds need more slides    |
-| 8. Release 1.0.0       | Lint `--release` clean, baselines recorded; merge and tag left |
+| Phase                  | State                                                       |
+| ---------------------- | ----------------------------------------------------------- |
+| 0. Freeze and diagnose | Done                                                        |
+| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut  |
+| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                  |
+| 3. TMA path            | Done: per-core processing, per-slide merge and QC page      |
+| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`          |
+| 5. Containers          | Done: 7 images, manifest, pre-staging documented            |
+| 6. Testing             | Done; exemplar releases checked by hand on the cluster      |
+| 7. QC report           | Metrics, images and reports in; thresholds need more slides |
+| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09                    |
 
 ## Verified on real data
 
@@ -36,17 +36,6 @@ Memory: 8.7 GB peak RSS in `BASICPY` on the WSI run; 1.7 GB peak across 49 tasks
 smaller runs. `TO_SPATIALDATA` reported exactly 8.00 GiB, likely a ceiling, so treat it as
 unmeasured.
 
-## v1.1: robustness
-
-1. **Small fixes**, about a day together:
-   - `FLUO_ANNOTATION` in the larger size tiers (`conf/sizes.config:34`).
-   - `PATCH_SEGMENTATION_CELLPOSE` is `process_single` but used 133% CPU; set it in
-     `base.config`.
-   - Stale text saying silhouette picks the Leiden resolution: `bin/qc_images.py:606`,
-     `bin/qc_report.py:1103`.
-   - Test `bin/set_channel_names.py` element selection by moving it into a pure function.
-   - A stub test of the `MERGE_REPORT` guards: TMA with and without `use_qc`.
-
 ## v1.2: quantification
 
 1. **Aggregation beyond the mean.** sopa's CLI writes the mean and `obs.area` only, and sopa
@@ -58,13 +47,31 @@ unmeasured.
    cells. Use our own column name: sopa deletes `passes_filtering`. Counts per rule in
    `{sample}_qc.json` and the report; check `MERGE_SPATIALDATA` carries the columns. Needs 1.
    2–3 days.
-3. **Cellpose-SAM.** sopa 2.2.9 already selects `cpsam` under cellpose ≥ 4. Needs a new image
+
+## v1.3: StarDist
+
+1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) defaults to
+   `cellpose_boundaries`; sopa writes `stardist_boundaries`. Pass the key from the backend
+   in use, and add a StarDist stub test. StarDist has never run on real data.
+
+## Segmentation upgrade (later)
+
+One larger change, after quantification.
+
+1. **Cellpose-SAM.** sopa 2.2.9 already selects `cpsam` under cellpose ≥ 4. Needs a new image
    (cellpose 4), GPU on SLURM (`process_gpu` exists but nothing uses it), and a check of what
-   `--diameter` means for cpsam. Replaces the diameter-derived filter with item 2. 3–5 days.
-4. **Pre-staged Cellpose weights.** `CELLPOSE_LOCAL_MODELS_PATH` points at an empty directory
+   `--diameter` means for cpsam. Replaces the diameter-derived filter with v1.2 item 2. 3–5 days.
+2. **Pre-staged Cellpose weights.** `CELLPOSE_LOCAL_MODELS_PATH` points at an empty directory
    (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights; this breaks the
    no-network rule. Bump sopa to 2.2.11 for `sopa download cellpose --model-dir` and set a
-   shared model path in config. Do it with 3, not before. ~1 day.
+   shared model path in config. Do it with 1, not before. ~1 day.
+3. **`PATCH_SEGMENTATION_CELLPOSE` CPUs.** It is `process_single` but used 133% CPU; set it in
+   `base.config`.
+
+## v2.0: breaking changes
+
+1. **Reject `technology` and `aggregate_channels`.** Ignored with a warning since 1.2; drop the
+   `deprecated` map in `rejectUnknownParams`, so they become unknown parameters.
 
 ## Before every release
 
@@ -123,8 +130,8 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (v1.2 item 4). Segmentation fails without
-  network.
+- **Cellpose downloads its weights at run time** (segmentation upgrade, item 2).
+  Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
@@ -137,6 +144,8 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 ### Tooling
 
+- **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
+  and unit-test it.
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
   but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
   then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
@@ -147,8 +156,6 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
   stub-aware `eval` for ashlar and backsub. Upstream backsub moved to a Seqera container; taking
   it means pre-staging a new image.
 - **Singularity bind mounts** in `conf/slurm.config` are a commented TODO.
-- **`NXF_SINGULARITY_CACHEDIR`**: `conf/slurm.config` says it is set in the environment,
-  CLAUDE.md says in config. Make them agree.
 
 ## Deferred deliberately
 

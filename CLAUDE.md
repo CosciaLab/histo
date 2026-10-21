@@ -56,7 +56,7 @@ internet. Hence:
 1. No runtime container pull or launch-time network dependency, including Wave. All images
    are pre-staged. See [docs/containers.md](docs/containers.md).
 2. No real container runs on the Mac. The Mac is for writing code and running `-stub`.
-3. `NXF_SINGULARITY_CACHEDIR` is a shared path, set in config, not per run.
+3. `NXF_SINGULARITY_CACHEDIR` is set by each user in their environment; config sets no default.
 4. Every image URI is in the manifest (`tools/container_manifest.py`).
 
 Wave is a development tool only: conda-to-container, multi-arch builds, `freeze` or `mirror`

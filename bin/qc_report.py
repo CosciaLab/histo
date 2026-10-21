@@ -723,9 +723,8 @@ def channel_section(channels: dict[str, Any]) -> str:
             [[esc(n), f"{per[n]['fraction_zero'] * 100:.2f}%"] for n in names],
         )
         zero_note = (
-            "Background subtraction clips at zero, so a high fraction here means signal was "
-            "subtracted away. Unsubtracted channels give the baseline. Pass the "
-            "pre-subtraction image to compare before and after directly."
+            "Fraction of pixels exactly zero. After background subtraction, which clips at "
+            "zero, a high value means signal was subtracted away."
         )
 
     return f"""
@@ -737,10 +736,9 @@ def channel_section(channels: dict[str, Any]) -> str:
   shapes are directly comparable between rows: two channels that look alike really do
   have the same intensities, and a curve hugging the left is a dim channel. That bound is
   the brightest channel's maximum rather than the dtype's ceiling of
-  {thousands(ceiling)} &mdash; no channel here reaches a third of the ceiling, so binning
-  there would put all fifteen distributions in the leftmost few percent and make them
-  comparable but indistinguishable. <code>--histogram-range dtype</code> does that if the
-  detector limit is what matters.</p>
+  {thousands(ceiling)}, so dim channels stay distinguishable.
+  <code>--histogram-range dtype</code> bins to the ceiling if the detector limit is what
+  matters.</p>
   <table><thead><tr>{head_row}</tr></thead><tbody>{body}</tbody></table>
 </section>
 
@@ -1436,7 +1434,7 @@ def clustering_section(images: dict[str, Any], asset_dir: Path) -> str:
     tree_block = ""
     if clustering.get("tree") and clustering.get("sweep"):
         chosen = clustering["resolution"]
-        by_word = clustering.get("resolution_chosen_by", "silhouette")
+        by_word = clustering.get("resolution_chosen_by", "stability")
         floor = clustering.get("stability_floor", 0.9)
         all_edges = clustering["tree"].get("edges") or []
         n_all = len(all_edges)
@@ -1469,8 +1467,7 @@ membership is being rearranged, which is where the extra clusters stop refining 
 Resolution was {how}.</p>
 <p class="note">Two criteria are reported and only one decides. <strong>Silhouette</strong>
 measures how separated the clusters are, and on real data it falls monotonically as
-resolution rises &mdash; from 0.223 at five clusters to 0.079 at forty-three on this run
-&mdash; so maximising it would always return the coarsest option and it is shown for
+resolution rises, so maximising it would always return the coarsest option and it is shown for
 reference only. <strong>Stability</strong> is how much the partition agrees with itself when
 the random seed changes, as adjusted Rand: a resolution reflecting real structure lands on
 the same answer regardless, while one that has gone too fine is cutting an arbitrary line
@@ -1545,8 +1542,8 @@ drawn: {n_thin} of {n_all} would be, and at high resolution they bury the branch
         f"One cofactor of {clustering['arcsinh_cofactor']:g} for every channel."
         if clustering.get("arcsinh_cofactor")
         else "The arcsinh cofactor is derived per channel from the median of its positive "
-        "values, which is where that channel's noise ends: the channels differ more than "
-        "tenfold in absolute intensity, so a single cofactor would compress some almost not "
+        "values, which is where that channel's noise ends: channels can differ by orders of "
+        "magnitude in absolute intensity, so a single cofactor would compress some almost not "
         "at all and others into a straight line, biasing the distances before Leiden starts."
     }
   arcsinh rather than log because background subtraction leaves many exact zeros and log
@@ -1618,8 +1615,7 @@ def build(
                 bool(dna),
                 f"{len(dna)} channel(s): {', '.join(dna[:4])}"
                 if dna
-                else "no channel_role 'dna'; segmentation and the cross-cycle check "
-                "fall back to matching a channel name",
+                else "no channel_role 'dna'; the cross-cycle check falls back to matching a channel name",
             )
         )
     degenerate_ok = cells["n_below_min_cell_area"] == 0

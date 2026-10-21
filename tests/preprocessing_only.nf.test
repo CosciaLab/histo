@@ -1,0 +1,69 @@
+// preprocessing_only end to end under -stub: preprocessing runs, nothing after it does.
+// -profile laptop puts tests/stub_bin on PATH for the ashlar eval() version shim.
+
+nextflow_pipeline {
+
+    name "preprocessing_only"
+    script "../main.nf"
+    profile "laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    test("stops after the stitched image, with no segmentation backend set") {
+
+        when {
+            // Absolute paths, since nf-test launches from its own directory.
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testsample,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testsample,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                preprocessing_only = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("BASICPY").size() == 2 },
+                { assert names("ASHLAR").size() == 1 },
+                { assert path("$outputDir/preprocessing/registration/testsample.ome.tif").exists() },
+
+                { assert names("TO_SPATIALDATA").isEmpty() },
+                { assert names("AGGREGATE").isEmpty() },
+                { assert names("QC_").isEmpty() },
+                { assert names("PUBLISH_SPATIALDATA").isEmpty() },
+
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('ASHLAR') }
+            )
+        }
+    }
+
+    test("pre-stitched input is rejected") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = "$baseDir/tests/samplesheet.csv"
+                use_preprocessing = false
+                preprocessing_only = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert workflow.stdout.any { it.contains("preprocessing_only requires use_preprocessing") } }
+            )
+        }
+    }
+}

@@ -3,19 +3,43 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v1.2.0dev
 
 ### Added
 
+- `preprocessing_only`: stop after preprocessing and keep only the stitched images. Requires
+  `use_preprocessing`; no segmentation backend is needed.
+- `mdc` profile: with `slurm`, requests nodes with Ceph storage (`--constraint=ceph`).
 - Stitching and registration QC. Ashlar runs from `josenimo/jose_ashlar:1.22.0-jose.1` and, with
   `use_qc`, publishes `preprocessing/registration/{sample}_ashlar_qc/` (summary JSON, per-pair
   and per-tile CSVs, cycle overlays, Ashlar's PDF report, console log). The QC report, or the
   slide report on a TMA, gains a "Stitching and registration" section.
 
+### Removed
+
+- Fluorescence annotation (`FLUO_ANNOTATION`) and its parameters `use_fluorescence_annotation`,
+  `fluorescence_cell_type_key` and `marker_cell_dict`. A params file that still sets any of them
+  now stops at startup as an unknown parameter; delete those lines.
+- Parameters `image_scale` (sopa has no such option) and the transcript-only `aggregate_genes`
+  and `min_transcripts`. As above, a params file that still sets them stops at startup.
+- Profiles `wave` and `arm64`, which pulled containers at launch; the unused `test_cellpose*`
+  profiles; and the sopa instrument profiles (`hyperion_base`, `macsima_base`,
+  `phenocycler_base_*`).
+
+### Deprecated
+
+- `technology` (now always `ome_tif`) and `aggregate_channels` (now always on) are ignored with a
+  warning. They will stop the run from 2.0.
+
 ### Changed
 
+- `-profile test` is stub-only: sopa's synthetic `toy_dataset` reader is gone.
 - Ashlar 1.19.0 (BioContainers) is replaced by the fork, which adds rotation correction between
   cycles. Pre-stage the new image before running.
+
+### Known broken
+
+- QC_IMAGES with `use_stardist`: it reads `cellpose_boundaries` only. See ROADMAP, v1.3.
 
 ## v1.1.0 - [2026-10-09]
 
