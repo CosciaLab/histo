@@ -31,6 +31,11 @@ nextflow_workflow {
                     [ id: 'testsample', sample: 'testsample' ],
                     file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true)
                 ])
+                // Ashlar's meta is only [id]; any directory stands in for its QC output.
+                input[3] = Channel.of([
+                    [ id: 'testsample' ],
+                    file("\${projectDir}/tests/stub_data", checkIfExists: true)
+                ])
                 """
             }
         }
@@ -62,6 +67,7 @@ nextflow_workflow {
                     file("\${projectDir}/tests/stub_data/markers.csv", checkIfExists: true)
                 ])
                 input[2] = Channel.empty()
+                input[3] = Channel.empty()
                 """
             }
         }
@@ -87,6 +93,7 @@ nextflow_workflow {
                 ])
                 input[1] = Channel.empty()
                 input[2] = Channel.empty()
+                input[3] = Channel.empty()
                 """
             }
         }
@@ -126,6 +133,11 @@ nextflow_workflow {
                     ]
                 )
                 input[2] = Channel.empty()
+                // Keyed by the slide, so it matches no core: it belongs to the slide report.
+                input[3] = Channel.of([
+                    [ id: 'slide' ],
+                    file("\${projectDir}/tests/stub_data", checkIfExists: true)
+                ])
                 """
             }
         }

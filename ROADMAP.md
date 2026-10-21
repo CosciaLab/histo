@@ -101,10 +101,8 @@ only) or StarDist.
 Costs and risks in [docs/future-ideas.md](docs/future-ideas.md). The marker sheet already has
 the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
-1. **Ashlar registration QC.** The residual is only in Ashlar's stderr. First check whether a
-   real Ashlar 1.19 `.command.err` contains it. If so, ~1 day: extend the existing patch to keep
-   stderr as a log output and parse it into `{sample}_qc.json`. If not, it needs the private
-   1.21 image.
+1. **Ashlar registration QC: thresholds.** The fork's `--qc-output` is in the reports; what
+   counts as bad still needs exemplar-001, exemplar-002 and a real slide behind it.
 2. **Imaging QC.** Saturation per channel is under a day (the histograms exist). Focus and
    artefacts are open-ended and need labelled examples. 5–10 days.
 3. **Read `.czi` metadata** for backsub exposure. `bioio_bioformats` is already in the BaSiCPy

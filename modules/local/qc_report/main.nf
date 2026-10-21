@@ -9,8 +9,8 @@ process QC_REPORT {
 :         'community.wave.seqera.io/library/python_sopa:54a97bc5a187152d' }"
 
     input:
-    // image_dir is optional ([] when use_qc_images is false).
-    tuple val(meta), path(metrics), path(image_dir)
+    // image_dir and registration_dir are optional ([] when absent).
+    tuple val(meta), path(metrics), path(image_dir), path(registration_dir)
 
     output:
     tuple val(meta), path("${meta.sample}_qc_report.html"), emit: report
@@ -19,11 +19,13 @@ process QC_REPORT {
     script:
     def args = task.ext.args ?: ""
     def images = image_dir ? "--images ${image_dir}/qc_images.json" : ""
+    def registration = registration_dir ? "--registration ${registration_dir}" : ""
     """
     qc_report.py \\
         --metrics ${metrics} \\
         --out ${meta.sample}_qc_report.html \\
         ${images} \\
+        ${registration} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

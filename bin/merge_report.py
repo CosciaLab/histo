@@ -22,6 +22,8 @@ from qc_report import (  # noqa: E402
     details,
     esc,
     hbar_chart,
+    load_registration,
+    registration_section,
     status_row,
     table,
     thousands,
@@ -332,7 +334,7 @@ def backsub_section(cores: list[dict[str, Any]]) -> str:
 """
 
 
-def build(slide: str, cores: list[dict[str, Any]]) -> str:
+def build(slide: str, cores: list[dict[str, Any]], registration: dict[str, Any] | None = None) -> str:
     totals = slide_totals(cores)
     tiles = [
         tile("Cores", str(totals["n_cores"]), "merged into one store"),
@@ -393,6 +395,8 @@ def build(slide: str, cores: list[dict[str, Any]]) -> str:
 
 {backsub_section(cores)}
 
+{registration_section(registration)}
+
 <footer>Rendered by <code>bin/merge_report.py</code> from {totals["n_cores"]} per-core
 metrics files. Core-specific detail &mdash; segmentation crops, clusters, per-channel
 histograms, patch layout &mdash; stays in each core's own report rather than being
@@ -415,10 +419,16 @@ def main() -> int:
     )
     ap.add_argument("--out", required=True, type=Path, help="HTML file to write")
     ap.add_argument("--slide", required=True, help="slide name, used in the title")
+    ap.add_argument(
+        "--registration",
+        type=Path,
+        help="Ashlar --qc-output directory for the slide (Ashlar runs before dearraying).",
+    )
     args = ap.parse_args()
 
     cores = read_cores(args.metrics)
-    args.out.write_text(build(args.slide, cores))
+    registration = load_registration(args.registration) if args.registration else None
+    args.out.write_text(build(args.slide, cores, registration))
 
     totals = slide_totals(cores)
     print(f"[merge_report] {args.slide}: {totals['n_cores']} cores, {totals['n_cells']:,} cells")

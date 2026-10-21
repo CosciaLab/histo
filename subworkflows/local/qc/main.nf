@@ -10,6 +10,7 @@ workflow QC {
     ch_sdata         // channel: [ val(meta), path(sdata) ]
     ch_markers       // channel: [ val(meta), path(csv) ], or an empty channel
     ch_unsubtracted  // channel: [ val(meta), path(tif) ], or an empty channel
+    ch_registration  // channel: [ val(meta), path(dir) ] Ashlar QC keyed by Ashlar's meta.id, or empty
 
     main:
 
@@ -34,6 +35,15 @@ workflow QC {
     else {
         ch_report_input = QC_METRICS.out.metrics.map { meta, metrics -> [meta, metrics, []] }
     }
+
+    // Ashlar runs per sample, or per slide before dearraying, so match on id: a TMA core's
+    // id is never its slide's, and the slide-level QC goes to MERGE_REPORT instead.
+    ch_report_input = ch_report_input
+        .map { meta, metrics, images -> [meta.id, meta, metrics, images] }
+        .join(ch_registration.map { meta, dir -> [meta.id, dir] }, remainder: true)
+        // Indexed, not destructured: remainder rows with no report side are only [id, null, dir].
+        .filter { row -> row[1] != null }
+        .map { row -> [row[1], row[2], row[3], row.size() > 4 && row[4] ? row[4] : []] }
 
     QC_REPORT(ch_report_input)
     ch_versions = ch_versions.mix(QC_REPORT.out.versions)

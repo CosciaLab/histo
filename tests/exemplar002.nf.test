@@ -95,6 +95,9 @@ nextflow_pipeline {
                 // Per-core reports and the slide report beside them.
                 { assert cores.every { file("$outputDir/qc/${it}_qc_report.html").exists() } },
                 { assert file("$outputDir/qc/exemplar-002_slide_report.html").exists() },
+                // Ashlar runs once per slide, so its QC lands on the slide report, not per core.
+                { assert file("$outputDir/preprocessing/registration/exemplar-002_ashlar_qc/qc.json").exists() },
+                { assert path("$outputDir/qc/exemplar-002_slide_report.html").text.contains('Stitching and registration') },
 
                 // One table per core in the merged store; per-core stores are not published.
                 { assert file("$outputDir/exemplar-002_merged.zarr").exists() },
