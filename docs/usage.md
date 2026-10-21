@@ -3,12 +3,12 @@
 ## Quick start
 
 ```bash
-nextflow run josenimo/histo -r dev \
+nextflow run josenimo/histo -r v1.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
 
-Always give three profiles: a container engine, a size, and an executor.
+Give a container engine, a size and, on the cluster, `slurm` (plus `mdc` at the MDC).
 
 Parameters go in `-params-file`, never in `-c`. Custom config files can set anything **except**
 parameters.
@@ -72,11 +72,26 @@ Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_a
 `coreograph_args`). Both may be `-1` for the last channel. The run stops at startup when either
 index lands on a channel that is not `dna`; set `skip_reference_dna_check: true` to run anyway.
 
+### When stitching or registration looks wrong
+
+Open the "Stitching and registration" section of the QC report (the slide report on a TMA),
+then `preprocessing/registration/{sample}_ashlar_qc/` for detail. What the section shows, and
+what to try in `ashlar_args`:
+
+| Symptom in the report                                | Likely cause                                                           | Try                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Rejected pairs or several components inside tissue   | Stage error larger than `--maximum-shift`, or a weak alignment channel | Raise `--maximum-shift`; check `-c` is a bright nuclear stain |
+| Pair errors overlap the random-strip errors          | Alignment channel has little structure                                 | A different `-c`; `--filter-sigma 1` for noisy images         |
+| One cycle with many tiles too far from the model     | Tissue moved or deformed in that cycle                                 | Raise `--maximum-shift`; inspect that cycle's overlay         |
+| Kept tiles no better than chance                     | Registration locked onto noise in background tiles                     | Usually harmless at the tissue edge; check the overlay        |
+| Overlay shows doubled nuclei everywhere in one cycle | Coarse cycle offset or rotation failed                                 | Check that cycle's dashed outline in the Ashlar PDF           |
+
 Paths must be absolute.
 
 ## Parameters
 
-Only `input`, `outdir` and a segmentation backend are required. Everything below has a default.
+Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend with its
+channels. Everything else has a default.
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -85,23 +100,22 @@ not work and never did: Nextflow reads the flag on its own, sets it true, and th
 before the pipeline sees it, so `--use_backsub false` would perform background subtraction. The
 pipeline stops at startup rather than letting that happen, for every boolean it declares.
 
-| Parameter                     | Default              | Change it when                                                                                         |
-| ----------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `use_preprocessing`           | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `ashlar_args`                 | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
-| `use_backsub`                 | `false`              | You have background channels to subtract.                                                              |
-| `skip_reference_dna_check`    | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
-| `use_tma_dearray`             | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
-| `use_cellpose`                | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
-| `cellpose_channels`           | none                 | Always. Use a marker name, e.g. `"DNA_1"`.                                                             |
-| `cellpose_diameter`           | none                 | Cells are not ~30 px across.                                                                           |
-| `patch_width_pixel`           | none                 | Always. See below.                                                                                     |
-| `patch_overlap_pixel`         | none                 | Set to roughly twice a cell diameter.                                                                  |
-| `use_tissue_segmentation`     | `false`              | Large empty areas you want skipped.                                                                    |
-| `use_fluorescence_annotation` | `false`              | You want marker-based cell typing.                                                                     |
-| `aggregate_channels`          | none                 | Set `true` to get per-cell channel intensities.                                                        |
+| Parameter                  | Default              | Change it when                                                                                         |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
+| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
+| `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
+| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
+| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
+| `use_cellpose`             | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
+| `cellpose_channels`        | none                 | Always. Use a marker name, e.g. `"DNA_1"`.                                                             |
+| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                           |
+| `patch_width_pixel`        | none                 | Always. See below.                                                                                     |
+| `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
+| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
 
-Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.
+Full list with descriptions: `nextflow run josenimo/histo -r v1.2.0 --help`.
 
 ### Choosing `patch_width_pixel`
 
@@ -118,7 +132,8 @@ patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
 Memory is not the constraint — a 5000 px patch is about 50 MB.
 
-Get the dimensions with `scratch/inspect-ome.py stitched.ome.tif`.
+Get the dimensions with
+`python -c "import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)"`.
 
 ## Profiles
 
@@ -128,12 +143,14 @@ estimates and will change.
 | Profile       | For                    |
 | ------------- | ---------------------- |
 | `size_tiny`   | under ~1 GB, test data |
-| `size_small`  | up to ~10 GB           |
-| `size_medium` | ~10–40 GB              |
-| `size_huge`   | ~40 GB and up          |
+| `size_small`  | up to ~50 GB           |
+| `size_medium` | ~50–200 GB             |
+| `size_huge`   | ~200 GB and up         |
 
 **Executor** — `slurm`, or omit for local execution. Without it every task runs on the machine you
 launched from.
+
+**MDC** — add `mdc` after `slurm` to request nodes with Ceph storage (`--constraint=ceph`).
 
 **Containers** — `singularity` on the cluster. Images must be pre-staged; see
 [containers.md](containers.md).
@@ -145,15 +162,12 @@ input: /abs/path/samplesheet.csv
 outdir: /abs/path/results
 
 use_preprocessing: true
-technology: ome_tif
 
 use_cellpose: true
 cellpose_channels: "DNA_1"
 cellpose_diameter: 35
 patch_width_pixel: 1500
 patch_overlap_pixel: 50
-
-aggregate_channels: true
 ```
 
 ## Running on the cluster

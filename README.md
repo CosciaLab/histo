@@ -1,10 +1,11 @@
 # josenimo/histo
 
 Processing, segmentation and quantification of multiplex immunofluorescence (mIF) images.
-H&E is planned and not supported: `technology` accepts `ome_tif` only.
+Input is raw cycles in any format Ashlar reads (Bio-Formats), or a stitched OME-TIFF.
+H&E is planned and not supported.
 
 > [!WARNING]
-> **Version 1.1.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
+> **Version 1.2.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
 > sheet columns are stable. QC thresholds were calibrated on a single slide, so check your results.
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
@@ -33,8 +34,8 @@ Preprocessing (from mcmicro):
 
 1. Illumination correction (BaSiCPy)
 2. Stitching and registration (Ashlar)
-3. Background subtraction (backsub), optional: `--use_backsub`
-4. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+4. Background subtraction (backsub), optional: `--use_backsub`; per core on a TMA
 
 Downstream (from sopa):
 
@@ -43,14 +44,14 @@ Downstream (from sopa):
 7. Aggregation of mean channel intensity per cell
 8. QC report per sample, and for a TMA a merged object per slide
 
-Input is `ome_tif` mIF. H&E is planned, not supported. `--use_preprocessing false` starts from an
-already stitched image. At startup the run stops if the Ashlar or Coreograph channel is not `dna`
-in the marker sheet; `--skip_reference_dna_check` overrides.
+`use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops
+after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna` in
+the marker sheet; `--skip_reference_dna_check` overrides.
 
 ## Usage
 
 ```bash
-nextflow run josenimo/histo -r dev \
+nextflow run josenimo/histo -r v1.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

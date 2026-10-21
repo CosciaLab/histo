@@ -67,10 +67,9 @@ def extractSubArgs(Map args, String group) {
         ]
     } else if (group == "aggregate") {
         return [
-            aggregate_genes: args.aggregate_genes,
-            aggregate_channels: args.aggregate_channels,
+            // Always on: sopa defaults to off, which leaves no intensities to quantify.
+            aggregate_channels: true,
             expand_radius_ratio: args.expand_radius_ratio,
-            min_transcripts: args.min_transcripts,
             min_intensity_ratio: args.min_intensity_ratio,
         ]
     } else if (group == "tissue_segmentation") {
@@ -83,12 +82,6 @@ def extractSubArgs(Map args, String group) {
         return [
             patch_width_pixel: args.patch_width_pixel,
             patch_overlap_pixel: args.patch_overlap_pixel,
-            scale: args.image_scale,
-        ]
-    } else if (group == "fluorescence_annotation") {
-        return [
-            cell_type_key: args.fluorescence_cell_type_key,
-            marker_cell_dict: args.marker_cell_dict,
         ]
     } else {
         exit 1, "Unknown argument group: ${group}"
@@ -102,7 +95,7 @@ def getChannels(channels, Boolean allow_null = false) {
         if (allow_null) {
             return null
         }
-        exit 1, "The channels parameter is required but was not set."
+        exit 1, "cellpose_channels is required but was not set."
     }
 
     if (!(channels instanceof CharSequence) && !(channels instanceof Number)) {
@@ -128,8 +121,9 @@ def argsCLI(String group = null, Map args = null) {
 
 
 def argsToSpatialData(Map meta, String fullres_image_file) {
+    // Bio-Formats-readable OME-TIFF is the only input; sopa's other readers are out of scope.
     def args = [
-        technology: params.technology,
+        technology: "ome_tif",
         kwargs: [:],
     ]
 

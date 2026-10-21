@@ -9,8 +9,8 @@ process MERGE_REPORT {
 :         'community.wave.seqera.io/library/python_sopa:54a97bc5a187152d' }"
 
     input:
-    // meta is the slide; core_metrics holds every core of it.
-    tuple val(meta), path(core_metrics)
+    // meta is the slide; core_metrics holds every core of it. registration_dir is optional.
+    tuple val(meta), path(core_metrics), path(registration_dir)
 
     output:
     tuple val(meta), path("${meta.sample}_slide_report.html"), emit: report
@@ -18,11 +18,13 @@ process MERGE_REPORT {
 
     script:
     def args = task.ext.args ?: ""
+    def registration = registration_dir ? "--registration ${registration_dir}" : ""
     """
     merge_report.py \\
         --metrics ${core_metrics} \\
         --slide ${meta.sample} \\
         --out ${meta.sample}_slide_report.html \\
+        ${registration} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml

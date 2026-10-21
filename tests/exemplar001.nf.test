@@ -39,6 +39,7 @@ nextflow_pipeline {
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
             def metrics = slurp.parse(file("$outputDir/qc/exemplar-001_qc.json"))
+            def ashlarQc = slurp.parse(file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/qc.json"))
 
             assertAll(
                 { assert workflow.success },
@@ -70,6 +71,11 @@ nextflow_pipeline {
                 { assert file("${zarr}/shapes/image_patches").exists() },
                 { assert file("${zarr}/tables/table").exists() },
                 { assert file("$outputDir/preprocessing/registration/exemplar-001.ome.tif").exists() },
+                // Ashlar QC: machine-readable summary, the PDF, and the report section reading them.
+                { assert ashlarQc.stitching.n_tiles > 1 },
+                { assert ashlarQc.registration.size() == 2 },
+                { assert file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/exemplar-001_ashlar_report.pdf").exists() },
+                { assert path("$outputDir/qc/exemplar-001_qc_report.html").text.contains('Stitching and registration') },
 
                 // DNA_6/7/8 contain no "DAPI", so these prove QC read roles from the sheet, not names.
                 { assert metrics.channels.roles.dna == ['DNA_6', 'DNA_7', 'DNA_8'] },

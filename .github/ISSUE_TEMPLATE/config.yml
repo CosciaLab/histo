@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: Roadmap and current plan
     url: https://github.com/josenimo/histo/blob/main/ROADMAP.md
-    about: The phased plan, the reasoning behind it, and what is not built yet
+    about: Status, open work and known limitations

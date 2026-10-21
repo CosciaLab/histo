@@ -28,6 +28,16 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
   - `{sample}.ome.tif`, the stitched and registered mosaic from Ashlar. **This is the handoff
     boundary between the two halves of the pipeline**, and the file to inspect first when
     segmentation looks wrong.
+  - `{sample}_ashlar_qc/`, Ashlar's own account of how it stitched and registered, when
+    `use_qc` is true. On a TMA it is per slide, since Ashlar runs before dearraying.
+    `qc.json` summarises it; `edges.csv` has one row per neighbouring tile pair in cycle 1
+    (shift, error, why it was rejected), `tiles.csv` one row per tile per cycle (nominal and
+    final position, residual, angle, why it was discarded), `null_errors.csv` the errors of
+    random non-overlapping strips the rejection threshold comes from; `overlay_cycleN.jpg` puts
+    cycle 1 in magenta over cycle N+1 in green at their final positions, beside each cycle's
+    `thumb_cycleN.jpg`; `{sample}_ashlar_report.pdf` has per-tile maps; `ashlar.log` is the
+    console output. Ashlar counts cycles from 0 in the JSON and CSVs; the reports count from 1.
+    Written before the mosaic, so a failed write still leaves it in the task's work directory.
 - `preprocessing/background_subtraction/`
   - `{sample}_backsub.ome.tif` and `{sample}_backsub.csv`. Only when `use_backsub` is true. The
     CSV is backsub's own marker sheet rather than a copy of the input: rows whose `remove` column
@@ -45,6 +55,9 @@ The `_backsub` suffix appears only on backsub's own two files. Core identity com
 slide name rather than from the filename it was cut out of, so a slide processed with and without
 background subtraction produces cores with matching names.
 
+With `preprocessing_only`, these files and `pipeline_info/` are the whole output. There is no
+HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to check stitching.
+
 ### SpatialData directory
 
 <details markdown="1">
@@ -55,6 +68,9 @@ background subtraction produces cores with matching names.
 - `{sample}.zarr/.sopa_cache/`
   - What segmentation left behind: the patch definitions, and one parquet of cell boundaries
     per patch. Reproducible from the store, and about 4% of its size.
+- `{slide}_merged.zarr/` and `{slide}_merge_manifest.json`
+  - **Dearrayed slides only**, instead of per-core stores: every core's elements in one store,
+    and the manifest of what was merged.
 
 </details>
 
@@ -64,12 +80,10 @@ Each cell table's `obs` says where its cells came from, so tables can be concate
 `slide` is the sample name from the samplesheet, and on a dearrayed TMA `core_id` is the core
 (e.g. `TMA01_core001`). Runs without dearraying have no `core_id` column.
 
-Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for usage details, or to the [documentation of `sopa` as a Python package](https://prism-oncology.github.io/sopa/). If you are not familiar with `SpatialData`, you can also use directly the extracted `AnnData` object (see below).
+Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for usage details, or to the [documentation of `sopa` as a Python package](https://prism-oncology.github.io/sopa/).
 
-`PUBLISH_SPATIALDATA` is what copies the store here, and it exists only for that. Aggregation
-and fluorescence annotation both write into the store, and which of them runs last depends on
-`use_fluorescence_annotation`, so publishing from either would publish a store the other then
-modifies.
+`PUBLISH_SPATIALDATA` copies the store here, and exists only for that: it runs after the last
+step that writes to the store.
 
 ### QC report
 
@@ -90,19 +104,27 @@ modifies.
   - The same metrics rendered for a person, plus the images. Self-contained: no external
     scripts, fonts or network access, so it can be copied anywhere and opened offline.
     Includes segmentation overlays at full resolution across the density range, a cross-cycle
-    nuclear-stain comparison, a Leiden clustering tree over a resolution sweep, the
+    nuclear-stain comparison, Ashlar's stitching and registration QC (not on TMA cores; it is
+    on the slide report), a Leiden clustering tree over a resolution sweep, the
     cluster-by-marker profile, and representative cells per cluster. Every chart has a table
     view beneath it.
+- Stitching and registration QC
+  - Not copied into `qc/`: the report's "Stitching and registration" section reads
+    `preprocessing/registration/{sample}_ashlar_qc/` (above) and links to its PDF. It shows
+    whether every tile pair aligned, whether the mosaic is one connected piece, how many tiles
+    each cycle discarded and why, the residual misalignment per cycle, and the cycle overlays.
+    See [usage.md](usage.md#when-stitching-or-registration-looks-wrong) for what to change.
 - `qc/{sample}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
-    `--use_qc_images false`.
+    `use_qc_images: false`.
 - `qc/{slide}_slide_report.html`
   - **Dearrayed slides only.** One page for the whole slide, from the per-core metrics: cells
     per core against the slide total, the integrity checks rolled up so a check passes only
-    when every core passes and the ones that failed are named, and mean intensity per channel
-    with one column per core. That last table is the comparison a single core's report cannot
-    make — its own page shows a channel against its own histogram, which says whether the
-    channel has signal, not whether it has the same signal as the rest of the slide. Core
+    when every core passes and the ones that failed are named, mean intensity per channel with
+    one column per core, and the slide's stitching and registration QC. The per-core intensity
+    table is the comparison a single core's report cannot make: its own page shows a channel
+    against its own histogram, which says whether the channel has signal, not whether it has the
+    same signal as the rest of the slide. Core
     detail that is only actionable on one core, the crops, the clusters, the per-channel
     histograms and the patch layout, stays in that core's report rather than being repeated.
 
@@ -133,10 +155,10 @@ cell table is still available inside `{sample}.zarr` under `tables/`, and can be
 <summary>Output files</summary>
 
 - `pipeline_info/`
-  - Reports generated by Nextflow: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.dot`/`pipeline_dag.svg`.
-  - Reports generated by the pipeline: `pipeline_report.html`, `pipeline_report.txt` and `software_versions.yml`. The `pipeline_report*` files will only be present if the `--email` / `--email_on_fail` parameter's are used when running the pipeline.
-  - Reformatted samplesheet files used as input to the pipeline: `samplesheet.valid.csv`.
-  - Parameters used by the pipeline run: `params.json`.
+  - From Nextflow: `execution_report_{ts}.html`, `execution_timeline_{ts}.html`,
+    `execution_trace_{ts}.txt` and `pipeline_dag_{ts}.html`.
+  - `histo_software_versions.yml`, every tool version, and `params_{ts}.json`, the parameters used.
+  - `pipeline_report.html` and `.txt`, only when `email` or `email_on_fail` is set.
 
 </details>
 

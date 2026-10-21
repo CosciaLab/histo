@@ -36,6 +36,10 @@ nf-test test --tag stub
 - `tests/default.nf.test` covers pre-stitched input (`-profile test`): `BASICPY`, `ASHLAR` and
   `SET_CHANNEL_NAMES` must not run, segmentation tiles into two patches, all three QC steps
   run. `nf-core pipelines lint` requires this file name.
+- `tests/preprocessing_only.nf.test` runs the preprocessing half from a cycle samplesheet written
+  at test time, and checks nothing after it runs.
+- `tests/tma.nf.test` runs a dearrayed slide end to end: cores merge into one store, and
+  `MERGE_REPORT` runs with `use_qc` and not without.
 
 ## Pre-release tests (cluster, by hand)
 
@@ -79,5 +83,5 @@ Data:
 
 Assertions are properties, not checksums: channel names, TMA core count, which processes ran
 and how often, nuclear stain chosen by `channel_role`, subtraction blocks on every core,
-background channels unchanged by subtraction, `versions.yml` complete. Cell-count windows are
-commented out until the first green run supplies baselines.
+background channels unchanged by subtraction, `versions.yml` complete. Cell counts must stay within ±2% of the
+baselines in ROADMAP.

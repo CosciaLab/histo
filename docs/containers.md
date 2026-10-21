@@ -22,10 +22,11 @@ tools/container_manifest.py --check    # fail if stale; runs as a pre-commit hoo
 
 Regenerate it after adding or removing a module, or bumping a container.
 
-**Three images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
-BioContainers Singularity build, so their `singularity_uri` column is empty. They have to be converted
-from Docker rather than downloaded directly, which is slower and subject to Docker Hub rate limiting.
-Budget for that.
+**Four images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
+BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
+the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`). Their
+`singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
+directly, which is slower and subject to Docker Hub rate limiting. Budget for that.
 
 ## Fetching
 
@@ -49,8 +50,8 @@ nextflow inspect . -profile singularity | grep -o '"container": "[^"]*"' | sort 
 
 ## Staging into the shared cache
 
-`NXF_SINGULARITY_CACHEDIR` points at a **shared filesystem path** that colleagues also use. It is set
-in shell configuration and in the institutional Nextflow config, and is never passed per run.
+Each user sets `NXF_SINGULARITY_CACHEDIR` in their own environment (e.g. `~/.bashrc`); the pipeline
+sets no default. At a site it is usually a **shared filesystem path** that colleagues also use.
 
 > [!WARNING]
 > Never delete from or overwrite files in the shared cache. Other people's running jobs depend on
