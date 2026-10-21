@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `preprocessing_only`: stop after preprocessing and keep only the stitched images. Requires
   `use_preprocessing`; no segmentation backend is needed.
 - `mdc` profile: with `slurm`, requests nodes with Ceph storage (`--constraint=ceph`).
-- Stitching and registration QC. Ashlar runs from `josenimo/jose_ashlar:1.22.0-jose.1` and, with
+- Stitching and registration QC. Ashlar runs from `josenimo/ashlar:1.22.0` and, with
   `use_qc`, publishes `preprocessing/registration/{sample}_ashlar_qc/` (summary JSON, per-pair
   and per-tile CSVs, cycle overlays, Ashlar's PDF report, console log). The QC report, or the
   slide report on a TMA, gains a "Stitching and registration" section.

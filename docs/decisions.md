@@ -65,7 +65,7 @@ larger slide means more tasks, not bigger ones.
 **Nothing is pulled at run time.** A pull failing hours in wastes the run and the queue slot.
 `containers.tsv` is kept current by a pre-commit hook; see [containers.md](containers.md).
 
-**Ashlar runs from a private image, `josenimo/jose_ashlar`.** It is the only way to get
+**Ashlar runs from a private image, `josenimo/ashlar`.** It is the only way to get
 rotation correction, per-cycle last-channel alignment and machine-readable stitching QC; none
 is in a bioconda release. The fork (`josenimo/ashlar`, branch `histo-qc`) merges upstream,
 jmuhlich's `rotation-correction` and `qc-report`, and adds `--qc-output`. Its `Dockerfile` and

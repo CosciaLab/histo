@@ -34,7 +34,7 @@ from real datasets. Belongs in the Phase 7 QC report.
 
 ## 4. Ashlar registration QC
 
-Done through the `josenimo/jose_ashlar` image (see [decisions.md](decisions.md)). Left: offer
+Done through the `josenimo/ashlar` image (see [decisions.md](decisions.md)). Left: offer
 `--qc-output` upstream, which would let the module return to a bioconda image.
 
 ## 5. Dearray first, then process each core in parallel
