@@ -4,7 +4,7 @@ process ASHLAR {
 
     // PATCH: josenimo/ashlar fork (rotation correction, -c -1, --qc-output); see docs/decisions.md.
     // Docker-only like coreograph: the fork is not on bioconda.
-    container "docker.io/josenimo/ashlar:1.22.0"
+    container "docker.io/josenimo/ashlar:1.22.1"
 
     input:
     tuple val(meta), path(images, stageAs: 'image*/*')

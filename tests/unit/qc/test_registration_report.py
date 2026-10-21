@@ -53,7 +53,7 @@ def percentiles(*values):
 def summary(**over):
     s = {
         "schema_version": ASHLAR_QC_SCHEMA,
-        "ashlar_version": "1.22.0+histo",
+        "ashlar_version": "1.22.1+histo",
         "pixel_size_um": 0.65,
         "tile_size": [100, 100],
         "mosaic_shape": [190, 190],
