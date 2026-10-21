@@ -122,8 +122,9 @@ step that writes to the store.
     per core against the slide total, the integrity checks rolled up so a check passes only
     when every core passes and the ones that failed are named, mean intensity per channel with
     one column per core, and the slide's stitching and registration QC. The per-core intensity
-    table is the comparison a single core's report cannot make — its own page shows a channel against its own histogram, which says whether the
-    channel has signal, not whether it has the same signal as the rest of the slide. Core
+    table is the comparison a single core's report cannot make: its own page shows a channel
+    against its own histogram, which says whether the channel has signal, not whether it has the
+    same signal as the rest of the slide. Core
     detail that is only actionable on one core, the crops, the clusters, the per-channel
     histograms and the patch layout, stays in that core's report rather than being repeated.
 
