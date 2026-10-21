@@ -103,7 +103,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | Parameter                  | Default              | Change it when                                                                                         |
 | -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
 | `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `preprocessing_only`       | `false`              | You only want stitched images. Stops after preprocessing: no segmentation, quantification or QC.       |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
 | `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
 | `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |

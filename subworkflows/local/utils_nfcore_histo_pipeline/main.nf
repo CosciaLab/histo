@@ -577,7 +577,7 @@ def validateParams(params) {
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +
             "pre-stitched input there is nothing to run."
-        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or QC.")
+        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or sample QC (Ashlar's QC stays with use_qc).")
     }
     else {
         assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
