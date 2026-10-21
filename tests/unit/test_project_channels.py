@@ -252,3 +252,31 @@ class TestStoreRoundTrip:
 
         with pytest.raises(ValueError, match="no projection"):
             drop(store)
+
+    def test_percentiles_come_from_tissue_only(self, tmp_path, monkeypatch):
+        """With tissue segmentation, glass outside the ROI must not set the bounds."""
+        import geopandas as gpd
+        import spatialdata as sd
+        from project_channels import project
+        from shapely.geometry import box
+        from spatialdata.models import Image2DModel, ShapesModel
+
+        data = np.full((2, 64, 64), 50, dtype=np.uint16)  # glass
+        data[:, :, 32:] = np.arange(1, 32 * 64 + 1, dtype=np.uint16).reshape(64, 32)  # tissue, right half
+        image = Image2DModel.parse(data, dims=("c", "y", "x"), c_coords=["DNA_1", "CD45"], chunks=(1, 32, 32))
+        roi = ShapesModel.parse(gpd.GeoDataFrame(geometry=[box(32, 0, 64, 64)]))
+        path = tmp_path / "roi.zarr"
+        sd.SpatialData(images={"sample": image}, shapes={"region_of_interest": roi}).write(path)
+        sheet = tmp_path / "m.csv"
+        sheet.write_text(
+            "channel_number,cycle_number,marker_name,channel_role,channel_compartment\n"
+            "1,1,DNA_1,dna,nuclear\n2,1,CD45,marker,membrane\n"
+        )
+
+        monkeypatch.chdir(tmp_path)
+        summary = project(path, sheet, method="max", low=1, high=99.9, sigma=0, prefix="roi")
+
+        assert summary["tissue_masked"] is True
+        lo = summary["channels"]["cell"][0]["lo"]
+        # The glass value 50 would be the 1st percentile of the whole image.
+        assert lo == pytest.approx(np.percentile(np.arange(1, 32 * 64 + 1), 1))

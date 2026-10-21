@@ -116,7 +116,9 @@ def preview_rgb(nuclear: Any, cell: Any) -> Any:
 
 
 def _levels(tree: Any) -> list[Any]:
-    """The DataArray of each pyramid level, finest first."""
+    """The DataArray of each pyramid level, finest first; a single-scale image is its own level."""
+    if not hasattr(tree, "children"):
+        return [tree]
     return [
         next(iter(tree[k].values())) for k in sorted(tree.keys(), key=lambda k: int(k.removeprefix("scale")))
     ]
