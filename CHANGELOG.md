@@ -34,8 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `-profile test` is stub-only: sopa's synthetic `toy_dataset` reader is gone.
-- Ashlar 1.19.0 (BioContainers) is replaced by the fork, which adds rotation correction between
-  cycles. Pre-stage the new image before running.
+- Ashlar 1.19.0 (BioContainers) is replaced by `josenimo/ashlar:1.22.0` (fork, branch
+  `histo-qc`). Pre-stage the new image before running. Against 1.19.0 it adds rotation
+  correction between cycles and per-cycle `-c -1`, and fixes a stage-model bias that misplaced
+  model-placed tiles in later cycles by (stage scale − 1) × half a tile (13 µm on exemplar-001).
+  Stitched images therefore differ slightly from 1.1.0. A QC failure never stops the mosaic.
+- `use_qc`, `preprocessing_only` and `ashlar_args` descriptions cover the Ashlar QC output.
 
 ### Known broken
 

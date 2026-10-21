@@ -52,7 +52,7 @@
                 },
                 "preprocessing_only": {
                     "type": "boolean",
-                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and QC. Requires use_preprocessing; no segmentation backend is needed."
+                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report. Ashlar's own QC is still written when use_qc is true. Requires use_preprocessing; no segmentation backend is needed."
                 },
                 "skip_reference_dna_check": {
                     "type": "boolean",
@@ -63,6 +63,7 @@
                     "type": "string",
                     "default": "--maximum-shift 30",
                     "description": "Extra command-line arguments passed through to Ashlar.",
+                    "help_text": "Ashlar runs from the josenimo/ashlar image, which adds rotation correction between cycles; `-c -1` aligns each cycle on its own last channel. Do not pass `--qc-output` or `--report`: the pipeline adds them when use_qc is true.",
                     "fa_icon": "fas fa-terminal"
                 },
                 "use_backsub": {
@@ -395,8 +396,8 @@
             "properties": {
                 "use_qc": {
                     "type": "boolean",
-                    "description": "Whether to compute QC metrics and render the QC report",
-                    "help_text": "Writes a machine-readable JSON of metrics next to a self-contained HTML report, per sample, into `<outdir>/qc`. The JSON is the contract an unattended run should read; the HTML is for a person.",
+                    "description": "Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report",
+                    "help_text": "Writes a machine-readable JSON of metrics next to a self-contained HTML report, per sample, into `<outdir>/qc`. The JSON is the contract an unattended run should read; the HTML is for a person. With use_preprocessing, Ashlar also writes its stitching and registration QC to `<outdir>/preprocessing/registration/{sample}_ashlar_qc/`, which the report reads.",
                     "default": true
                 },
                 "use_qc_images": {

@@ -32,10 +32,12 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
     `use_qc` is true. On a TMA it is per slide, since Ashlar runs before dearraying.
     `qc.json` summarises it; `edges.csv` has one row per neighbouring tile pair in cycle 1
     (shift, error, why it was rejected), `tiles.csv` one row per tile per cycle (nominal and
-    final position, residual, angle, why it was discarded); `overlay_cycleN.jpg` puts cycle 1
-    in magenta over cycle N+1 in green at their final positions; `{sample}_ashlar_report.pdf`
-    has per-tile maps; `ashlar.log` is the console output. Ashlar counts cycles from 0 in the
-    JSON and CSVs; the reports count from 1.
+    final position, residual, angle, why it was discarded), `null_errors.csv` the errors of
+    random non-overlapping strips the rejection threshold comes from; `overlay_cycleN.jpg` puts
+    cycle 1 in magenta over cycle N+1 in green at their final positions, beside each cycle's
+    `thumb_cycleN.jpg`; `{sample}_ashlar_report.pdf` has per-tile maps; `ashlar.log` is the
+    console output. Ashlar counts cycles from 0 in the JSON and CSVs; the reports count from 1.
+    Written before the mosaic, so a failed write still leaves it in the task's work directory.
 - `preprocessing/background_subtraction/`
   - `{sample}_backsub.ome.tif` and `{sample}_backsub.csv`. Only when `use_backsub` is true. The
     CSV is backsub's own marker sheet rather than a copy of the input: rows whose `remove` column
@@ -53,7 +55,8 @@ The `_backsub` suffix appears only on backsub's own two files. Core identity com
 slide name rather than from the filename it was cut out of, so a slide processed with and without
 background subtraction produces cores with matching names.
 
-With `preprocessing_only`, these files and `pipeline_info/` are the whole output.
+With `preprocessing_only`, these files and `pipeline_info/` are the whole output. There is no
+HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to check stitching.
 
 ### SpatialData directory
 
@@ -105,16 +108,21 @@ step that writes to the store.
     on the slide report), a Leiden clustering tree over a resolution sweep, the
     cluster-by-marker profile, and representative cells per cluster. Every chart has a table
     view beneath it.
+- Stitching and registration QC
+  - Not copied into `qc/`: the report's "Stitching and registration" section reads
+    `preprocessing/registration/{sample}_ashlar_qc/` (above) and links to its PDF. It shows
+    whether every tile pair aligned, whether the mosaic is one connected piece, how many tiles
+    each cycle discarded and why, the residual misalignment per cycle, and the cycle overlays.
+    See [usage.md](usage.md#when-stitching-or-registration-looks-wrong) for what to change.
 - `qc/{sample}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
     `use_qc_images: false`.
 - `qc/{slide}_slide_report.html`
   - **Dearrayed slides only.** One page for the whole slide, from the per-core metrics: cells
     per core against the slide total, the integrity checks rolled up so a check passes only
-    when every core passes and the ones that failed are named, and mean intensity per channel
-    with one column per core, and the slide's Ashlar stitching and registration QC. The
-    per-core table is the comparison a single core's report cannot
-    make — its own page shows a channel against its own histogram, which says whether the
+    when every core passes and the ones that failed are named, mean intensity per channel with
+    one column per core, and the slide's stitching and registration QC. The per-core intensity
+    table is the comparison a single core's report cannot make — its own page shows a channel against its own histogram, which says whether the
     channel has signal, not whether it has the same signal as the rest of the slide. Core
     detail that is only actionable on one core, the crops, the clusters, the per-channel
     histograms and the patch layout, stays in that core's report rather than being repeated.
