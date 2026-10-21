@@ -59,6 +59,11 @@ matching its name, which works until someone stains with Hoechst.
 can only judge whether a marker landed where it should if the sheet says where that is, so leaving
 it blank costs a check rather than breaking a run.
 
+`segmentation` is optional and only read with `--use_projection`. It sets which projected
+channel a marker feeds: `nuclear`, `cell` or `none`. Without the column, the first `dna` channel is
+`nuclear`, and every `marker` whose `channel_compartment` includes `membrane` or `cytoplasm` is
+`cell`. Setting it on any row makes the column the whole selection, and blank rows are left out.
+
 `--use_backsub` additionally needs `exposure` and `background` columns. `background` names the
 `marker_name` of the channel to subtract, and that channel must itself have `channel_role` set to
 `autofluorescence`. The two columns describe one fact, so they are checked against each other.
@@ -109,7 +114,8 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
 | `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
 | `use_cellpose`             | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
-| `cellpose_channels`        | none                 | Always. Use a marker name, e.g. `"DNA_1"`.                                                             |
+| `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                    |
+| `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                           |
 | `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                           |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                     |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
@@ -134,6 +140,34 @@ Memory is not the constraint — a 5000 px patch is about 50 MB.
 
 Get the dimensions with
 `python -c "import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)"`.
+
+### Two-channel segmentation (`use_projection`)
+
+Cellpose takes a nuclear and a cell channel, but an mIF panel spreads cell boundaries over many
+markers, each on some cell types only. `--use_projection` builds the two channels from the marker
+sheet (see `segmentation` above) and segments those; quantification still reads every marker.
+
+Each marker is rescaled between its 1st and 99.9th percentile (zero padding ignored), smoothed with
+σ = 1 px, then combined per channel by maximum. Maximum keeps a marker found on one cell type at
+full brightness; `projection_method: mean` dims it and loses those cells. On hazy raw images,
+`projection_low_percentile: 50` removes the haze from the cell channel.
+
+**Set the Cellpose thresholds when projecting.** Unset, sopa's `flow_threshold: 2`,
+`cellprob_threshold: -6` and CLAHE (`clip_limit: 0.2`) tile the whole tissue into cells whatever
+the image shows. Cellpose's own values follow the membranes:
+
+```yaml
+use_cellpose: true
+use_projection: true
+cellpose_model_type: cyto3
+cellpose_diameter: 15 # cell diameter in pixels: about 10 µm / pixel size
+flow_threshold: 0.4
+cellprob_threshold: 0
+clip_limit: 0
+```
+
+Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in
+magenta and cell in green. How the defaults were chosen is in [decisions.md](decisions.md).
 
 ## Profiles
 

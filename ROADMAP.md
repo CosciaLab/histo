@@ -61,6 +61,7 @@ One larger change, after quantification.
 1. **Cellpose-SAM.** sopa 2.2.9 already selects `cpsam` under cellpose ≥ 4. Needs a new image
    (cellpose 4), GPU on SLURM (`process_gpu` exists but nothing uses it), and a check of what
    `--diameter` means for cpsam. Replaces the diameter-derived filter with v1.2 item 2. 3–5 days.
+   `use_projection` needs no change: Cellpose-SAM takes its two channels as they are.
 2. **Pre-staged Cellpose weights.** `CELLPOSE_LOCAL_MODELS_PATH` points at an empty directory
    (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights; this breaks the
    no-network rule. Bump sopa to 2.2.11 for `sopa download cellpose --model-dir` and set a

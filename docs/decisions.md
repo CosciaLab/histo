@@ -49,6 +49,35 @@ Not in the Zarr. SpatialData's option, an extra coordinate system, is a poor fit
 redefining `global` would silently make `patch_width_pixel` and `min_area_pixels2` microns.
 Images stay in pixels; Ashlar keeps `PhysicalSizeX` in the OME-TIFF.
 
+## Channel projection
+
+**A transient image element, not a new OME-TIFF.** `PROJECT_CHANNELS` adds `<image>_projected`
+and points sopa's `cell_segmentation_image` attribute at it; patchify, segmentation and resolve
+follow that attribute. `DROP_PROJECTION` deletes it before `AGGREGATE`, so quantification reads
+every marker and the published store has one image, as without projection.
+
+**Nuclear is the first `dna` channel by default**, the Ashlar reference: best registered, and
+free of the cell loss later cycles show.
+
+**Zeros are left out of the percentiles.** Ashlar pads unregistered areas with them; counting
+them put the floor below the background, and one low-range marker then lit up the glass.
+
+**Defaults from a benchmark**, `tools/benchmark_projection.py`, Cellpose 3 `cyto3` and
+Cellpose-SAM. Two crops: exemplar-001 (0.65 µm/px, 8 cell markers) and an in-house 15-channel
+panel (0.35 µm/px, raw). No ground truth; outlines were judged by eye, with metrics as support.
+
+- **Maximum, not mean.** Mean dims markers found on one cell type: Cellpose-SAM then missed a
+  whole lymphocyte cluster (72% of nuclei in a cell, 95% with max); Cyto3 fell back to nuclei.
+- **Low percentile 1.** 50 changed little once zeros were excluded; it helps hazy raw images.
+- **Thresholds matter more than projection.** sopa's `flow_threshold: 2`,
+  `cellprob_threshold: -6` and CLAHE 0.2 tile the tissue into cells with or without
+  projection (cells cover 94 to 96% of the crop). Cellpose's 0.4 and 0 with CLAHE off follow
+  membranes. Documented, not defaulted, since changing them would change runs without
+  projection.
+- **Projection over DNA only**, both at Cellpose thresholds, exemplar-001: nuclei inside a cell
+  rose from 86% to 99%; CD45-positive pixels inside a cell from 65% to 84%.
+- Cellpose-SAM took about 24 s per 1200 px crop on Apple MPS, against 3 s for `cyto3`.
+
 ## Parameters
 
 **`patch_width_pixel` is not computed for you.** It changes results at patch boundaries, so an
