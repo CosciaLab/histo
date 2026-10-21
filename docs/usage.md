@@ -3,7 +3,7 @@
 ## Quick start
 
 ```bash
-nextflow run josenimo/histo -r dev \
+nextflow run josenimo/histo -r v1.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -115,7 +115,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
 
-Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.
+Full list with descriptions: `nextflow run josenimo/histo -r v1.2.0 --help`.
 
 ### Choosing `patch_width_pixel`
 

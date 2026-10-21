@@ -8,17 +8,17 @@ time, estimated before the release; treat them as rough.
 
 ## Status
 
-| Phase                  | State                                                       |
-| ---------------------- | ----------------------------------------------------------- |
-| 0. Freeze and diagnose | Done                                                        |
-| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut  |
-| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                  |
-| 3. TMA path            | Done: per-core processing, per-slide merge and QC page      |
-| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`          |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented            |
-| 6. Testing             | Done; exemplar releases checked by hand on the cluster      |
-| 7. QC report           | Metrics, images and reports in; thresholds need more slides |
-| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09                    |
+| Phase                  | State                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| 0. Freeze and diagnose | Done                                                          |
+| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut    |
+| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                    |
+| 3. TMA path            | Done: per-core processing, per-slide merge and QC page        |
+| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`            |
+| 5. Containers          | Done: 7 images, manifest, pre-staging documented              |
+| 6. Testing             | Done; exemplar releases checked by hand on the cluster        |
+| 7. QC report           | Metrics, images and reports in; thresholds need more slides   |
+| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21 |
 
 ## Verified on real data
 
