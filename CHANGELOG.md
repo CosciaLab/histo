@@ -7,13 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `preprocessing_only`: stop after preprocessing and keep only the stitched images. Requires
-  `use_preprocessing`; no segmentation backend is needed.
+- `preprocessing_only`: stop after preprocessing and keep the stitched images (with `use_qc`,
+  also Ashlar's QC). Requires `use_preprocessing`; no segmentation backend is needed.
 - `mdc` profile: with `slurm`, requests nodes with Ceph storage (`--constraint=ceph`).
 - Stitching and registration QC. Ashlar runs from `josenimo/ashlar:1.22.1` and, with
   `use_qc`, publishes `preprocessing/registration/{sample}_ashlar_qc/` (summary JSON, per-pair
   and per-tile CSVs, cycle overlays, Ashlar's PDF report, console log). The QC report, or the
   slide report on a TMA, gains a "Stitching and registration" section.
+
+### Changed
+
+- `-profile test` is stub-only: sopa's synthetic `toy_dataset` reader is gone.
+- Ashlar 1.19.0 (BioContainers) is replaced by `josenimo/ashlar:1.22.1` (fork, branch
+  `histo-qc`). Pre-stage the new image before running. Against 1.19.0 it adds rotation
+  correction between cycles and per-cycle `-c -1`. Stitched images therefore differ slightly
+  from 1.1.0. A QC failure never stops the mosaic.
+- `expand_radius_ratio` is a number in the schema, not a string. A quoted value in a params file
+  (`"0.1"`) now fails validation; drop the quotes.
+- `use_qc`, `preprocessing_only` and `ashlar_args` descriptions cover the Ashlar QC output.
+
+### Deprecated
+
+- `technology` (now always `ome_tif`) and `aggregate_channels` (now always on) are ignored with a
+  warning. They will stop the run from 2.0.
 
 ### Removed
 
@@ -25,24 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Profiles `wave` and `arm64`, which pulled containers at launch; the unused `test_cellpose*`
   profiles; and the sopa instrument profiles (`hyperion_base`, `macsima_base`,
   `phenocycler_base_*`).
-
-### Deprecated
-
-- `technology` (now always `ome_tif`) and `aggregate_channels` (now always on) are ignored with a
-  warning. They will stop the run from 2.0.
-
-### Changed
-
-- `-profile test` is stub-only: sopa's synthetic `toy_dataset` reader is gone.
-- Ashlar 1.19.0 (BioContainers) is replaced by `josenimo/ashlar:1.22.1` (fork, branch
-  `histo-qc`). Pre-stage the new image before running. Against 1.19.0 it adds rotation
-  correction between cycles and per-cycle `-c -1`, and fixes a stage-model bias that misplaced
-  model-placed tiles in later cycles by (stage scale − 1) × half a tile (13 µm on exemplar-001).
-  Stitched images therefore differ slightly from 1.1.0. A QC failure never stops the mosaic.
-- `use_qc`, `preprocessing_only` and `ashlar_args` descriptions cover the Ashlar QC output.
+- Ashlar's conda environment: the fork is not on bioconda, so `-profile conda` or `mamba` cannot
+  run Ashlar. Use Singularity, Apptainer or Docker.
 
 ### Fixed
 
+- Ashlar's stage model misplaced model-placed tiles in later cycles by (stage scale − 1) × half a
+  tile (13 µm on exemplar-001). Fixed in the fork.
 - A sample that failed before QC no longer aborts the run with a Groovy `MissingMethodException`
   that hid the real error; QC skips it and other samples' tasks finish.
 
