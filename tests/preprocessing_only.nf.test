@@ -37,6 +37,8 @@ nextflow_pipeline {
                 { assert names("BASICPY").size() == 2 },
                 { assert names("ASHLAR").size() == 1 },
                 { assert path("$outputDir/preprocessing/registration/testsample.ome.tif").exists() },
+                // Ashlar's own QC still lands beside the image; only the HTML report is skipped.
+                { assert path("$outputDir/preprocessing/registration/testsample_ashlar_qc/qc.json").exists() },
 
                 { assert names("TO_SPATIALDATA").isEmpty() },
                 { assert names("AGGREGATE").isEmpty() },
