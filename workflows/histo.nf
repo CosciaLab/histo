@@ -14,6 +14,8 @@ include { AGGREGATE               } from '../modules/local/aggregate'
 include { MERGE_SPATIALDATA       } from '../modules/local/merge_spatialdata'
 include { MERGE_REPORT       } from '../modules/local/merge_report'
 include { SET_CHANNEL_NAMES       } from '../modules/local/set_channel_names'
+include { PROJECT_CHANNELS        } from '../modules/local/project_channels'
+include { DROP_PROJECTION         } from '../modules/local/drop_projection'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
 include { CELLPOSE                } from '../subworkflows/local/cellpose'
 include { STARDIST                } from '../subworkflows/local/stardist'
@@ -88,11 +90,28 @@ workflow HISTO {
         }
 
         if (params.use_cellpose) {
-            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
+            // Projection runs after tissue segmentation, which must see a single image element.
+            if (params.use_projection) {
+                PROJECT_CHANNELS(ch_tissue_seg.join(ch_markers))
+                ch_to_segment = PROJECT_CHANNELS.out.sdata
+                ch_versions = ch_versions.mix(PROJECT_CHANNELS.out.versions)
+            }
+            else {
+                ch_to_segment = ch_tissue_seg
+            }
+
+            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_to_segment, argsCLI("image_patches"))
             ch_versions = ch_versions.mix(versions)
 
             (ch_resolved, versions) = CELLPOSE(ch_image_patches)
             ch_versions = ch_versions.mix(versions)
+
+            // AGGREGATE must quantify the full marker image, not the projection.
+            if (params.use_projection) {
+                DROP_PROJECTION(ch_resolved)
+                ch_resolved = DROP_PROJECTION.out.sdata
+                ch_versions = ch_versions.mix(DROP_PROJECTION.out.versions)
+            }
         }
 
         if (params.use_stardist) {

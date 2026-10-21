@@ -1,0 +1,65 @@
+// Parameter combinations that would otherwise fail late or obscurely.
+
+nextflow_function {
+
+    name "validateParams"
+    script "../subworkflows/local/utils_nfcore_histo_pipeline/main.nf"
+    function "validateParams"
+    tag "unit"
+    tag "validation"
+
+    test("projection with Cellpose on a marker-sheet run is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: true, use_projection: true, cellpose_channels: null ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("projection with StarDist is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: false, use_stardist: true, use_preprocessing: true, use_projection: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_projection requires use_cellpose") }
+        }
+    }
+
+    test("projection on pre-stitched input is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: false, use_projection: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_projection requires use_preprocessing") }
+        }
+    }
+
+    test("projection with cellpose_channels also set is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: true, use_projection: true, cellpose_channels: 'DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("cellpose_channels must be unset") }
+        }
+    }
+}
