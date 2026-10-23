@@ -5,6 +5,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Channel projection for 2-channel Cellpose, `use_projection`: a nuclear and a cell channel built
+  from the marker sheet, which gains an optional `segmentation` column. Publishes
+  `qc/{sample}_projection.png` and `.json`. Parameters `projection_method`,
+  `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
+
 ### Changed
 
 - The repository moved to `CosciaLab/histo`. Run `nextflow run CosciaLab/histo`; an old
@@ -21,10 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `use_qc`, publishes `preprocessing/registration/{sample}_ashlar_qc/` (summary JSON, per-pair
   and per-tile CSVs, cycle overlays, Ashlar's PDF report, console log). The QC report, or the
   slide report on a TMA, gains a "Stitching and registration" section.
-- Channel projection for 2-channel Cellpose, `use_projection`: a nuclear and a cell channel built
-  from the marker sheet, which gains an optional `segmentation` column. Publishes
-  `qc/{sample}_projection.png` and `.json`. Parameters `projection_method`,
-  `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
 
 ### Changed
 
