@@ -48,9 +48,8 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.3: segmentation input
 
-1. **Project mIF to segmentation channels**: nuclear, membrane, optionally cytoplasm, from
-   `channel_compartment`. CPSAM takes up to 3 channels, InstanSeg any number. Check first that
-   sopa's CLI can segment one image element and aggregate another.
+1. **Three-channel projection** for CPSAM and InstanSeg: split `use_projection`'s `cell`
+   channel into membrane and cytoplasm.
 2. **Report chapters**, one per stage.
 
 ### 1.4: segmentation backends
