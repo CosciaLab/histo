@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/josenimo/histo/main/assets/schema_marker.json",
-    "title": "josenimo/histo pipeline - params.marker_sheet schema",
+    "$id": "https://raw.githubusercontent.com/CosciaLab/histo/main/assets/schema_marker.json",
+    "title": "CosciaLab/histo pipeline - params.marker_sheet schema",
     "description": "One row per channel, across all cycles. Reconciled against the OME-XML read from the raw images, so channel_number and cycle_number must match what the microscope wrote. Derived from nf-core/mcmicro's schema_marker.json.",
     "type": "array",
     "items": {

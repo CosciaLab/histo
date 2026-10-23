@@ -87,7 +87,7 @@ template:
   force: false
   is_nfcore: false
   name: histo
-  org: josenimo
+  org: CosciaLab
   outdir: .
   skip_features:
     - igenomes

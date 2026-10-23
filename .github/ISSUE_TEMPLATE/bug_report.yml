@@ -7,8 +7,8 @@ body:
       value: |
         Before posting, please check:
 
-        - [ROADMAP.md](https://github.com/josenimo/histo/blob/main/ROADMAP.md) — known limitations and open work
-        - [docs/usage.md](https://github.com/josenimo/histo/blob/main/docs/usage.md) — parameters and profiles
+        - [ROADMAP.md](https://github.com/CosciaLab/histo/blob/main/ROADMAP.md) — known limitations and open work
+        - [docs/usage.md](https://github.com/CosciaLab/histo/blob/main/docs/usage.md) — parameters and profiles
         - [Nextflow troubleshooting](https://www.nextflow.io/docs/latest/troubleshooting.html)
   - type: textarea
     id: description
@@ -47,4 +47,4 @@ body:
         * Executor _(eg. slurm, local, awsbatch)_
         * Container engine: _(e.g. Apptainer, Singularity, Docker, Conda)_
         * OS _(eg. Rocky Linux, macOS, Ubuntu)_
-        * Version of josenimo/histo _(eg. 1.1.0, or the commit SHA)_
+        * Version of CosciaLab/histo _(eg. 1.1.0, or the commit SHA)_
