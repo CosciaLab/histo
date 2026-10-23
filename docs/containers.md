@@ -33,7 +33,7 @@ directly, which is slower and subject to Docker Hub rate limiting. Budget for th
 On a well-connected Linux machine:
 
 ```bash
-nf-core pipelines download josenimo/histo \
+nf-core pipelines download CosciaLab/histo \
     -r <tag> \
     --container-system singularity \
     --outdir ~/histo-download

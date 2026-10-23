@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/josenimo/histo/main/assets/schema_input_cycle.json",
-    "title": "josenimo/histo pipeline - params.input_cycle schema",
+    "$id": "https://raw.githubusercontent.com/CosciaLab/histo/main/assets/schema_input_cycle.json",
+    "title": "CosciaLab/histo pipeline - params.input_cycle schema",
     "description": "One row per acquisition cycle. Rows sharing a sample name are grouped and ordered by cycle_number before stitching. Derived from nf-core/mcmicro's schema_input_cycle.json.",
     "type": "array",
     "items": {

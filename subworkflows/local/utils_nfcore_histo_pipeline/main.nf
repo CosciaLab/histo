@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the josenimo/histo pipeline
+// Subworkflow with functionality specific to the CosciaLab/histo pipeline
 //
 
 /*
@@ -65,7 +65,7 @@ workflow PIPELINE_INITIALISATION {
     https://doi.org/10.1038/s41587-020-0439-x
 
 * Software dependencies
-    https://github.com/josenimo/histo/blob/main/CITATIONS.md
+    https://github.com/CosciaLab/histo/blob/main/CITATIONS.md
 """
     if (monochrome_logs) {
         before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')

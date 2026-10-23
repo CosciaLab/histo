@@ -1,4 +1,4 @@
-# josenimo/histo: Output
+# CosciaLab/histo: Output
 
 ## Introduction
 

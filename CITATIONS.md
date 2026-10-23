@@ -1,4 +1,4 @@
-# josenimo/histo: Citations
+# CosciaLab/histo: Citations
 
 This pipeline has no DOI of its own and should not be cited in place of the tools it wraps. If you
 use it, please cite the tools below.
