@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the josenimo/histo pipeline
+// Subworkflow with functionality specific to the CosciaLab/histo pipeline
 //
 
 /*
@@ -65,7 +65,7 @@ workflow PIPELINE_INITIALISATION {
     https://doi.org/10.1038/s41587-020-0439-x
 
 * Software dependencies
-    https://github.com/josenimo/histo/blob/main/CITATIONS.md
+    https://github.com/CosciaLab/histo/blob/main/CITATIONS.md
 """
     if (monochrome_logs) {
         before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
@@ -208,7 +208,7 @@ workflow PIPELINE_COMPLETION {
     }
 
     workflow.onError {
-        log.error "Pipeline failed. Read the failing task's .command.err in its work directory, then .nextflow.log."
+        log.error "Pipeline failed. Read the failing task's .command.err and .command.out in its work directory (with use_qc, Ashlar's errors are in .command.out), then .nextflow.log."
     }
 }
 
@@ -617,7 +617,7 @@ def validateParams(params) {
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +
             "pre-stitched input there is nothing to run."
-        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or QC.")
+        log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or sample QC (Ashlar's QC stays with use_qc).")
     }
     else {
         assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +

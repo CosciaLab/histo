@@ -1,4 +1,4 @@
-# josenimo/histo: Citations
+# CosciaLab/histo: Citations
 
 This pipeline has no DOI of its own and should not be cited in place of the tools it wraps. If you
 use it, please cite the tools below.
@@ -43,10 +43,13 @@ Both are MIT licensed. This pipeline would not exist without them.
 
   > Muhlich JL, Chen YA, Yapp C, Russell D, Santagata S, Sorger PK. Stitching and registering highly multiplexed whole-slide images of tissues and tumors using ASHLAR. Bioinformatics. 2022 Sep 30;38(19):4613-4621. doi: 10.1093/bioinformatics/btac544.
 
+  The pipeline runs a fork, [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch
+  `histo-qc`), which adds rotation correction and machine-readable QC; cite the paper above.
+
 - [background_subtraction](https://github.com/SchapiroLabor/Background_subtraction) — pixel-level
   background subtraction, from the Schapiro Lab
 
-  > No publication found. Cite the repository. TODO verify whether a paper now exists.
+  > Bestak K, Perez V, Wuennemann F. Backsub: a pixel-by-pixel channel subtraction tool for multiplexed immunofluorescence data (2025). https://github.com/SchapiroLabor/Background_subtraction
 
 ## Segmentation, data structures and reporting
 

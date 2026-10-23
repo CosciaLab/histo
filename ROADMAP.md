@@ -8,17 +8,17 @@ time, estimated before the release; treat them as rough.
 
 ## Status
 
-| Phase                  | State                                                       |
-| ---------------------- | ----------------------------------------------------------- |
-| 0. Freeze and diagnose | Done                                                        |
-| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut  |
-| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                  |
-| 3. TMA path            | Done: per-core processing, per-slide merge and QC page      |
-| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`          |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented            |
-| 6. Testing             | Done; exemplar releases checked by hand on the cluster      |
-| 7. QC report           | Metrics, images and reports in; thresholds need more slides |
-| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09                    |
+| Phase                  | State                                                         |
+| ---------------------- | ------------------------------------------------------------- |
+| 0. Freeze and diagnose | Done                                                          |
+| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut    |
+| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                    |
+| 3. TMA path            | Done: per-core processing, per-slide merge and QC page        |
+| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`            |
+| 5. Containers          | Done: 7 images, manifest, pre-staging documented              |
+| 6. Testing             | Done; exemplar releases checked by hand on the cluster        |
+| 7. QC report           | Metrics, images and reports in; thresholds need more slides   |
+| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21 |
 
 ## Verified on real data
 
@@ -36,40 +36,68 @@ Memory: 8.7 GB peak RSS in `BASICPY` on the WSI run; 1.7 GB peak across 49 tasks
 smaller runs. `TO_SPATIALDATA` reported exactly 8.00 GiB, likely a ceiling, so treat it as
 unmeasured.
 
-## v1.2: quantification
+## Next releases
 
-1. **Aggregation beyond the mean.** sopa's CLI writes the mean and `obs.area` only, and sopa
-   has no quantiles, SD or morphology, so patching its module will not help. Own step after
-   `AGGREGATE`: per-channel quantiles and SD as AnnData `layers`; perimeter, solidity,
-   eccentricity in `obs`, from the shapes. Reuse the `python_sopa` image if it has
-   scikit-image. Risk: memory on the WSI. 3–4 days.
-2. **Post-aggregation cell filtering.** One `obs` boolean per rule plus `keep`; never drop
-   cells. Use our own column name: sopa deletes `passes_filtering`. Counts per rule in
-   `{sample}_qc.json` and the report; check `MERGE_SPATIALDATA` carries the columns. Needs 1.
-   2–3 days.
+Segmentation, then quantification, then learned features. Each release adds its own chapter
+to the HTML QC report; MultiQC suits tool logs, not our figures.
 
-## v1.3: StarDist
+### 1.2.1: StarDist fix
 
-1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) defaults to
-   `cellpose_boundaries`; sopa writes `stardist_boundaries`. Pass the key from the backend
-   in use, and add a StarDist stub test. StarDist has never run on real data.
+1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) assumes
+   `cellpose_boundaries`. Pass the backend's key; add a StarDist stub test.
 
-## Segmentation upgrade (later)
+### 1.3: segmentation input
 
-One larger change, after quantification.
+1. **Project mIF to segmentation channels**: nuclear, membrane, optionally cytoplasm, from
+   `channel_compartment`. CPSAM takes up to 3 channels, InstanSeg any number. Check first that
+   sopa's CLI can segment one image element and aggregate another.
+2. **Report chapters**, one per stage.
 
-1. **Cellpose-SAM.** sopa 2.2.9 already selects `cpsam` under cellpose ≥ 4. Needs a new image
-   (cellpose 4), GPU on SLURM (`process_gpu` exists but nothing uses it), and a check of what
-   `--diameter` means for cpsam. Replaces the diameter-derived filter with v1.2 item 2. 3–5 days.
-   `use_projection` needs no change: Cellpose-SAM takes its two channels as they are.
-2. **Pre-staged Cellpose weights.** `CELLPOSE_LOCAL_MODELS_PATH` points at an empty directory
-   (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights; this breaks the
-   no-network rule. Bump sopa to 2.2.11 for `sopa download cellpose --model-dir` and set a
-   shared model path in config. Do it with 1, not before. ~1 day.
-3. **`PATCH_SEGMENTATION_CELLPOSE` CPUs.** It is `process_single` but used 133% CPU; set it in
-   `base.config`.
+### 1.4: segmentation backends
 
-## v2.0: breaking changes
+1. **Cellpose-SAM.** sopa 2.2.9 selects `cpsam` under cellpose ≥ 4. Needs a cellpose 4
+   image and a check of what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
+   no change: Cellpose-SAM takes its two channels as they are.
+2. **InstanSeg.** No need to wait for sopa: `sopa.segmentation.custom_staining_based` should
+   run any per-patch method (verify the API). Gives nuclei and cells.
+3. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
+4. **Pre-staged weights**, for every backend. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
+   directory (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights.
+   Bump sopa to 2.2.11 for `sopa download cellpose --model-dir`. ~1 day.
+5. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+
+### 1.5: multiple segmentations, compared afterwards
+
+1. **Fan out per method × patch.** Patch tasks only read the image and each writes its own
+   parquet, so they can run in parallel.
+2. **One writer per store.** One `RESOLVE` per sample writes every method in turn, then
+   `AGGREGATE` one table per method. Parallel writers would race on the root `zmetadata` and
+   `.zattrs` (sopa's active-boundaries attribute) and on `table`; last writer wins, silently.
+   Check whether `sopa resolve` clears all of `.sopa_cache`.
+3. **Comparison chapter**: counts, areas and overlays per method.
+
+### 1.6: quantification of every cell from every method, then filtering
+
+1. **Aggregation beyond the mean.** sopa writes the mean and `obs.area` only. Own step after
+   `AGGREGATE`: per-channel quantiles and SD as `layers`; perimeter, solidity, eccentricity in
+   `obs`. Per compartment where a method gives nuclei and cells. Risk: memory on the WSI.
+   Reuse the `python_sopa` image if it has scikit-image. 3–4 days.
+2. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
+   `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_qc.json` and the report;
+   check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
+
+### 1.7 onward: learned features
+
+Nimbus first, then KRONOS and VirTues, one per release. One interface: image and shapes in,
+`obs`/`obsm` out. Reuses 1.4's GPU and weights. None is in bioconda, so expect private images.
+Check weight licences first.
+
+### Separate track: dearray before Ashlar
+
+[Future idea 5](docs/future-ideas.md). Spike first: does Coreograph find the same cores on a
+stage-position mosaic? If not, stop. It changes the preprocessing outputs, so it ships in 2.0.
+
+### 2.0: breaking changes only
 
 1. **Reject `technology` and `aggregate_channels`.** Ignored with a warning since 1.2; drop the
    `deprecated` map in `rejectUnknownParams`, so they become unknown parameters.
@@ -111,9 +139,7 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
    `filter` column, not name channels. Sheet values always win. 1–2 weeks.
 4. **Dearray across every nuclear channel** to detect cores lost between cycles. One Coreograph
    call per `dna` channel; each writes every core again, so disk grows with cycles. 1–1.5 weeks.
-5. **Dearray first, process each core in parallel.** Largest change; needs cores located on a
-   stage-position mosaic before stitching. 6–10 weeks.
-6. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
+5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
 
 ## Open
@@ -131,13 +157,13 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (segmentation upgrade, item 2).
+- **Cellpose downloads its weights at run time** (1.4 item 4).
   Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (v1.2 item 2). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (1.6 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** apart from `size_tiny`. Rewrite from large-slide runs, read
   in Seqera Platform (`-with-tower`).

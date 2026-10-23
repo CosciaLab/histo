@@ -1,9 +1,9 @@
 #!/usr/bin/env nextflow
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    josenimo/histo
+    CosciaLab/histo
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Github : https://github.com/josenimo/histo
+    Github : https://github.com/CosciaLab/histo
 
     Downstream half derived from nf-core/sopa (MIT) at c2b4e5f.
     Preprocessing half derived from nf-core/mcmicro (MIT). See CITATIONS.md.

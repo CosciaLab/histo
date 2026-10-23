@@ -1,11 +1,11 @@
-# josenimo/histo
+# CosciaLab/histo
 
 Processing, segmentation and quantification of multiplex immunofluorescence (mIF) images.
 Input is raw cycles in any format Ashlar reads (Bio-Formats), or a stitched OME-TIFF.
 H&E is planned and not supported.
 
 > [!WARNING]
-> **Version 1.2.0dev.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
+> **Version 1.2.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
 > sheet columns are stable. QC thresholds were calibrated on a single slide, so check your results.
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
@@ -51,7 +51,7 @@ the marker sheet; `--skip_reference_dna_check` overrides.
 ## Usage
 
 ```bash
-nextflow run josenimo/histo -r dev \
+nextflow run CosciaLab/histo -r v1.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

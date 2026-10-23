@@ -1,9 +1,9 @@
-# josenimo/histo: Usage
+# CosciaLab/histo: Usage
 
 ## Quick start
 
 ```bash
-nextflow run josenimo/histo -r dev \
+nextflow run CosciaLab/histo -r v1.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -108,7 +108,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | Parameter                  | Default              | Change it when                                                                                         |
 | -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
 | `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `preprocessing_only`       | `false`              | You only want stitched images. Stops after preprocessing: no segmentation, quantification or QC.       |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
 | `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
 | `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
@@ -121,7 +121,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
 
-Full list with descriptions: `nextflow run josenimo/histo -r dev --help`.
+Full list with descriptions: `nextflow run CosciaLab/histo -r v1.2.0 --help`.
 
 ### Choosing `patch_width_pixel`
 

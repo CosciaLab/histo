@@ -89,10 +89,10 @@ template:
   force: false
   is_nfcore: false
   name: histo
-  org: josenimo
+  org: CosciaLab
   outdir: .
   skip_features:
     - igenomes
     - multiqc
     - fastqc
-  version: 1.2.0dev
+  version: 1.2.0

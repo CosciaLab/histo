@@ -1,4 +1,4 @@
-# josenimo/histo: Documentation
+# CosciaLab/histo: Documentation
 
 - [Usage](usage.md) — how to run the pipeline and what the parameters mean.
 - [Output](output.md) — what the pipeline produces and how to read it.
