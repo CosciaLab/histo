@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/josenimo/histo/main/assets/schema_marker.json",
-    "title": "josenimo/histo pipeline - params.marker_sheet schema",
+    "$id": "https://raw.githubusercontent.com/CosciaLab/histo/main/assets/schema_marker.json",
+    "title": "CosciaLab/histo pipeline - params.marker_sheet schema",
     "description": "One row per channel, across all cycles. Reconciled against the OME-XML read from the raw images, so channel_number and cycle_number must match what the microscope wrote. Derived from nf-core/mcmicro's schema_marker.json.",
     "type": "array",
     "items": {
@@ -42,6 +42,14 @@
                 "description": "Optional. Where the signal is expected to sit within a cell. Combine with + for a marker that stains more than one compartment, for example nuclear+cytoplasm. Read by QC, which can only judge whether a marker landed where it should if the sheet says where that is. Order is not significant.",
                 "errorMessage": "channel_compartment must be one or more of nuclear, cytoplasm, membrane, joined with + (for example: membrane, or nuclear+cytoplasm)",
                 "meta": "channel_compartment"
+            },
+            "segmentation": {
+                "type": "string",
+                "default": null,
+                "enum": ["nuclear", "cell", "none"],
+                "description": "Optional. With use_projection, which projected channel this marker feeds: nuclear, cell (membrane and cytoplasm), or none. Setting it on any row makes the column the whole selection; blank rows are then left out. Without it, the first dna channel is nuclear and every marker whose channel_compartment includes membrane or cytoplasm is cell.",
+                "errorMessage": "segmentation must be one of: nuclear, cell, none",
+                "meta": "segmentation"
             },
             "filter": {
                 "type": "string",

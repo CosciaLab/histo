@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/josenimo/histo/main/nextflow_schema.json",
-    "title": "josenimo/histo pipeline parameters",
+    "$id": "https://raw.githubusercontent.com/CosciaLab/histo/main/nextflow_schema.json",
+    "title": "CosciaLab/histo pipeline parameters",
     "description": "Processing, segmentation and quantification of multiplex immunofluorescence (mIF) images",
     "type": "object",
     "$defs": {
@@ -310,6 +310,45 @@
             },
             "fa_icon": "fas fa-file-image"
         },
+        "projection": {
+            "title": "Channel projection",
+            "type": "object",
+            "description": "Segment a nuclear and a cell channel projected from many markers, for 2-channel Cellpose",
+            "default": "",
+            "properties": {
+                "use_projection": {
+                    "type": "boolean",
+                    "description": "Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose. Requires use_cellpose and use_preprocessing; leave cellpose_channels unset."
+                },
+                "projection_method": {
+                    "type": "string",
+                    "default": "max",
+                    "enum": ["max", "mean"],
+                    "description": "How the rescaled markers of a channel are combined. max keeps markers that stain only one cell type at full brightness; mean averages out noise but dims them."
+                },
+                "projection_low_percentile": {
+                    "type": "number",
+                    "default": 1.0,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Per-marker percentile mapped to 0 before combining. Zero-valued padding is ignored."
+                },
+                "projection_high_percentile": {
+                    "type": "number",
+                    "default": 99.9,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "Per-marker percentile mapped to 1 before combining."
+                },
+                "projection_sigma": {
+                    "type": "number",
+                    "default": 1.0,
+                    "minimum": 0,
+                    "description": "Gaussian smoothing in pixels applied to each marker before combining; 0 for none."
+                }
+            },
+            "fa_icon": "fas fa-layer-group"
+        },
         "cellpose": {
             "title": "Cellpose",
             "type": "object",
@@ -437,6 +476,9 @@
         },
         {
             "$ref": "#/$defs/image_preprocessing"
+        },
+        {
+            "$ref": "#/$defs/projection"
         },
         {
             "$ref": "#/$defs/cellpose"

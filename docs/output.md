@@ -1,4 +1,4 @@
-# josenimo/histo: Output
+# CosciaLab/histo: Output
 
 ## Introduction
 
@@ -114,6 +114,10 @@ step that writes to the store.
     whether every tile pair aligned, whether the mosaic is one connected piece, how many tiles
     each cycle discarded and why, the residual misalignment per cycle, and the cycle overlays.
     See [usage.md](usage.md#when-stitching-or-registration-looks-wrong) for what to change.
+- `qc/{sample}_projection.png` and `qc/{sample}_projection.json`
+  - **With `use_projection` only.** The two channels Cellpose segmented, downsampled, nuclear in
+    magenta and cell in green; and the markers in each, their rescaling bounds and the method.
+    The projection itself is removed from the store before quantification.
 - `qc/{sample}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
     `use_qc_images: false`.

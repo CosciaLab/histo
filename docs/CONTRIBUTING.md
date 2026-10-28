@@ -2,7 +2,7 @@
 title: Contributing
 ---
 
-# `josenimo/histo`: Contributing guidelines
+# `CosciaLab/histo`: Contributing guidelines
 
 A personal pipeline with one maintainer and no community contribution process. Report bugs as
 a GitHub issue; contact the maintainer if you want to use it.

@@ -1,4 +1,4 @@
-# josenimo/histo: Pipeline paths
+# CosciaLab/histo: Pipeline paths
 
 The three routes through the pipeline that have been run on real data. Everything else in
 `nextflow.config` is off by default, so these are the shapes a run actually takes.

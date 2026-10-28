@@ -1,6 +1,6 @@
 {
-    "name": "josenimo/histo",
-    "homePage": "https://github.com/josenimo/histo",
+    "name": "CosciaLab/histo",
+    "homePage": "https://github.com/CosciaLab/histo",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

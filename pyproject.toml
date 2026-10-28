@@ -42,6 +42,10 @@ dev = [
     # this adds nothing the sopa container lacks.
     "tifffile>=2024.1",
     "imagecodecs>=2024.1",
+    # bin/project_channels.py adds and deletes an image element, which only the
+    # spatialdata API does safely. Brings dask, scipy and scikit-image, all in the sopa
+    # container already.
+    "spatialdata>=0.4",
 ]
 
 [tool.pytest.ini_options]

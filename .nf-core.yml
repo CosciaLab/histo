@@ -76,6 +76,8 @@ lint:
     - tests/reject_string_booleans.nf.test
     - tests/validate_cycle_numbers.nf.test
     - tests/reference_channels.nf.test
+    - tests/validate_params.nf.test
+    - tests/args_cli.nf.test
 
   multiqc_config: false
 
@@ -87,7 +89,7 @@ template:
   force: false
   is_nfcore: false
   name: histo
-  org: josenimo
+  org: CosciaLab
   outdir: .
   skip_features:
     - igenomes
