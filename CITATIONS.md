@@ -60,6 +60,10 @@ Both are MIT licensed. This pipeline would not exist without them.
 - [StarDist](https://doi.org/10.1007/978-3-030-00934-2_30) — alternative nucleus segmentation,
   under `use_stardist`
 
+- [InstanSeg](https://arxiv.org/abs/2408.15954) — alternative cell segmentation, under `use_instanseg`
+
+  > Goldsborough T, et al. InstanSeg: an embedding-based instance segmentation algorithm optimized for accurate, efficient and portable cell segmentation (2024). https://arxiv.org/abs/2408.15954
+
   > Schmidt U, Weigert M, Broaddus C, Myers G. Cell Detection with Star-Convex Polygons. MICCAI 2018, LNCS 11071, 265–273 (2018). https://doi.org/10.1007/978-3-030-00934-2_30
 
 - [SpatialData](https://www.nature.com/articles/s41592-024-02212-x) — the Zarr-backed data

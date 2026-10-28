@@ -5,6 +5,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- `use_instanseg`: InstanSeg as a tiled segmentation backend, mirroring Cellpose. Requires
+  `instanseg_pixel_size`. Runs from `docker.io/josenimo/sopa-seg:2.2.12` (sopa 2.2.12, InstanSeg
+  0.1.2, weights baked in; image not yet published).
+
 ### Changed
 
 - The repository moved to `CosciaLab/histo`. Run `nextflow run CosciaLab/histo`; an old
