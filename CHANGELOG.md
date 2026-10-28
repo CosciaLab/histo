@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Channel projection for 2-channel Cellpose, `use_projection`: a nuclear and a cell channel built
+  from the marker sheet, which gains an optional `segmentation` column. Publishes
+  `qc/{sample}_projection.png` and `.json`. Parameters `projection_method`,
+  `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
 - `use_instanseg`: InstanSeg as a tiled segmentation backend, mirroring Cellpose. Requires
   `instanseg_pixel_size`. Runs from `docker.io/josenimo/sopa:2.2.12` (sopa 2.2.12, InstanSeg
   0.1.2, weights baked in).

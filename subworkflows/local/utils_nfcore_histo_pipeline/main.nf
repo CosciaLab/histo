@@ -366,7 +366,47 @@ def validateMarkersheet(rows, sample = null) {
         }
     }
 
+    if (params.use_projection) {
+        validateProjectionGroups(rows, where)
+    }
+
     return rows
+}
+
+// Mirrors resolve_groups in bin/project_channels.py, so an empty group fails before stitching.
+def validateProjectionGroups(rows, where) {
+    // Removed channels are gone from the image by the time it is projected.
+    def kept = params.use_backsub ? rows.findAll { !it.remove } : rows
+    def bySheet = rows.any { it.segmentation }
+
+    if (bySheet && params.use_backsub) {
+        def gone = rows.findAll { it.remove && it.segmentation in ['nuclear', 'cell'] }.collect { it.marker_name }
+        assert !gone : (
+            "${where}: segmentation selects channel(s) marked remove: ${gone}. With use_backsub, " +
+            "removed channels are dropped before projection."
+        )
+    }
+
+    def groups = bySheet
+        ? [
+            nuclear: kept.findAll { it.segmentation == 'nuclear' },
+            cell: kept.findAll { it.segmentation == 'cell' },
+        ]
+        : [
+            nuclear: kept.findAll { it.channel_role == 'dna' },
+            cell: kept.findAll {
+                it.channel_role == 'marker' &&
+                    (it.channel_compartment ?: '').split(/\+/).any { c -> c in ['membrane', 'cytoplasm'] }
+            },
+        ]
+    def how = bySheet
+        ? "the segmentation column"
+        : "channel_role 'dna' (nuclear) and markers with channel_compartment membrane or cytoplasm (cell)"
+    def empty = groups.findAll { _name, group -> !group }.keySet().toList()
+    assert !empty : (
+        "${where}: use_projection needs at least one channel for ${empty.collect { "'${it}'" }.join(' and ')}, " +
+        "selected by ${how}. Set the segmentation column to 'nuclear' or 'cell' on the channels to use."
+    )
 }
 
 // Element at a Python-style index (-1 is the last), or null when out of range.
@@ -588,6 +628,15 @@ def validateParams(params) {
     else {
         assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
             "or use a profile that does (for example -profile test)"
+    }
+
+    if (params.use_projection) {
+        assert params.use_cellpose : "use_projection requires use_cellpose: the projection is " +
+            "Cellpose's two input channels, and StarDist reads only one."
+        assert params.use_preprocessing : "use_projection requires use_preprocessing: the channels " +
+            "come from the marker sheet, which pre-stitched input does not have."
+        assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
+            "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
 
     // Dearraying (preprocessing only) sets meta.slide, which MERGE_SPATIALDATA groups on;

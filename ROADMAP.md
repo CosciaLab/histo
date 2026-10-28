@@ -48,15 +48,15 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.3: segmentation input
 
-1. **Project mIF to segmentation channels**: nuclear, membrane, optionally cytoplasm, from
-   `channel_compartment`. CPSAM takes up to 3 channels, InstanSeg any number. Check first that
-   sopa's CLI can segment one image element and aggregate another.
+1. **Three-channel projection** for CPSAM and InstanSeg: split `use_projection`'s `cell`
+   channel into membrane and cytoplasm.
 2. **Report chapters**, one per stage.
 
 ### 1.4: segmentation backends
 
 1. **Cellpose-SAM.** sopa 2.2.9 selects `cpsam` under cellpose ≥ 4. Needs a cellpose 4
-   image and a check of what `--diameter` means for cpsam. 3–5 days.
+   image and a check of what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
+   no change: Cellpose-SAM takes its two channels as they are.
 2. **InstanSeg.** No need to wait for sopa: `sopa.segmentation.custom_staining_based` should
    run any per-patch method (verify the API). Gives nuclei and cells.
 3. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.

@@ -1,0 +1,40 @@
+// The sopa CLI flags built from params.
+
+nextflow_function {
+
+    name "argsCLI"
+    script "../modules/local/utils.nf"
+    function "argsCLI"
+    tag "unit"
+    tag "validation"
+
+    test("projection hands Cellpose the cell channel, then the nuclear one") {
+        when {
+            function {
+                """
+                input[0] = "cellpose"
+                input[1] = [ use_projection: true, cellpose_channels: null ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.contains("--channels 'cell' --channels 'nuclear'")
+        }
+    }
+
+    test("without projection, cellpose_channels is passed through") {
+        when {
+            function {
+                """
+                input[0] = "cellpose"
+                input[1] = [ use_projection: false, cellpose_channels: 'DNA_6' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.contains("--channels 'DNA_6'")
+        }
+    }
+}

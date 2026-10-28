@@ -238,4 +238,88 @@ nextflow_function {
             assert warning?.contains("[AF]")
         }
     }
+
+    test("with projection, compartments supply both channels by default") {
+        when {
+            params {
+                use_backsub = false
+                use_projection = true
+            }
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna', channel_compartment: 'nuclear' ],
+                    [ channel_number: 2, cycle_number: 1, marker_name: 'CD45', channel_role: 'marker', channel_compartment: 'membrane' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("with projection, no membrane or cytoplasm marker is rejected before stitching") {
+        when {
+            params {
+                use_backsub = false
+                use_projection = true
+            }
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI',  channel_role: 'dna', channel_compartment: 'nuclear' ],
+                    [ channel_number: 2, cycle_number: 1, marker_name: 'FOXP3', channel_role: 'marker', channel_compartment: 'nuclear' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_projection needs at least one channel for 'cell'") }
+        }
+    }
+
+    test("with projection, a segmentation column without a nuclear channel is rejected") {
+        when {
+            params {
+                use_backsub = false
+                use_projection = true
+            }
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna' ],
+                    [ channel_number: 2, cycle_number: 1, marker_name: 'CD45', channel_role: 'marker', segmentation: 'cell' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("'nuclear'") && it.contains("the segmentation column") }
+        }
+    }
+
+    test("with projection and backsub, a removed channel in the segmentation column is rejected") {
+        when {
+            params {
+                use_backsub = true
+                use_projection = true
+            }
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna', exposure: 100, segmentation: 'nuclear' ],
+                    [ channel_number: 2, cycle_number: 1, marker_name: 'CD45', channel_role: 'marker', exposure: 100, segmentation: 'cell' ],
+                    [ channel_number: 3, cycle_number: 1, marker_name: 'CD3',  channel_role: 'marker', exposure: 100, segmentation: 'cell', remove: true ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("segmentation selects channel(s) marked remove: [CD3]") }
+        }
+    }
 }

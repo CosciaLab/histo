@@ -43,6 +43,14 @@
                 "errorMessage": "channel_compartment must be one or more of nuclear, cytoplasm, membrane, joined with + (for example: membrane, or nuclear+cytoplasm)",
                 "meta": "channel_compartment"
             },
+            "segmentation": {
+                "type": "string",
+                "default": null,
+                "enum": ["nuclear", "cell", "none"],
+                "description": "Optional. With use_projection, which projected channel this marker feeds: nuclear, cell (membrane and cytoplasm), or none. Setting it on any row makes the column the whole selection; blank rows are then left out. Without it, the first dna channel is nuclear and every marker whose channel_compartment includes membrane or cytoplasm is cell.",
+                "errorMessage": "segmentation must be one of: nuclear, cell, none",
+                "meta": "segmentation"
+            },
             "filter": {
                 "type": "string",
                 "default": null,
