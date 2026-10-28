@@ -3,7 +3,7 @@ process RESOLVE_INSTANSEG {
     tag "${meta.sample}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa-seg:2.2.12"
+    container "docker.io/josenimo/sopa:2.2.12"
 
     input:
     tuple val(meta), path(sdata_path), path(parquets)

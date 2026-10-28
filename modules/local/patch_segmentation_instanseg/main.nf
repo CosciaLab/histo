@@ -4,7 +4,7 @@ process PATCH_SEGMENTATION_INSTANSEG {
 
     conda "${moduleDir}/environment.yml"
     // Weights are baked into the image: no download at run time, and the cluster may be offline.
-    container "docker.io/josenimo/sopa-seg:2.2.12"
+    container "docker.io/josenimo/sopa:2.2.12"
 
     input:
     tuple val(meta), path(sdata_path), val(cli_arguments), val(index), val(n_patches)
