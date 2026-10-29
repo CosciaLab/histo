@@ -162,7 +162,7 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (1.4 item 4).
+- **Cellpose downloads its weights at run time** (1.4 item 3).
   Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:

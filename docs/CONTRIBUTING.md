@@ -168,7 +168,8 @@ docker buildx build --platform linux/amd64 -t ghcr.io/<user>/<tool>:<version> .
 ```
 
 Building a SIF directly needs Linux with root or fakeroot, so it generally cannot be done on macOS.
-Push to `ghcr.io` or `quay.io`, then fetch it back through the normal pre-staging route above so that
+Push to `ghcr.io` or `quay.io`, then fetch it back through the normal pre-staging route
+([usage.md](usage.md#fetching-images)) so that
 the cache holds exactly what the pipeline will ask for.
 
 ### On the Mac
@@ -230,7 +231,8 @@ is described here instead.
 For the same reason a second edge is absent: `ASHLAR` also sends its QC directory to
 `QC_REPORT` (mIF and WSI lines) and to `MERGE_REPORT` (TMA line, per slide).
 
-That ordering is the reason the TMA line lists `COREOGRAPH` before `BACKSUB`. The two orders
+That ordering is the reason the TMA column of [What runs](output.md#what-runs) lists `COREOGRAPH`
+before `BACKSUB`. The two orders
 produce the same pixels, since subtraction has no whole-slide term, but subtracting first leaves
 only a slide-sized before-image that cannot be paired with a core-sized store, and the
 comparison then silently does not happen.

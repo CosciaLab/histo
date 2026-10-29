@@ -4,8 +4,6 @@
 
 This document describes the output produced by the pipeline.
 
-The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
-
 ## What runs
 
 The three routes that have been run on real data, drawn as the metro map in the
@@ -53,6 +51,8 @@ Variations not in the table:
   before `AGGREGATE` (Cellpose only).
 
 ## Pipeline overview
+
+The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the following information:
 

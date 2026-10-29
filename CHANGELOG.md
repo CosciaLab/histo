@@ -139,7 +139,7 @@ limitations.
   `conf/slurm.config`.
 
 - A container manifest (`tools/container_manifest.py`) and pre-staging instructions in
-  [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#containers).
+  [docs/usage.md](docs/usage.md#staging-images-into-the-shared-cache).
 
 - Tests: pytest, validation and stub nf-tests in CI, and two exemplar runs on the cluster (`tests/exemplar00{1,2}.nf.test`) with cell-count baselines.
 
