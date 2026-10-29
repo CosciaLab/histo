@@ -15,7 +15,7 @@ time, estimated before the release; treat them as rough.
 | 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                    |
 | 3. TMA path            | Done: per-core processing, per-slide merge and QC page        |
 | 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`            |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented              |
+| 5. Containers          | Done: 8 images, manifest, pre-staging documented              |
 | 6. Testing             | Done; exemplar releases checked by hand on the cluster        |
 | 7. QC report           | Metrics, images and reports in; thresholds need more slides   |
 | 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21 |
@@ -49,13 +49,14 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.4: segmentation backends
 
-1. **Cellpose-SAM.** sopa 2.2.9 selects `cpsam` under cellpose ≥ 4. Needs a cellpose 4
-   image and a check of what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
+1. **Cellpose-SAM.** sopa selects `cpsam` under cellpose ≥ 4. `josenimo/sopa:2.2.12` (the
+   InstanSeg image) already ships cellpose 4.2.1.1 with `cpsam` weights; still needs a check of
+   what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
    no change: Cellpose-SAM takes its two channels as they are.
 2. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
 3. **Pre-staged weights**, for Cellpose. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
-   directory (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights.
-   Bump sopa to 2.2.11 for `sopa download cellpose --model-dir`. ~1 day.
+   directory (`patch_segmentation_cellpose/main.nf:20`), so every task downloads weights.
+   Moving Cellpose to `josenimo/sopa:2.2.12`, which bakes them in, would also do. ~1 day.
 4. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
 
 ### 1.5: multiple segmentations, compared afterwards
@@ -152,7 +153,7 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 - **Leiden clusters are not reproducible on our one slide.** Best seed-to-seed ARI across
   resolutions 0.1 to 2.0 was 0.596, against a 0.9 floor; the report says so. Recheck on a
-  second slide. Also test whether `n_iterations=2` (`bin/qc_images.py:362,379`) causes part of
+  second slide. Also test whether `n_iterations=2` (`bin/qc_images.py:370,387`) causes part of
   it. If it holds, show clusters as a staining summary or switch to gating.
 - **Silhouette does not work for choosing Leiden resolution.** It falls monotonically with
   resolution, so it always picks the coarsest. Still reported; selection uses seed stability.
@@ -175,6 +176,10 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### Tooling
 
+- **Local Mac test profile for the partial path.** Ashlar, backsub, sopa, Cellpose and InstanSeg
+  run under `docker,emulate_amd64,laptop`; BaSiCPy, Coreograph and StarDist do not (no AVX under
+  Rosetta). A real-data test without those three would catch tool behaviour before the cluster.
+  See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
   and unit-test it.
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,

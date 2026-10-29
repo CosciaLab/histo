@@ -29,8 +29,8 @@ nf-test test --tag stub,validation    # what CI runs; exemplar tests are cluster
 nextflow run . -profile test -stub --outdir results   # DAG and channel shapes, no containers
 ```
 
-`-stub` is the only loop that works on an Apple Silicon laptop, since the containers are amd64
-only. Update a module's `stub:` block in the same commit as its outputs; the `stub-drift` hook
+On an Apple Silicon laptop, `-stub` is the everyday loop; real runs work only for part of the
+pipeline (see [On the Mac](#on-the-mac)). Update a module's `stub:` block in the same commit as its outputs; the `stub-drift` hook
 checks this.
 
 Do not hand-edit `nextflow_schema.json` (use `nf-core pipelines schema build`) or nf-test
