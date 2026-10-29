@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `use_instanseg`: InstanSeg as a tiled segmentation backend, mirroring Cellpose. Requires
   `instanseg_pixel_size`. Runs from `docker.io/josenimo/sopa:2.2.12` (sopa 2.2.12, InstanSeg
   0.1.2, cellpose 4.2.1.1; weights baked in).
+- `assets/params_template.yml`: every parameter with its description and default, for
+  `-params-file`. Generated from the schema by a prek hook.
 
 ### Changed
 

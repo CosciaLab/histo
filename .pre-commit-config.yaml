@@ -21,6 +21,7 @@ repos:
         exclude: |
           (?x)^(
               .*ro-crate-metadata.json$|
+              assets/params_template.yml$|
               modules/(?!local/).*|
               subworkflows/(?!local/).*|
               .*\.snap$
@@ -29,6 +30,7 @@ repos:
         exclude: |
           (?x)^(
               .*ro-crate-metadata.json$|
+              assets/params_template.yml$|
               modules/(?!local/).*|
               subworkflows/(?!local/).*|
               .*\.snap$
@@ -157,3 +159,14 @@ repos:
           if [ "$oo" != "$on" ] && [ "$so" = "$sn" ]; then
           echo "$f: output: block changed but stub: block did not; update the stub in this commit" >&2;
           fail=1; fi; done; exit $fail' --
+
+      # A colleague's full parameter list, regenerated from the schema so it cannot drift.
+      # Exempt from the formatters above: nf-core's output is committed as written.
+      - id: params-template
+        name: assets/params_template.yml matches the schema
+        language: python
+        # 4.0.3 writes ". 0.0.0" for the pipeline name and version.
+        additional_dependencies: ["nf-core==4.2.0"]
+        files: '^(nextflow_schema\.json|nextflow\.config|assets/params_template\.yml)$'
+        pass_filenames: false
+        entry: nf-core pipelines create-params-file . -o assets/params_template.yml --show-hidden --no-prompts --force
