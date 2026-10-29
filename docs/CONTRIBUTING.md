@@ -153,8 +153,7 @@ Regenerate it after adding or removing a module, or bumping a container.
 **Five images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
 BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
 the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`).
-`josenimo/sopa:2.2.12` (InstanSeg, with cellpose 4 and the weights baked in) is also ours, built
-from a Dockerfile kept outside this repository. Their
+`josenimo/sopa:2.2.12` (InstanSeg, with cellpose 4 and the weights baked in) is also ours. Their
 `singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
 directly, which is slower and subject to Docker Hub rate limiting. Budget for that.
 
