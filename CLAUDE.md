@@ -56,8 +56,9 @@ internet. Hence:
 
 1. No runtime container pull or launch-time network dependency, including Wave. All images
    are pre-staged. See [usage](docs/usage.md#staging-images-into-the-shared-cache).
-2. The cluster is the reference. On the Mac, real runs work only for the partial path (no
-   BaSiCPy, Coreograph or StarDist); see [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
+2. The cluster is the reference. On the Mac, run real containers when convenient, but only
+   the ones that work: never BaSiCPy, Coreograph or StarDist (no AVX under Rosetta). See
+   [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 3. `NXF_SINGULARITY_CACHEDIR` is set by each user in their environment; config sets no default.
 4. Every image URI is in the manifest (`tools/container_manifest.py`; a prek hook checks it).
 
