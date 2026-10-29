@@ -631,13 +631,12 @@ def validateParams(params) {
     }
 
     if (params.use_projection) {
-        assert params.use_cellpose || params.use_instanseg : "use_projection requires use_cellpose or " +
-            "use_instanseg: the projection is a two-channel input, and StarDist reads only one."
+        assert params.use_cellpose : "use_projection requires use_cellpose: the projection is " +
+            "Cellpose's two input channels, and StarDist reads only one."
         assert params.use_preprocessing : "use_projection requires use_preprocessing: the channels " +
             "come from the marker sheet, which pre-stitched input does not have."
-        assert params.cellpose_channels == null && params.instanseg_channels == null : "use_projection sets the " +
-            "segmentation channels to the projection's 'cell' and 'nuclear', so cellpose_channels and " +
-            "instanseg_channels must be unset. Got: ${params.cellpose_channels} / ${params.instanseg_channels}"
+        assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
+            "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
 
     // Dearraying (preprocessing only) sets meta.slide, which MERGE_SPATIALDATA groups on;

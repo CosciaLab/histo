@@ -90,7 +90,7 @@ workflow HISTO {
             ch_tissue_seg = ch_named
         }
 
-        if (params.use_cellpose || params.use_instanseg) {
+        if (params.use_cellpose) {
             // Projection runs after tissue segmentation, which must see a single image element.
             if (params.use_projection) {
                 PROJECT_CHANNELS(ch_tissue_seg.join(ch_markers))
@@ -104,12 +104,7 @@ workflow HISTO {
             (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_to_segment, argsCLI("image_patches"))
             ch_versions = ch_versions.mix(versions)
 
-            if (params.use_cellpose) {
-                (ch_resolved, versions) = CELLPOSE(ch_image_patches)
-            }
-            else {
-                (ch_resolved, versions) = INSTANSEG(ch_image_patches)
-            }
+            (ch_resolved, versions) = CELLPOSE(ch_image_patches)
             ch_versions = ch_versions.mix(versions)
 
             // AGGREGATE must quantify the full marker image, not the projection.
@@ -125,6 +120,14 @@ workflow HISTO {
             ch_versions = ch_versions.mix(versions)
 
             (ch_resolved, versions) = STARDIST(ch_image_patches)
+            ch_versions = ch_versions.mix(versions)
+        }
+
+        if (params.use_instanseg) {
+            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
+            ch_versions = ch_versions.mix(versions)
+
+            (ch_resolved, versions) = INSTANSEG(ch_image_patches)
             ch_versions = ch_versions.mix(versions)
         }
 

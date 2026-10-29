@@ -71,8 +71,7 @@ def extractSubArgs(Map args, String group) {
             model_type: args.instanseg_model_type,
             pixel_size: args.instanseg_pixel_size,
             target: args.instanseg_target,
-            // The fluorescence model takes any channel set; order does not matter.
-            channels: args.use_projection ? ['nuclear', 'cell'] : getChannels(args.instanseg_channels, true),
+            channels: getChannels(args.instanseg_channels, true),
             device: args.instanseg_device,
             min_area: args.min_area_pixels2,
             clip_limit: args.clip_limit,

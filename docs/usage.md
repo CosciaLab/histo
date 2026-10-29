@@ -144,7 +144,7 @@ Get the dimensions with
 
 ### Two-channel segmentation (`use_projection`)
 
-Cellpose (and InstanSeg) take a nuclear and a cell channel, but an mIF panel spreads cell boundaries over many
+Cellpose takes a nuclear and a cell channel, but an mIF panel spreads cell boundaries over many
 markers, each on some cell types only. `--use_projection` builds the two channels from the marker
 sheet (see `segmentation` above) and segments those; quantification still reads every marker.
 
@@ -167,9 +167,7 @@ cellprob_threshold: 0
 clip_limit: 0
 ```
 
-With `use_instanseg` the same channels are used; set `instanseg_pixel_size`, and leave `instanseg_channels` unset.
-
-Check `qc/{sample}_projection.png` first when cells look wrong: it is what the segmentation saw, nuclear in
+Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in
 magenta and cell in green. How the defaults were chosen is in [decisions.md](decisions.md).
 
 ## Profiles

@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Channel projection for 2-channel Cellpose (and InstanSeg), `use_projection`: a nuclear and a cell channel built
+- Channel projection for 2-channel Cellpose, `use_projection`: a nuclear and a cell channel built
   from the marker sheet, which gains an optional `segmentation` column. Publishes
   `qc/{sample}_projection.png` and `.json`. Parameters `projection_method`,
   `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
