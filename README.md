@@ -58,7 +58,8 @@ nextflow run CosciaLab/histo -r v1.2.0 \
     -params-file params.yml
 ```
 
-Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch).
+Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch). Start
+`params.yml` from [assets/params_template.yml](assets/params_template.yml).
 
 ## Documentation
 

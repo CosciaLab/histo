@@ -95,8 +95,9 @@ Paths must be absolute.
 
 ## Parameters
 
-Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend with its
-channels. Everything else has a default.
+Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend. Cellpose
+also needs `cellpose_channels` or `use_projection`; StarDist and InstanSeg read every channel
+unless you name some. Everything else has a default.
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -117,12 +118,15 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
 | `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                            |
+| `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. Channels optional.                                        |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
-Full list with descriptions: `nextflow run CosciaLab/histo -r v1.2.0 --help`.
+Every parameter with its description and default is in
+[assets/params_template.yml](../assets/params_template.yml): copy it to `params.yml` and uncomment
+what you change. `null` there means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
