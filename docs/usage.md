@@ -3,7 +3,7 @@
 ## Quick start
 
 ```bash
-nextflow run CosciaLab/histo -r v1.2.0 \
+nextflow run CosciaLab/histo -r v1.3.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
