@@ -170,3 +170,11 @@ repos:
         files: '^(nextflow_schema\.json|nextflow\.config|assets/params_template\.yml)$'
         pass_filenames: false
         entry: nf-core pipelines create-params-file . -o assets/params_template.yml --show-hidden --no-prompts --force
+
+      # containers.tsv is the image manifest for pre-staging; it must list every module's image.
+      - id: container-manifest
+        name: containers.tsv matches the modules
+        language: system
+        files: '^(modules/.*/(main\.nf|environment\.yml)|containers\.tsv)$'
+        pass_filenames: false
+        entry: python3 tools/container_manifest.py --check
