@@ -344,7 +344,7 @@ def validateMarkersheet(rows, sample = null) {
 
         // Segmentation runs after backsub, so a removed channel is no longer in the image.
         def removed = rows.findAll { it.remove }.collect { it.marker_name } as Set
-        ['cellpose_channels', 'stardist_channels'].each { param ->
+        ['cellpose_channels', 'stardist_channels', 'instanseg_channels'].each { param ->
             def value = params[param]
             if (!(value instanceof CharSequence)) {
                 return
@@ -608,11 +608,17 @@ def rejectUnknownParams(params) {
 }
 
 def validateParams(params) {
-    def STAINING_BASED_METHODS = ['use_stardist', 'use_cellpose']
+    def STAINING_BASED_METHODS = ['use_stardist', 'use_cellpose', 'use_instanseg']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
 
     // Exactly one backend: with none, ch_resolved is unassigned and AGGREGATE fails obscurely.
     assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
+
+    // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
+    // and the run succeeds with few or no cells.
+    assert !(params.use_instanseg && params.instanseg_pixel_size == null) :
+        "use_instanseg requires instanseg_pixel_size (microns per pixel of the image). Without it " +
+        "InstanSeg does not rescale and may return no cells."
 
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +

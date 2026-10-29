@@ -40,7 +40,7 @@ Preprocessing (from mcmicro):
 Downstream (from sopa):
 
 5. SpatialData Zarr conversion and channel naming from the marker sheet
-6. Tiled cell segmentation with Cellpose or StarDist, optionally skipping empty tiles
+6. Tiled cell segmentation with Cellpose, StarDist or InstanSeg, optionally skipping empty tiles
 7. Aggregation of mean channel intensity per cell
 8. QC report per sample, and for a TMA a merged object per slide
 

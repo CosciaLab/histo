@@ -1,0 +1,60 @@
+// The InstanSeg backend through the same pre-stitched entry point as the default test.
+// Under -stub: it checks wiring and parameter validation, not segmentation.
+
+nextflow_pipeline {
+
+    name "InstanSeg backend"
+    script "../main.nf"
+    profile "test"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    test("InstanSeg replaces Cellpose and resolves once across patches") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("CELLPOSE").isEmpty() },
+
+                // Two patches at 5000 px; one would mean tiling silently collapsed.
+                { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
+                { assert names("RESOLVE_INSTANSEG").size() == 1 },
+                { assert names("AGGREGATE").size() == 1 },
+
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('RESOLVE_INSTANSEG') }
+            )
+        }
+    }
+
+    test("InstanSeg without a pixel size is rejected at startup") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join("\n").contains("instanseg_pixel_size") }
+            )
+        }
+    }
+}

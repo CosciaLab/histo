@@ -41,14 +41,9 @@ unmeasured.
 Segmentation, then quantification, then learned features. Each release adds its own chapter
 to the HTML QC report; MultiQC suits tool logs, not our figures.
 
-### 1.2.1: StarDist fix
-
-1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) assumes
-   `cellpose_boundaries`. Pass the backend's key; add a StarDist stub test.
-
 ### 1.3: segmentation input
 
-1. **Three-channel projection** for CPSAM and InstanSeg: split `use_projection`'s `cell`
+1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell`
    channel into membrane and cytoplasm.
 2. **Report chapters**, one per stage.
 
@@ -57,13 +52,11 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 1. **Cellpose-SAM.** sopa 2.2.9 selects `cpsam` under cellpose ≥ 4. Needs a cellpose 4
    image and a check of what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
    no change: Cellpose-SAM takes its two channels as they are.
-2. **InstanSeg.** No need to wait for sopa: `sopa.segmentation.custom_staining_based` should
-   run any per-patch method (verify the API). Gives nuclei and cells.
-3. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
-4. **Pre-staged weights**, for every backend. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
+2. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
+3. **Pre-staged weights**, for Cellpose. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
    directory (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights.
    Bump sopa to 2.2.11 for `sopa download cellpose --model-dir`. ~1 day.
-5. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+4. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
 
 ### 1.5: multiple segmentations, compared afterwards
 
