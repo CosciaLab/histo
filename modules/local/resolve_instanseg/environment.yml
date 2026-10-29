@@ -5,4 +5,5 @@ dependencies:
   - python=3.12
   - pip
   - pip:
-      - sopa[instanseg]==2.2.12
+      - sopa[cellpose,instanseg]==2.2.12
+      - cellpose==4.2.1.1

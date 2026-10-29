@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
 - `use_instanseg`: InstanSeg as a tiled segmentation backend, mirroring Cellpose. Requires
   `instanseg_pixel_size`. Runs from `docker.io/josenimo/sopa:2.2.12` (sopa 2.2.12, InstanSeg
-  0.1.2, weights baked in).
+  0.1.2, cellpose 4.2.1.1; weights baked in).
 
 ### Changed
 
