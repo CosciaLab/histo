@@ -34,7 +34,7 @@ guidelines anyway, so modules or the pipeline can go upstream later.
 - Optional steps are schema booleans with `default: false`.
 - After rewiring the graph, run
   `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg` and have a human
-  look at it. See [docs/pipeline-paths.md](docs/pipeline-paths.md).
+  look at it. See [CONTRIBUTING](docs/CONTRIBUTING.md#metro-map).
 
 ## 4. Modules
 

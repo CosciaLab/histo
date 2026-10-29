@@ -185,6 +185,56 @@ So a real run on the Mac is possible only for the partial path: a stitched image
 with illumination profiles from a cluster run, then Cellpose or InstanSeg, without dearraying.
 Expect small numerical differences (no AVX). The cluster is the reference.
 
+## Metro map
+
+`docs/images/pipeline_paths.svg` draws the three verified paths; variations are listed in
+[output.md](output.md#what-runs).
+
+The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered with
+[nf-metro](https://github.com/seqeralabs/nf-metro):
+
+```bash
+pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
+nf-metro validate docs/pipeline_paths.mmd
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg
+```
+
+**Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
+the map stale is a change nobody has seen. The tests assert that processes ran and that their
+outputs exist, which is not the same as checking what feeds what: sequencing `PUBLISH_SPATIALDATA`
+behind `MERGE_SPATIALDATA` passed every test both before and after, and the map is where the
+difference is visible. Reading it is a human step and deliberately not automated.
+
+The station order was taken from `nextflow run . -stub -with-dag` exports of all three paths
+rather than read off the source, so the map reflects the graph Nextflow actually built.
+`nf-metro convert` turns such an export straight into a map, which is worth doing when the
+pipeline changes shape.
+
+Read a converted export rather than trusting it. Nextflow's DAG draws an edge per channel
+consumer, so a channel that two processes read from produces edges to both even when one of them
+discards part of the tuple: the WSI export shows `ASHLAR` reaching `QC_IMAGES`, which it does not,
+because `subworkflows/local/qc/main.nf` drops the pre-subtraction image before `QC_IMAGES` sees
+it.
+
+nf-metro renders light only, so the figure keeps its own light surface on a dark page.
+
+### What the map leaves out
+
+One edge is deliberately absent. The pre-subtraction image also reaches `QC_METRICS`, which is
+how the report compares channel statistics before and after subtraction. It exists whenever
+`use_backsub` is set, on both the WSI and the TMA line: `COREOGRAPH` runs before `BACKSUB`, so a
+dearrayed core is subtracted individually and its own unsubtracted twin is what QC compares it
+against. Drawing this edge aborts nf-metro 1.1.0's renderer with a `CurveInvariantError`, so it
+is described here instead.
+
+For the same reason a second edge is absent: `ASHLAR` also sends its QC directory to
+`QC_REPORT` (mIF and WSI lines) and to `MERGE_REPORT` (TMA line, per slide).
+
+That ordering is the reason the TMA line lists `COREOGRAPH` before `BACKSUB`. The two orders
+produce the same pixels, since subtraction has no whole-slide term, but subtracting first leaves
+only a slide-sized before-image that cannot be paired with a core-sized store, and the
+comparison then silently does not happen.
+
 ## Use of AI and LLMs
 
 Humans remain responsible for the code regardless of the tools used.

@@ -63,7 +63,7 @@ Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at
 | [docs/usage.md](docs/usage.md)                          | Samplesheet, marker sheet, parameters, defaults |
 | [docs/output.md](docs/output.md)                        | What comes out and how to read the QC report    |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#containers) | Image manifest and pre-staging on the cluster   |
-| [docs/pipeline-paths.md](docs/pipeline-paths.md)        | The routes through the pipeline, as a map       |
+| [docs/output.md](docs/output.md#what-runs)              | The routes through the pipeline, as a map       |
 | [docs/decisions.md](docs/decisions.md)                  | Why it is built this way                        |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md#testing)    | Test tiers and how to run them                  |
 | [ROADMAP.md](ROADMAP.md)                                | Open work, known limits, verified runs          |

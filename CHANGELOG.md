@@ -152,7 +152,7 @@ limitations.
 
 - A metro map of the three paths that have been run on real data, in `docs/pipeline_paths.mmd`,
   rendered to SVG with [nf-metro](https://github.com/seqeralabs/nf-metro) and described in
-  `docs/pipeline-paths.md`.
+  `docs/CONTRIBUTING.md` (Metro map).
 
 - Citations for the Leiden algorithm and python-igraph, which the QC report's clustering calls
   through `sc.tl.leiden(flavor="igraph")`.
