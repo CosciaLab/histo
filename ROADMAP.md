@@ -1,7 +1,7 @@
 # Roadmap
 
 The tracker for this project; GitHub Issues is not used. Reasoning is in
-[docs/decisions.md](docs/decisions.md), larger ideas in [docs/future-ideas.md](docs/future-ideas.md).
+[docs/decisions.md](docs/decisions.md).
 
 Priorities, in order: transparency, robustness, troubleshootability. Sizes are focused working
 time, estimated before the release; treat them as rough.
@@ -86,8 +86,27 @@ Check weight licences first.
 
 ### Separate track: dearray before Ashlar
 
-[Future idea 5](docs/future-ideas.md). Spike first: does Coreograph find the same cores on a
-stage-position mosaic? If not, stop. It changes the preprocessing outputs, so it ships in 2.0.
+It changes the preprocessing outputs, so it ships in 2.0.
+
+Most valuable and most dangerous. Today Ashlar registers about 1000 tiles × 7 cycles in one job;
+one failure ruins the slide. Per core it would be about 36 tiles × 7 cycles, giving per-core
+parallelism, a better-conditioned registration, and failures limited to one core.
+
+Hard parts:
+
+- **Finding cores without stitching.** A downsampled mosaic from stage positions alone should
+  be enough for Coreograph. Without this the idea is circular.
+- **Mapping cores to tiles exactly.** An off-by-one silently crops a core.
+- **Per-core, per-cycle sub-images with correct stage positions in the OME-XML.** Wrong
+  positions give a confidently misregistered image with no error. Prototype first, trust last.
+- **Keep BaSiCPy global.** 36 tiles per core is too few for a good profile; estimate per cycle
+  on the whole acquisition, apply per core.
+
+Order: (1) check Coreograph finds the same cores on the naive mosaic, else stop; (2) tile
+mapping, verified against known cores; (3) one core, one cycle through Ashlar, compared with
+the whole-slide result; (4) only then restructure `PREPROCESS_IMAGES`.
+
+Downstream is untouched: core identity, `meta.slide` and `MERGE_SPATIALDATA` already exist.
 
 ### 2.0: breaking changes only
 
@@ -105,20 +124,27 @@ only) or StarDist.
 
 ## Longer term
 
-Costs and risks in [docs/future-ideas.md](docs/future-ideas.md). The marker sheet already has
-the columns these need (`channel_role`, `exposure`, `background`, `filter`).
+Not scheduled. The marker sheet already has the columns these need (`channel_role`, `exposure`,
+`background`, `filter`).
 
 1. **Ashlar registration QC: thresholds.** The fork's `--qc-output` is in the reports; what
-   counts as bad still needs exemplar-001, exemplar-002 and a real slide behind it.
+   counts as bad still needs exemplar-001, exemplar-002 and a real slide behind it. Offering
+   `--qc-output` upstream would let the module return to a bioconda image.
 2. **Imaging QC.** Saturation per channel is under a day (the histograms exist). Focus and
-   artefacts are open-ended and need labelled examples. 5–10 days.
+   artefacts are open-ended and need labelled examples. Start on the stitched image; report, do not fail,
+   until thresholds come from real datasets. 5–10 days.
 3. **Read `.czi` metadata** for backsub exposure. `bioio_bioformats` is already in the BaSiCPy
    image, so no new container. `.czi` channel names are dyes, not markers: they can check the
-   `filter` column, not name channels. Sheet values always win. 1–2 weeks.
+   `filter` column, not name channels. Sheet values always win. Check Ashlar's `.czi` support on
+   real files first. 1–2 weeks.
 4. **Dearray across every nuclear channel** to detect cores lost between cycles. One Coreograph
-   call per `dna` channel; each writes every core again, so disk grows with cycles. 1–1.5 weeks.
+   call per `dna` channel; each writes every core again, so disk grows with cycles. Decide first
+   what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
+
+Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
+dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
 
 ## Open
 

@@ -5,7 +5,6 @@
 - [Pipeline paths](output.md#what-runs) — the three routes through the pipeline, as a metro map.
 - [Containers](CONTRIBUTING.md#containers) — the image manifest, and pre-staging onto the cluster.
 - [Decisions](decisions.md) — why the pipeline is built the way it is.
-- [Future ideas](future-ideas.md) — larger changes being considered, with their costs.
 
 For status and open work, see [ROADMAP.md](../ROADMAP.md).
 
