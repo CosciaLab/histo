@@ -66,7 +66,7 @@ into a registry I control. Committed config references static URIs.
 
 Tiers, cheapest first: prek hooks, `nf-core pipelines lint`, pytest, validation and stub
 nf-tests (CI), then two exemplar runs on the cluster before each release. Details in
-[tests/README.md](tests/README.md).
+[CONTRIBUTING](docs/CONTRIBUTING.md#testing).
 
 - `-stub` checks channel topology only, not tool behaviour or resources.
 - A module that creates a file (including `versions.yml`) needs a stub. prek enforces this.

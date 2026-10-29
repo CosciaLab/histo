@@ -99,21 +99,7 @@ stage-position mosaic? If not, stop. It changes the preprocessing outputs, so it
 Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreograph),
 too large for GitHub runners.
 
-```bash
-export HISTO_EXEMPLARS=/fast/AG_Coscia/$USER/HISTO/exemplars
-bash tools/fetch_exemplars.sh          # 1.1 GB, public mcmicro S3, no credentials
-
-export TMPDIR=/fast/AG_Coscia/$USER/tmp && mkdir -p "$TMPDIR"
-export NXF_TEMP="$TMPDIR" NXF_OPTS="-Djava.io.tmpdir=$TMPDIR" NXF_OFFLINE=true
-
-nf-test test tests/exemplar001.nf.test --profile test_exemplar001,singularity,size_small,slurm
-nf-test test tests/exemplar002.nf.test --profile test_exemplar002,singularity,size_small,slurm
-
-uvx --from nf-core nf-core pipelines lint --release
-```
-
-What each covers is in [tests/README.md](tests/README.md). If nf-test is blocked on the
-cluster, `nextflow run` with the same profiles and an `--outdir` is enough. Cell counts must stay
+Commands and what each run covers are in [CONTRIBUTING](docs/CONTRIBUTING.md#testing). Cell counts must stay
 within ±2% of the baselines above. Nothing checks `use_preprocessing = false` on real data (stub
 only) or StarDist.
 
