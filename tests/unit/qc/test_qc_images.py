@@ -8,6 +8,7 @@ not here: they need scanpy and PIL and are exercised against the real store.
 import numpy as np
 import pytest
 from qc_images import (
+    boundaries_name,
     clustering_exclusions,
     composite,
     pick_windows,
@@ -265,3 +266,14 @@ class TestClusteringExclusions:
 
     def test_no_sheet_excludes_only_the_nuclear_channels(self):
         assert clustering_exclusions(["DAPI"], None) == {"DAPI": "nuclear stain"}
+
+
+class TestBoundariesName:
+    @pytest.mark.parametrize("key", ["cellpose_boundaries", "stardist_boundaries", "instanseg_boundaries"])
+    def test_follows_the_backend(self, key):
+        """QC_IMAGES must draw whichever backend ran, not assume Cellpose."""
+        assert boundaries_name([key, key]) == key
+
+    def test_more_than_one_region_is_an_error(self):
+        with pytest.raises(ValueError, match="one shapes element"):
+            boundaries_name(["cellpose_boundaries", "instanseg_boundaries"])

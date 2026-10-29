@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The repository moved to `CosciaLab/histo`. Run `nextflow run CosciaLab/histo`; an old
   `~/.nextflow/assets/josenimo/histo` clone is no longer updated.
 
+### Fixed
+
+- `QC_IMAGES` draws the boundaries of whichever backend ran; it failed with StarDist (and
+  InstanSeg) by assuming Cellpose's.
+
 ## v1.2.0 - [2026-10-21]
 
 ### Added
