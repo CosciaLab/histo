@@ -31,6 +31,7 @@ guidelines anyway, so modules or the pipeline can go upstream later.
 - Branches: `main` released, `dev` integration, feature branch → PR into `dev`. Keep `TEMPLATE`.
 - Keep `CITATIONS.md` (mcmicro, sopa, every tool), `CHANGELOG.md` and `conf/slurm.config` current.
 - Never hand-edit `nextflow_schema.json`; use `nf-core pipelines schema build`.
+- Never hand-edit `assets/params_template.yml`; a prek hook regenerates it from the schema.
 - Optional steps are schema booleans with `default: false`.
 - After rewiring the graph, run
   `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg` and have a human
@@ -55,9 +56,10 @@ internet. Hence:
 
 1. No runtime container pull or launch-time network dependency, including Wave. All images
    are pre-staged. See [CONTRIBUTING](docs/CONTRIBUTING.md#containers).
-2. No real container runs on the Mac. The Mac is for writing code and running `-stub`.
+2. The cluster is the reference. On the Mac, real runs work only for the partial path (no
+   BaSiCPy, Coreograph or StarDist); see [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 3. `NXF_SINGULARITY_CACHEDIR` is set by each user in their environment; config sets no default.
-4. Every image URI is in the manifest (`tools/container_manifest.py`).
+4. Every image URI is in the manifest (`tools/container_manifest.py`; a prek hook checks it).
 
 Wave is a development tool only: conda-to-container, multi-arch builds, `freeze` or `mirror`
 into a registry I control. Committed config references static URIs.
