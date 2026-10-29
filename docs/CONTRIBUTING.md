@@ -126,6 +126,65 @@ and how often, nuclear stain chosen by `channel_role`, subtraction blocks on eve
 background channels unchanged by subtraction, `versions.yml` complete. Cell counts must stay within ±2% of the
 baselines in ROADMAP.
 
+## Containers
+
+This pipeline never pulls an image at run time. Every image is fetched in advance, on a machine with
+working internet, and placed in the shared Singularity cache before any job is submitted.
+
+That is not a preference. The cluster's connectivity is intermittent, and a pull that fails three
+hours into a run wastes the run and the queue slot. A launch-time network dependency — including
+resolving images through Wave — is treated as a defect.
+
+### What the pipeline needs
+
+[`containers.tsv`](../containers.tsv) at the repository root lists every image, one row per image
+rather than per module, because several modules share one. It records the Singularity URI, the Docker
+URI, the conda specification the image was built from, and which modules use it.
+
+It is generated, not written:
+
+```bash
+tools/container_manifest.py            # rewrite it
+tools/container_manifest.py --check    # fail if stale; the container-manifest prek hook
+```
+
+Regenerate it after adding or removing a module, or bumping a container.
+
+**Five images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
+BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
+the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`).
+`josenimo/sopa:2.2.12` (InstanSeg, with cellpose 4 and the weights baked in) is also ours, built
+from a Dockerfile kept outside this repository. Their
+`singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
+directly, which is slower and subject to Docker Hub rate limiting. Budget for that.
+
+### Building an image
+
+Only when no suitable image exists. Start from a micromamba or conda-forge base, pin exact versions,
+and build for the cluster's architecture rather than your laptop's:
+
+```bash
+docker buildx build --platform linux/amd64 -t ghcr.io/<user>/<tool>:<version> .
+```
+
+Building a SIF directly needs Linux with root or fakeroot, so it generally cannot be done on macOS.
+Push to `ghcr.io` or `quay.io`, then fetch it back through the normal pre-staging route above so that
+the cache holds exactly what the pipeline will ask for.
+
+### On the Mac
+
+The laptop is macOS on Apple Silicon. Docker Desktop runs the amd64 images under Rosetta, which
+offers no AVX instructions. Checked on 2026-10-29:
+
+- **Fail:** BaSiCPy (jaxlib refuses to start without AVX), Coreograph and StarDist (TensorFlow
+  hangs on import).
+- **Run:** Ashlar, backsub (which also has an arm64 build), sopa, Cellpose 3 (downloads its
+  weights, so needs internet) and InstanSeg, under `-profile docker,emulate_amd64,laptop`.
+
+So a real run on the Mac is possible only for the partial path: a stitched image, or tiles
+with illumination profiles from a cluster run, then Cellpose or InstanSeg, without dearraying.
+Expect small numerical differences (no AVX). The cluster is the reference.
+
 ## Use of AI and LLMs
 
 Humans remain responsible for the code regardless of the tools used.

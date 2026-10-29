@@ -188,7 +188,7 @@ launched from.
 **MDC** — add `mdc` after `slurm` to request nodes with Ceph storage (`--constraint=ceph`).
 
 **Containers** — `singularity` on the cluster. Images must be pre-staged; see
-[containers.md](containers.md).
+[Fetching images](#fetching-images).
 
 ## Example
 
@@ -238,3 +238,46 @@ a queue wait:
 ```bash
 nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
 ```
+
+### Fetching images
+
+On a well-connected Linux machine:
+
+```bash
+nf-core pipelines download CosciaLab/histo \
+    -r <tag> \
+    --container-system singularity \
+    --outdir ~/histo-download
+```
+
+Do this once per release. It resolves every image the pipeline declares and writes the SIFs alongside the pipeline code.
+
+Cross-check what it fetched against the manifest. They should agree, and if they do not, the manifest
+generator has a parsing bug rather than the download being wrong:
+
+```bash
+nextflow inspect . -profile singularity | grep -o '"container": "[^"]*"' | sort -u
+```
+
+### Staging images into the shared cache
+
+Each user sets `NXF_SINGULARITY_CACHEDIR` in their own environment (e.g. `~/.bashrc`); the pipeline
+sets no default. At a site it is usually a **shared filesystem path** that colleagues also use.
+
+> [!WARNING]
+> Never delete from or overwrite files in the shared cache. Other people's running jobs depend on
+> them. Copy in only what is missing.
+
+Check first, copy second:
+
+```bash
+# what is already there
+ls "$NXF_SINGULARITY_CACHEDIR"
+
+# copy in only new files, never overwriting an existing one
+rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARITY_CACHEDIR/"
+```
+
+`--ignore-existing` rather than plain `rsync` is deliberate: an image already in the cache is one a
+colleague may have a job attached to right now, and replacing it mid-run is how you break someone
+else's week.

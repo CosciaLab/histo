@@ -54,7 +54,7 @@ The laptop is macOS arm64; the cluster is Linux amd64, SLURM, Apptainer, with un
 internet. Hence:
 
 1. No runtime container pull or launch-time network dependency, including Wave. All images
-   are pre-staged. See [docs/containers.md](docs/containers.md).
+   are pre-staged. See [CONTRIBUTING](docs/CONTRIBUTING.md#containers).
 2. No real container runs on the Mac. The Mac is for writing code and running `-stub`.
 3. `NXF_SINGULARITY_CACHEDIR` is set by each user in their environment; config sets no default.
 4. Every image URI is in the manifest (`tools/container_manifest.py`).
