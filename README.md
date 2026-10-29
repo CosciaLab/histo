@@ -30,6 +30,8 @@ nf-core. It follows nf-core conventions for reproducibility and to keep upstream
 
 ## Steps
 
+![Metro map of the three verified pipeline paths](docs/images/pipeline_paths.svg)
+
 Preprocessing (from mcmicro):
 
 1. Illumination correction (BaSiCPy)
@@ -40,7 +42,7 @@ Preprocessing (from mcmicro):
 Downstream (from sopa):
 
 5. SpatialData Zarr conversion and channel naming from the marker sheet
-6. Tiled cell segmentation with Cellpose or StarDist, optionally skipping empty tiles
+6. Tiled cell segmentation with Cellpose, StarDist or InstanSeg, optionally skipping empty tiles
 7. Aggregation of mean channel intensity per cell
 8. QC report per sample, and for a TMA a merged object per slide
 
@@ -56,18 +58,21 @@ nextflow run CosciaLab/histo -r v1.2.0 \
     -params-file params.yml
 ```
 
-Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch).
+Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch). Start
+`params.yml` from [assets/params_template.yml](assets/params_template.yml).
 
-| Doc                                              | Contents                                        |
-| ------------------------------------------------ | ----------------------------------------------- |
-| [docs/usage.md](docs/usage.md)                   | Samplesheet, marker sheet, parameters, defaults |
-| [docs/output.md](docs/output.md)                 | What comes out and how to read the QC report    |
-| [docs/containers.md](docs/containers.md)         | Image manifest and pre-staging on the cluster   |
-| [docs/pipeline-paths.md](docs/pipeline-paths.md) | The routes through the pipeline, as a map       |
-| [docs/decisions.md](docs/decisions.md)           | Why it is built this way                        |
-| [tests/README.md](tests/README.md)               | Test tiers and how to run them                  |
-| [ROADMAP.md](ROADMAP.md)                         | Open work, known limits, verified runs          |
-| [CHANGELOG.md](CHANGELOG.md)                     | Release notes                                   |
+## Documentation
+
+| Doc                                                      | For         | Contents                                           |
+| -------------------------------------------------------- | ----------- | -------------------------------------------------- |
+| [docs/usage.md](docs/usage.md)                           | users       | Inputs, choosing parameters, profiles, the cluster |
+| [assets/params_template.yml](assets/params_template.yml) | users       | Every parameter with its default                   |
+| [docs/output.md](docs/output.md)                         | users       | What runs, what comes out, the QC report           |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)             | maintainers | Testing, containers, the metro map                 |
+| [docs/decisions.md](docs/decisions.md)                   | maintainers | Why it is built this way                           |
+| [ROADMAP.md](ROADMAP.md)                                 | maintainers | Open work, known limits, verified runs             |
+| [CHANGELOG.md](CHANGELOG.md)                             | both        | Release notes                                      |
+| [CITATIONS.md](CITATIONS.md)                             | both        | Tools to cite                                      |
 
 ## Credits
 

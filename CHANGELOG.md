@@ -11,11 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the marker sheet, which gains an optional `segmentation` column. Publishes
   `qc/{sample}_projection.png` and `.json`. Parameters `projection_method`,
   `projection_low_percentile`, `projection_high_percentile` and `projection_sigma`.
+- `use_instanseg`: InstanSeg as a tiled segmentation backend, mirroring Cellpose. Requires
+  `instanseg_pixel_size`. Runs from `docker.io/josenimo/sopa:2.2.12` (sopa 2.2.12, InstanSeg
+  0.1.2, cellpose 4.2.1.1; weights baked in).
+- `assets/params_template.yml`: every parameter with its description and default, for
+  `-params-file`. Generated from the schema by a prek hook.
 
 ### Changed
 
 - The repository moved to `CosciaLab/histo`. Run `nextflow run CosciaLab/histo`; an old
   `~/.nextflow/assets/josenimo/histo` clone is no longer updated.
+- Docs consolidated: testing, containers and the metro map now live in `docs/CONTRIBUTING.md`,
+  image staging in `docs/usage.md`, the pipeline paths in `docs/output.md`; the README is the
+  docs index. Images run on Apple Silicon only in part; see CONTRIBUTING.
+
+### Fixed
+
+- `QC_IMAGES` draws the boundaries of whichever backend ran; it failed with StarDist (and
+  InstanSeg) by assuming Cellpose's.
 
 ## v1.2.0 - [2026-10-21]
 
@@ -126,7 +139,7 @@ limitations.
   `conf/slurm.config`.
 
 - A container manifest (`tools/container_manifest.py`) and pre-staging instructions in
-  [docs/containers.md](docs/containers.md).
+  [docs/usage.md](docs/usage.md#staging-images-into-the-shared-cache).
 
 - Tests: pytest, validation and stub nf-tests in CI, and two exemplar runs on the cluster (`tests/exemplar00{1,2}.nf.test`) with cell-count baselines.
 
@@ -142,7 +155,7 @@ limitations.
 
 - A metro map of the three paths that have been run on real data, in `docs/pipeline_paths.mmd`,
   rendered to SVG with [nf-metro](https://github.com/seqeralabs/nf-metro) and described in
-  `docs/pipeline-paths.md`.
+  `docs/CONTRIBUTING.md` (Metro map).
 
 - Citations for the Leiden algorithm and python-igraph, which the QC report's clustering calls
   through `sc.tl.leiden(flavor="igraph")`.

@@ -73,7 +73,15 @@ def clustering_exclusions(nuclear: list[str], marker_rows: list[dict[str, Any]] 
     return excluded
 
 
-def read_boundaries(sdata_path: Path, name: str = "cellpose_boundaries") -> Any:
+def boundaries_name(regions: Any) -> str:
+    """The shapes element the table annotates: cellpose_, stardist_ or instanseg_boundaries."""
+    names = sorted({str(r) for r in regions})
+    if len(names) != 1:
+        raise ValueError(f"expected the table to annotate one shapes element, found {names}")
+    return names[0]
+
+
+def read_boundaries(sdata_path: Path, name: str) -> Any:
     """Read the segmentation polygons as a GeoDataFrame indexed like the table's rows."""
     import geopandas as gpd
 
@@ -643,7 +651,7 @@ def main() -> int:
     table = zarr.open_group(str(args.sdata / "tables" / "table"), mode="r")
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     centroids = np.asarray(table["obsm"]["spatial"][:])
-    boundaries = read_boundaries(args.sdata)
+    boundaries = read_boundaries(args.sdata, boundaries_name(read_column(table["obs"]["region"])))
 
     marker_rows = read_marker_cycles(args.markers) if args.markers else None
     nuclear, nuclear_how = select_nuclear_channels(channel_names, marker_rows, args.nuclear_pattern)

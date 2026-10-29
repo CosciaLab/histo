@@ -1,7 +1,7 @@
 # Roadmap
 
 The tracker for this project; GitHub Issues is not used. Reasoning is in
-[docs/decisions.md](docs/decisions.md), larger ideas in [docs/future-ideas.md](docs/future-ideas.md).
+[docs/decisions.md](docs/decisions.md).
 
 Priorities, in order: transparency, robustness, troubleshootability. Sizes are focused working
 time, estimated before the release; treat them as rough.
@@ -15,7 +15,7 @@ time, estimated before the release; treat them as rough.
 | 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                    |
 | 3. TMA path            | Done: per-core processing, per-slide merge and QC page        |
 | 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`            |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented              |
+| 5. Containers          | Done: 8 images, manifest, pre-staging documented              |
 | 6. Testing             | Done; exemplar releases checked by hand on the cluster        |
 | 7. QC report           | Metrics, images and reports in; thresholds need more slides   |
 | 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21 |
@@ -41,29 +41,23 @@ unmeasured.
 Segmentation, then quantification, then learned features. Each release adds its own chapter
 to the HTML QC report; MultiQC suits tool logs, not our figures.
 
-### 1.2.1: StarDist fix
-
-1. **QC_IMAGES fails with StarDist.** `read_boundaries` (`bin/qc_images.py:76`) assumes
-   `cellpose_boundaries`. Pass the backend's key; add a StarDist stub test.
-
 ### 1.3: segmentation input
 
-1. **Three-channel projection** for CPSAM and InstanSeg: split `use_projection`'s `cell`
+1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell`
    channel into membrane and cytoplasm.
 2. **Report chapters**, one per stage.
 
 ### 1.4: segmentation backends
 
-1. **Cellpose-SAM.** sopa 2.2.9 selects `cpsam` under cellpose ≥ 4. Needs a cellpose 4
-   image and a check of what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
+1. **Cellpose-SAM.** sopa selects `cpsam` under cellpose ≥ 4. `josenimo/sopa:2.2.12` (the
+   InstanSeg image) already ships cellpose 4.2.1.1 with `cpsam` weights; still needs a check of
+   what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
    no change: Cellpose-SAM takes its two channels as they are.
-2. **InstanSeg.** No need to wait for sopa: `sopa.segmentation.custom_staining_based` should
-   run any per-patch method (verify the API). Gives nuclei and cells.
-3. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
-4. **Pre-staged weights**, for every backend. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
-   directory (`patch_segmentation_cellpose/main.nf:19`), so every task downloads weights.
-   Bump sopa to 2.2.11 for `sopa download cellpose --model-dir`. ~1 day.
-5. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+2. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
+3. **Pre-staged weights**, for Cellpose. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
+   directory (`patch_segmentation_cellpose/main.nf:20`), so every task downloads weights.
+   Moving Cellpose to `josenimo/sopa:2.2.12`, which bakes them in, would also do. ~1 day.
+4. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
 
 ### 1.5: multiple segmentations, compared afterwards
 
@@ -93,8 +87,27 @@ Check weight licences first.
 
 ### Separate track: dearray before Ashlar
 
-[Future idea 5](docs/future-ideas.md). Spike first: does Coreograph find the same cores on a
-stage-position mosaic? If not, stop. It changes the preprocessing outputs, so it ships in 2.0.
+It changes the preprocessing outputs, so it ships in 2.0.
+
+Most valuable and most dangerous. Today Ashlar registers about 1000 tiles × 7 cycles in one job;
+one failure ruins the slide. Per core it would be about 36 tiles × 7 cycles, giving per-core
+parallelism, a better-conditioned registration, and failures limited to one core.
+
+Hard parts:
+
+- **Finding cores without stitching.** A downsampled mosaic from stage positions alone should
+  be enough for Coreograph. Without this the idea is circular.
+- **Mapping cores to tiles exactly.** An off-by-one silently crops a core.
+- **Per-core, per-cycle sub-images with correct stage positions in the OME-XML.** Wrong
+  positions give a confidently misregistered image with no error. Prototype first, trust last.
+- **Keep BaSiCPy global.** 36 tiles per core is too few for a good profile; estimate per cycle
+  on the whole acquisition, apply per core.
+
+Order: (1) check Coreograph finds the same cores on the naive mosaic, else stop; (2) tile
+mapping, verified against known cores; (3) one core, one cycle through Ashlar, compared with
+the whole-slide result; (4) only then restructure `PREPROCESS_IMAGES`.
+
+Downstream is untouched: core identity, `meta.slide` and `MERGE_SPATIALDATA` already exist.
 
 ### 2.0: breaking changes only
 
@@ -106,40 +119,33 @@ stage-position mosaic? If not, stop. It changes the preprocessing outputs, so it
 Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreograph),
 too large for GitHub runners.
 
-```bash
-export HISTO_EXEMPLARS=/fast/AG_Coscia/$USER/HISTO/exemplars
-bash tools/fetch_exemplars.sh          # 1.1 GB, public mcmicro S3, no credentials
-
-export TMPDIR=/fast/AG_Coscia/$USER/tmp && mkdir -p "$TMPDIR"
-export NXF_TEMP="$TMPDIR" NXF_OPTS="-Djava.io.tmpdir=$TMPDIR" NXF_OFFLINE=true
-
-nf-test test tests/exemplar001.nf.test --profile test_exemplar001,singularity,size_small,slurm
-nf-test test tests/exemplar002.nf.test --profile test_exemplar002,singularity,size_small,slurm
-
-uvx --from nf-core nf-core pipelines lint --release
-```
-
-What each covers is in [tests/README.md](tests/README.md). If nf-test is blocked on the
-cluster, `nextflow run` with the same profiles and an `--outdir` is enough. Cell counts must stay
+Commands and what each run covers are in [CONTRIBUTING](docs/CONTRIBUTING.md#testing). Cell counts must stay
 within ±2% of the baselines above. Nothing checks `use_preprocessing = false` on real data (stub
 only) or StarDist.
 
 ## Longer term
 
-Costs and risks in [docs/future-ideas.md](docs/future-ideas.md). The marker sheet already has
-the columns these need (`channel_role`, `exposure`, `background`, `filter`).
+Not scheduled. The marker sheet already has the columns these need (`channel_role`, `exposure`,
+`background`, `filter`).
 
 1. **Ashlar registration QC: thresholds.** The fork's `--qc-output` is in the reports; what
-   counts as bad still needs exemplar-001, exemplar-002 and a real slide behind it.
+   counts as bad still needs exemplar-001, exemplar-002 and a real slide behind it. Offering
+   `--qc-output` upstream would let the module return to a bioconda image.
 2. **Imaging QC.** Saturation per channel is under a day (the histograms exist). Focus and
-   artefacts are open-ended and need labelled examples. 5–10 days.
+   artefacts are open-ended and need labelled examples. Start on the stitched image; report, do not fail,
+   until thresholds come from real datasets. 5–10 days.
 3. **Read `.czi` metadata** for backsub exposure. `bioio_bioformats` is already in the BaSiCPy
    image, so no new container. `.czi` channel names are dyes, not markers: they can check the
-   `filter` column, not name channels. Sheet values always win. 1–2 weeks.
+   `filter` column, not name channels. Sheet values always win. Check Ashlar's `.czi` support on
+   real files first. 1–2 weeks.
 4. **Dearray across every nuclear channel** to detect cores lost between cycles. One Coreograph
-   call per `dna` channel; each writes every core again, so disk grows with cycles. 1–1.5 weeks.
+   call per `dna` channel; each writes every core again, so disk grows with cycles. Decide first
+   what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
+
+Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
+dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
 
 ## Open
 
@@ -147,7 +153,7 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 - **Leiden clusters are not reproducible on our one slide.** Best seed-to-seed ARI across
   resolutions 0.1 to 2.0 was 0.596, against a 0.9 floor; the report says so. Recheck on a
-  second slide. Also test whether `n_iterations=2` (`bin/qc_images.py:362,379`) causes part of
+  second slide. Also test whether `n_iterations=2` (`bin/qc_images.py:370,387`) causes part of
   it. If it holds, show clusters as a staining summary or switch to gating.
 - **Silhouette does not work for choosing Leiden resolution.** It falls monotonically with
   resolution, so it always picks the coarsest. Still reported; selection uses seed stability.
@@ -156,7 +162,7 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (1.4 item 4).
+- **Cellpose downloads its weights at run time** (1.4 item 3).
   Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
@@ -170,6 +176,10 @@ the columns these need (`channel_role`, `exposure`, `background`, `filter`).
 
 ### Tooling
 
+- **Local Mac test profile for the partial path.** Ashlar, backsub, sopa, Cellpose and InstanSeg
+  run under `docker,emulate_amd64,laptop`; BaSiCPy, Coreograph and StarDist do not (no AVX under
+  Rosetta). A real-data test without those three would catch tool behaviour before the cluster.
+  See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
   and unit-test it.
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,

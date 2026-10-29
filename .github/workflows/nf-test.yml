@@ -44,7 +44,7 @@ jobs:
           NFT_VER: ${{ env.NFT_VER }}
         with:
           max_shards: 7
-          # stub and validation only: no containers needed. Real-data tests run by hand (tests/README.md).
+          # stub and validation only: no containers needed. Real-data tests run by hand (docs/CONTRIBUTING.md#testing).
           tags: stub,validation
 
       - name: debug

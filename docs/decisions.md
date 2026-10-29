@@ -92,7 +92,7 @@ larger slide means more tasks, not bigger ones.
 ## Containers
 
 **Nothing is pulled at run time.** A pull failing hours in wastes the run and the queue slot.
-`containers.tsv` is kept current by a pre-commit hook; see [containers.md](containers.md).
+`containers.tsv` is kept current by a prek hook; see [CONTRIBUTING](CONTRIBUTING.md#containers).
 
 **Ashlar runs from our own public image, `josenimo/ashlar`.** It is the only way to get
 rotation correction, per-cycle last-channel alignment and machine-readable stitching QC; none

@@ -69,8 +69,8 @@ channel a marker feeds: `nuclear`, `cell` or `none`. Without the column, the fir
 `autofluorescence`. The two columns describe one fact, so they are checked against each other.
 
 `remove` set to `true` drops a channel after backsub; without `--use_backsub` it is ignored with a
-warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`
-or `stardist_channels`; both are rejected at startup.
+warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`,
+`stardist_channels` or `instanseg_channels`; both are rejected at startup.
 
 Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_args`, default
 0), and Coreograph dearrays on one channel of the stitched image (`--channel` in
@@ -95,8 +95,10 @@ Paths must be absolute.
 
 ## Parameters
 
-Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend with its
-channels. Everything else has a default.
+Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend. Cellpose
+also needs `cellpose_channels` or `use_projection`. InstanSeg reads every channel unless you name
+some. StarDist defaults to sopa's H&E model: for mIF set `stardist_model_type: 2D_versatile_fluo`
+and one nuclear `stardist_channels` (untested on real data). Everything else has a default.
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -105,23 +107,27 @@ not work and never did: Nextflow reads the flag on its own, sets it true, and th
 before the pipeline sees it, so `--use_backsub false` would perform background subtraction. The
 pipeline stops at startup rather than letting that happen, for every boolean it declares.
 
-| Parameter                  | Default              | Change it when                                                                                         |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
-| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
-| `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
-| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
-| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
-| `use_cellpose`             | `false`              | Exactly one of `use_cellpose` or `use_stardist` must be true.                                          |
-| `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                    |
-| `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                           |
-| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                           |
-| `patch_width_pixel`        | none                 | Always. See below.                                                                                     |
-| `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                  |
-| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
+| Parameter                  | Default              | Change it when                                                                                          |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.   |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.         |
+| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                    |
+| `use_backsub`              | `false`              | You have background channels to subtract.                                                               |
+| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                               |
+| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide.  |
+| `use_cellpose`             | `false`              | Exactly one of `use_cellpose`, `use_stardist` or `use_instanseg` must be true.                          |
+| `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
+| `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
+| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                            |
+| `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
+| `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
+| `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
+| `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
+| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
-Full list with descriptions: `nextflow run CosciaLab/histo -r v1.2.0 --help`.
+Every parameter with its description and default is in
+[assets/params_template.yml](../assets/params_template.yml): copy it to `params.yml` and uncomment
+what you change. `null` there means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
@@ -187,7 +193,7 @@ launched from.
 **MDC** — add `mdc` after `slurm` to request nodes with Ceph storage (`--constraint=ceph`).
 
 **Containers** — `singularity` on the cluster. Images must be pre-staged; see
-[containers.md](containers.md).
+[Fetching images](#fetching-images).
 
 ## Example
 
@@ -205,6 +211,8 @@ patch_overlap_pixel: 50
 ```
 
 ## Running on the cluster
+
+Stage the images first, once per release: see [Fetching images](#fetching-images) below.
 
 Launch from a directory that is **not** the pipeline clone, so run artifacts do not land in the
 source tree. Nextflow submits the SLURM jobs itself; you never write an sbatch script. Run it inside
@@ -237,3 +245,46 @@ a queue wait:
 ```bash
 nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
 ```
+
+### Fetching images
+
+On a well-connected Linux machine:
+
+```bash
+nf-core pipelines download CosciaLab/histo \
+    -r <tag> \
+    --container-system singularity \
+    --outdir ~/histo-download
+```
+
+Do this once per release. It resolves every image the pipeline declares and writes the SIFs alongside the pipeline code.
+
+Cross-check what it fetched against the manifest. They should agree, and if they do not, the manifest
+generator has a parsing bug rather than the download being wrong:
+
+```bash
+nextflow inspect . -profile singularity | grep -o '"container": "[^"]*"' | sort -u
+```
+
+### Staging images into the shared cache
+
+Each user sets `NXF_SINGULARITY_CACHEDIR` in their own environment (e.g. `~/.bashrc`); the pipeline
+sets no default. At a site it is usually a **shared filesystem path** that colleagues also use.
+
+> [!WARNING]
+> Never delete from or overwrite files in the shared cache. Other people's running jobs depend on
+> them. Copy in only what is missing.
+
+Check first, copy second:
+
+```bash
+# what is already there
+ls "$NXF_SINGULARITY_CACHEDIR"
+
+# copy in only new files, never overwriting an existing one
+rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARITY_CACHEDIR/"
+```
+
+`--ignore-existing` rather than plain `rsync` is deliberate: an image already in the cache is one a
+colleague may have a job attached to right now, and replacing it mid-run is how you break someone
+else's week.

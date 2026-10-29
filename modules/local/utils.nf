@@ -66,6 +66,19 @@ def extractSubArgs(Map args, String group) {
             gaussian_sigma: args.gaussian_sigma,
             method_kwargs: args.stardist_kwargs,
         ]
+    } else if (group == "instanseg") {
+        return [
+            model_type: args.instanseg_model_type,
+            pixel_size: args.instanseg_pixel_size,
+            target: args.instanseg_target,
+            channels: getChannels(args.instanseg_channels, true),
+            device: args.instanseg_device,
+            min_area: args.min_area_pixels2,
+            clip_limit: args.clip_limit,
+            clahe_kernel_size: args.clahe_kernel_size,
+            gaussian_sigma: args.gaussian_sigma,
+            method_kwargs: args.instanseg_kwargs,
+        ]
     } else if (group == "aggregate") {
         return [
             // Always on: sopa defaults to off, which leaves no intensities to quantify.

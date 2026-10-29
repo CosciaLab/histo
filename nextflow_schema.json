@@ -427,6 +427,43 @@
             },
             "fa_icon": "fas fa-tools"
         },
+        "instanseg": {
+            "title": "InstanSeg",
+            "type": "object",
+            "description": "Parameters related to the InstanSeg segmentation method",
+            "default": "",
+            "properties": {
+                "use_instanseg": {
+                    "type": "boolean",
+                    "description": "Whether to run InstanSeg segmentation"
+                },
+                "instanseg_model_type": {
+                    "type": "string",
+                    "description": "Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`"
+                },
+                "instanseg_pixel_size": {
+                    "type": "number",
+                    "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells"
+                },
+                "instanseg_target": {
+                    "type": "string",
+                    "description": "Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`"
+                },
+                "instanseg_channels": {
+                    "type": ["string", "integer"],
+                    "description": "Optional channel(s) to segment with InstanSeg; unset uses every channel. Use marker names from the marker sheet, separated by space, comma or pipe characters."
+                },
+                "instanseg_device": {
+                    "type": "string",
+                    "description": "Device for inference, e.g. `cpu` or `cuda`"
+                },
+                "instanseg_kwargs": {
+                    "type": "string",
+                    "description": "Additional InstanSeg parameters as a python dict string"
+                }
+            },
+            "fa_icon": "fas fa-tools"
+        },
         "qc_report": {
             "title": "QC report",
             "type": "object",
@@ -485,6 +522,9 @@
         },
         {
             "$ref": "#/$defs/stardist"
+        },
+        {
+            "$ref": "#/$defs/instanseg"
         },
         {
             "$ref": "#/$defs/qc_report"

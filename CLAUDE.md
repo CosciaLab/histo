@@ -31,10 +31,11 @@ guidelines anyway, so modules or the pipeline can go upstream later.
 - Branches: `main` released, `dev` integration, feature branch → PR into `dev`. Keep `TEMPLATE`.
 - Keep `CITATIONS.md` (mcmicro, sopa, every tool), `CHANGELOG.md` and `conf/slurm.config` current.
 - Never hand-edit `nextflow_schema.json`; use `nf-core pipelines schema build`.
+- Never hand-edit `assets/params_template.yml`; a prek hook regenerates it from the schema.
 - Optional steps are schema booleans with `default: false`.
 - After rewiring the graph, run
   `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg` and have a human
-  look at it. See [docs/pipeline-paths.md](docs/pipeline-paths.md).
+  look at it. See [CONTRIBUTING](docs/CONTRIBUTING.md#metro-map).
 
 ## 4. Modules
 
@@ -54,10 +55,12 @@ The laptop is macOS arm64; the cluster is Linux amd64, SLURM, Apptainer, with un
 internet. Hence:
 
 1. No runtime container pull or launch-time network dependency, including Wave. All images
-   are pre-staged. See [docs/containers.md](docs/containers.md).
-2. No real container runs on the Mac. The Mac is for writing code and running `-stub`.
+   are pre-staged. See [usage](docs/usage.md#staging-images-into-the-shared-cache).
+2. The cluster is the reference. On the Mac, run real containers when convenient, but only
+   the ones that work: never BaSiCPy, Coreograph or StarDist (no AVX under Rosetta). See
+   [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 3. `NXF_SINGULARITY_CACHEDIR` is set by each user in their environment; config sets no default.
-4. Every image URI is in the manifest (`tools/container_manifest.py`).
+4. Every image URI is in the manifest (`tools/container_manifest.py`; a prek hook checks it).
 
 Wave is a development tool only: conda-to-container, multi-arch builds, `freeze` or `mirror`
 into a registry I control. Committed config references static URIs.
@@ -66,7 +69,7 @@ into a registry I control. Committed config references static URIs.
 
 Tiers, cheapest first: prek hooks, `nf-core pipelines lint`, pytest, validation and stub
 nf-tests (CI), then two exemplar runs on the cluster before each release. Details in
-[tests/README.md](tests/README.md).
+[CONTRIBUTING](docs/CONTRIBUTING.md#testing).
 
 - `-stub` checks channel topology only, not tool behaviour or resources.
 - A module that creates a file (including `versions.yml`) needs a stub. prek enforces this.

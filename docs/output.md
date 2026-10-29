@@ -4,9 +4,55 @@
 
 This document describes the output produced by the pipeline.
 
-The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
+## What runs
+
+The three routes that have been run on real data, drawn as the metro map in the
+[README](../README.md#steps). Everything else is off by default.
+
+Read down a column to get one run's process list, in order. The three QC steps read the store
+without writing to it, so they run alongside publishing rather than after it.
+
+| Station                       |  mIF slide   | WSI, background subtracted | TMA, dearrayed |
+| ----------------------------- | :----------: | :------------------------: | :------------: |
+| `BASICPY`                     |      x       |             x              |       x        |
+| `ASHLAR`                      |      x       |             x              |       x        |
+| `COREOGRAPH`                  |              |                            |       x        |
+| `BACKSUB`                     |              |             x              |    optional    |
+| `TO_SPATIALDATA`              |      x       |             x              |       x        |
+| `SET_CHANNEL_NAMES`           |      x       |             x              |       x        |
+| `MAKE_IMAGE_PATCHES`          |      x       |             x              |       x        |
+| `PATCH_SEGMENTATION_CELLPOSE` | x, per patch |        x, per patch        |  x, per patch  |
+| `RESOLVE_CELLPOSE`            |      x       |             x              |       x        |
+| `AGGREGATE`                   |      x       |             x              |       x        |
+| `MERGE_SPATIALDATA`           |              |                            |       x        |
+| `PUBLISH_SPATIALDATA`         |      x       |             x              |  x, per slide  |
+| `QC_METRICS`                  |      x       |             x              |       x        |
+| `QC_IMAGES`                   |      x       |             x              |       x        |
+| `QC_REPORT`                   |      x       |             x              |       x        |
+| `MERGE_REPORT`                |              |                            |       x        |
+
+Everything after `COREOGRAPH`, `BACKSUB` included, runs once per core on the TMA path.
+`MERGE_SPATIALDATA` then puts one slide's cores back together, and `PUBLISH_SPATIALDATA`
+publishes the result, so publication happens once per slide rather than once per core. The
+per-core stores are not published: the merged store copies every element family and every table
+out of them, prefixed by core, so publishing both would write the slide out twice.
+
+Variations not in the table:
+
+- `TISSUE_SEGMENTATION` is off in all three runs. It sits before `MAKE_IMAGE_PATCHES`.
+- `use_preprocessing = false` is a fourth entry point, for images arriving pre-stitched. It
+  starts at `TO_SPATIALDATA` and skips `SET_CHANNEL_NAMES`, because such an image is assumed to
+  carry its own channel names.
+- Supplying illumination profiles in the samplesheet bypasses `BASICPY`.
+- `preprocessing_only` ends every path at the preprocessing outputs.
+- StarDist or InstanSeg substitutes `PATCH_SEGMENTATION_STARDIST` and `RESOLVE_STARDIST`, or
+  `PATCH_SEGMENTATION_INSTANSEG` and `RESOLVE_INSTANSEG`, for the two Cellpose stations.
+- `use_projection` adds `PROJECT_CHANNELS` before `MAKE_IMAGE_PATCHES` and `DROP_PROJECTION`
+  before `AGGREGATE` (Cellpose only).
 
 ## Pipeline overview
+
+The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the following information:
 
