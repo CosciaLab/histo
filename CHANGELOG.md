@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The repository moved to `CosciaLab/histo`. Run `nextflow run CosciaLab/histo`; an old
   `~/.nextflow/assets/josenimo/histo` clone is no longer updated.
+- Docs consolidated: testing, containers and the metro map now live in `docs/CONTRIBUTING.md`,
+  image staging in `docs/usage.md`, the pipeline paths in `docs/output.md`; the README is the
+  docs index. Images run on Apple Silicon only in part; see CONTRIBUTING.
 
 ### Fixed
 
