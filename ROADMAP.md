@@ -125,6 +125,14 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
 6. **Documentation website** for curious users: one page per module with what it does and why,
    its tool and version, inputs, outputs, parameters and defaults, and an exemplar-001 figure.
    Generate what it can from `meta.yml` and the schema so it cannot drift. 1–2 weeks.
+7. **Segmentation preview**, so users pick settings by eye instead of worrying about optimising
+   them. A mode that stops after segmenting ~5 crops chosen to span the slide (dense, sparse,
+   tissue edge, brightest cell marker) over a small grid: `cellprob_threshold`, `flow_threshold`,
+   `clip_limit`, and with projection max or sum. An HTML sheet, settings by crops, shows each
+   row's cell count, median area and nuclei inside cells, and a params snippet to paste; a rerun
+   with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
+   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 1.3 item 3, which sets
+   the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
