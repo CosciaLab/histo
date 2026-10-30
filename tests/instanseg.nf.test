@@ -57,4 +57,23 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("InstanSeg on pre-stitched input without channels is rejected at startup") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join("\n").contains("instanseg_channels") }
+            )
+        }
+    }
 }

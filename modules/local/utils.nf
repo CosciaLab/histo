@@ -118,6 +118,13 @@ def getChannels(channels, Boolean allow_null = false) {
     return channels.toString().split(/[ ,|]+/).findAll { it }
 }
 
+// Marker names InstanSeg reads when instanseg_channels is unset: nuclear stains, plus markers
+// when segmenting cells. Autofluorescence and blank channels are left out.
+def defaultInstansegChannels(List rows, String target) {
+    def roles = target == 'nuclei' ? ['dna'] : ['dna', 'marker']
+    return rows.findAll { it.channel_role in roles }.collect { it.marker_name }
+}
+
 def argsCLI(String group = null, Map args = null) {
     args = args ?: params
 

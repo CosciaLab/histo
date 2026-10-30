@@ -16,6 +16,12 @@ input:
       description: |
         Channel containing a SpatialData Zarr store and its image patches file.
         Structure: [ val(meta), path(sdata_path), path(patches_file_image) ]
+  - ch_markers:
+      type: file
+      description: |
+        Channel containing each sample's marker sheet, read for the default channels when
+        instanseg_channels is unset. May be empty when instanseg_channels is set.
+        Structure: [ val(meta), path(csv) ]
 output:
   - ch_resolved:
       type: file

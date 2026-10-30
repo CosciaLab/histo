@@ -217,6 +217,27 @@ nextflow_function {
         }
     }
 
+    test("with backsub, an InstanSeg channel that is removed is rejected") {
+        when {
+            params {
+                use_backsub = true
+                instanseg_channels = 'DAPI CD45'
+            }
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna', exposure: 100 ],
+                    [ channel_number: 2, cycle_number: 1, marker_name: 'CD45', channel_role: 'marker', exposure: 100, remove: true ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("instanseg_channels") && it.contains("[CD45]") }
+        }
+    }
+
     test("without backsub, remove is accepted with a warning that it does nothing") {
         when {
             params {

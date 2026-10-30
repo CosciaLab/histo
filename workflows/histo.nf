@@ -127,7 +127,7 @@ workflow HISTO {
             (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
             ch_versions = ch_versions.mix(versions)
 
-            (ch_resolved, versions) = INSTANSEG(ch_image_patches)
+            (ch_resolved, versions) = INSTANSEG(ch_image_patches, ch_markers)
             ch_versions = ch_versions.mix(versions)
         }
 
