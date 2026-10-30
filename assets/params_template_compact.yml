@@ -46,6 +46,7 @@
 ## Patches
 # patch_width_pixel: null    # Width and height of each segmentation patch, in pixels.
 # patch_overlap_pixel: null  # Overlap between neighbouring patches, in pixels.
+# use_gpu: null              # One GPU per Cellpose or InstanSeg patch task.
 
 ## Tissue segmentation
 # use_tissue_segmentation: null     # Whether to run tissue segmentation.
@@ -79,7 +80,6 @@
 # flow_threshold: null      # Cellpose `flow_threshold` parameter.
 # cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
 # pretrained_model: null    # Cellpose `pretrained_model` parameter.
-# cellpose_use_gpu: null    # Whether to use GPU for Cellpose segmentation.
 # cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
 
 ## Stardist
@@ -96,7 +96,6 @@
 # instanseg_pixel_size: null  # Image resolution in microns per pixel.
 # instanseg_target: null      # Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`.
 # instanseg_channels: null    # Optional channel(s) to segment with InstanSeg; unset uses every channel.
-# instanseg_device: null      # Device for inference, e.g. `cpu` or `cuda`.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
 
 ## QC report

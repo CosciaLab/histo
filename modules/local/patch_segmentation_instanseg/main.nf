@@ -14,8 +14,12 @@ process PATCH_SEGMENTATION_INSTANSEG {
     path "versions.yml"
 
     script:
+    // use_gpu: fail here rather than let the backend fall back to CPU without a word.
+    def gpu_check = task.accelerator ? """python -c "import torch; torch.ones(1, device='cuda').sum().item()" || { echo 'use_gpu: CUDA is not usable in this task' >&2; exit 1; }""" : ""
+    def device = task.accelerator ? "cuda" : "cpu"
     """
-    sopa segmentation instanseg ${sdata_path} --patch-index ${index} ${cli_arguments}
+    ${gpu_check}
+    sopa segmentation instanseg ${sdata_path} --patch-index ${index} ${cli_arguments} --device ${device}
 
     mv ${sdata_path}/.sopa_cache/instanseg_boundaries/${index}.parquet ${index}.parquet
 
