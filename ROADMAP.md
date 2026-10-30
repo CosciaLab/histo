@@ -44,13 +44,22 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 ### 1.3: segmentation input
 
 1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell`
-   channel into membrane and cytoplasm.
+   channel into membrane and cytoplasm. The cellpose docs say a third fluorescent channel needs
+   retraining; item 3 should test it first.
 2. **Report chapters**, one per stage.
+3. **Preprocessing benchmark with ground truth.** Score permutations of combining (max, sum),
+   smoothing (`projection_sigma`, `gaussian_sigma`), CLAHE, thresholds (sopa's, Cellpose's) and
+   model (`cpsam`, `cpsam_v2`) against annotated cells: TissueNet (mIF, nuclear and whole-cell
+   labels) and a few in-house crops. Extends `tools/benchmark_projection.py`; on Apple MPS one
+   setting takes ~1.5 min per exemplar-001. Decides the defaults and item 1. 1–2 weeks.
 
 ### 1.4: segmentation backends
 
 1. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
 2. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+3. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
+   regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
+   in, select with `pretrained_model`, compare on exemplar-001 (or with 1.3 item 3). ~1 day.
 
 ### 1.5: multiple segmentations, compared afterwards
 
