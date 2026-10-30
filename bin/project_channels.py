@@ -7,7 +7,8 @@ use it. `drop` points the attribute back, so AGGREGATE and QC read the full imag
 deletes the element unless `--keep` (keep_projection) leaves it in the published store.
 
 Each channel is rescaled to [0, 1] by its own percentiles, optionally smoothed, then the
-group is combined by max or mean. Written as uint16: sopa refuses float images.
+group is combined by max or mean. Written as uint16: sopa refuses float images. The summary
+records the share of pixels each marker is brightest in, and warns when one wins a group.
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ TISSUE_KEY = "region_of_interest"  # written by sopa's tissue segmentation
 # fixed whatever the slide size.
 PERCENTILE_MIN_SIDE = 2000
 PREVIEW_MAX_SIDE = 1500
+# A marker brightest in more than this share of a group's pixels decides that channel alone.
+DOMINANT_SHARE = 0.5
 UINT16_MAX = 65535
 
 
@@ -93,6 +96,36 @@ def combine(stack: Any, method: str) -> Any:
     if method == "mean":
         return stack.mean(axis=0)
     raise ValueError(f"unknown method '{method}'; expected one of {METHODS}")
+
+
+def win_shares(planes: list[Any], mask: Any | None) -> list[float]:
+    """Share of signal pixels in which each rescaled plane is the brightest.
+
+    Pixels dark in every plane (glass, padding) and, with a tissue mask, pixels outside it
+    are left out.
+    """
+    import numpy as np
+
+    stack = np.stack([np.asarray(p) for p in planes])
+    counted = stack.max(axis=0) > 0
+    if mask is not None:
+        counted &= mask
+    n = int(counted.sum())
+    if n == 0:
+        return [0.0] * len(planes)
+    winner = stack.argmax(axis=0)[counted]
+    return [float((winner == i).sum() / n) for i in range(len(planes))]
+
+
+def dominant(channels: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Markers that win more than DOMINANT_SHARE of a group with two or more markers."""
+    return [
+        {"channel": ch, "marker": c["marker"], "win_share": c["win_share"]}
+        for ch, used in channels.items()
+        if len(used) > 1
+        for c in used
+        if c["win_share"] > DOMINANT_SHARE
+    ]
 
 
 def scale_factors_of(shapes: list[tuple[int, int]]) -> list[int]:
@@ -225,9 +258,13 @@ def project(
             used.append({"marker": name, "lo": lo, "hi": hi})
         if not stack:
             raise ValueError(f"every channel selected for '{ch}' is constant: {groups[ch]}")
+        for c, share in zip(used, win_shares(small, mask), strict=True):
+            c["win_share"] = share
         summary["channels"][ch] = used
         full_planes.append(combine(da.stack(stack), method))
         preview_planes.append(combine(np.stack(small), method))
+
+    summary["dominant"] = dominant(summary["channels"])
 
     out = (da.stack(full_planes) * UINT16_MAX + 0.5).astype("uint16")
     element = Image2DModel.parse(
@@ -256,7 +293,13 @@ def project(
     print(f"[project_channels] {sdata_path} :: {source} -> {target} ({method}, selected by {how})")
     for ch in OUTPUT_CHANNELS:
         for c in summary["channels"][ch]:
-            print(f"  {ch:<8} {c['marker']:<24} lo={c['lo']:.1f} hi={c['hi']:.1f}")
+            print(f"  {ch:<8} {c['marker']:<24} lo={c['lo']:.1f} hi={c['hi']:.1f} wins={c['win_share']:.0%}")
+    for d in summary["dominant"]:
+        print(
+            f"[project_channels] WARNING: {d['marker']} is the brightest marker in {d['win_share']:.0%} of "
+            f"'{d['channel']}' pixels, so that channel is mostly {d['marker']}. Check "
+            f"{prefix}_projection.png; the marker sheet's segmentation column can leave it out."
+        )
     return summary
 
 
