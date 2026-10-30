@@ -15,7 +15,7 @@ time, estimated before the release; treat them as rough.
 | 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                    |
 | 3. TMA path            | Done: per-core processing, per-slide merge and QC page        |
 | 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`            |
-| 5. Containers          | Done: 8 images, manifest, pre-staging documented              |
+| 5. Containers          | Done: 7 images, manifest, pre-staging documented              |
 | 6. Testing             | Done; exemplar releases checked by hand on the cluster        |
 | 7. QC report           | Metrics, images and reports in; thresholds need more slides   |
 | 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21 |
@@ -49,15 +49,8 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.4: segmentation backends
 
-1. **Cellpose-SAM.** sopa selects `cpsam` under cellpose ≥ 4. `josenimo/sopa:2.2.12` (the
-   InstanSeg image) already ships cellpose 4.2.1.1 with `cpsam` weights; still needs a check of
-   what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
-   no change: Cellpose-SAM takes its two channels as they are.
-2. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
-3. **Pre-staged weights**, for Cellpose. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
-   directory (`patch_segmentation_cellpose/main.nf:20`), so every task downloads weights.
-   Moving Cellpose to `josenimo/sopa:2.2.12`, which bakes them in, would also do. ~1 day.
-4. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+1. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
+2. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
 
 ### 1.5: multiple segmentations, compared afterwards
 
@@ -162,8 +155,6 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (1.4 item 3).
-  Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
@@ -179,7 +170,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Local Mac test profile for the partial path.** Ashlar, backsub, sopa, Cellpose and InstanSeg
   run under `docker,emulate_amd64,laptop`; BaSiCPy, Coreograph and StarDist do not (no AVX under
   Rosetta). A real-data test without those three would catch tool behaviour before the cluster.
-  See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
+  Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
+  55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
   and unit-test it.
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
