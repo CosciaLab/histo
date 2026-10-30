@@ -53,8 +53,11 @@ Images stay in pixels; Ashlar keeps `PhysicalSizeX` in the OME-TIFF.
 
 **A transient image element, not a new OME-TIFF.** `PROJECT_CHANNELS` adds `<image>_projected`
 and points sopa's `cell_segmentation_image` attribute at it; patchify, segmentation and resolve
-follow that attribute. `DROP_PROJECTION` deletes it before `AGGREGATE`, so quantification reads
-every marker and the published store has one image, as without projection.
+follow that attribute. `DROP_PROJECTION` points the attribute back before `AGGREGATE`, so
+quantification reads every marker, and deletes the element unless `keep_projection`.
+
+**QC names its image.** It reads the element named by `cell_segmentation_image`, not the store's
+only image, so a store can hold others: a kept projection now, a pre-backsub image later.
 
 **Nuclear is the first `dna` channel by default**, the Ashlar reference: best registered, and
 free of the cell loss later cycles show.

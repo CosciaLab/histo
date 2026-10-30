@@ -11,13 +11,14 @@ process DROP_PROJECTION {
     tuple val(meta), path(sdata_path)
 
     output:
-    // Mutates the store in place: AGGREGATE and QC then see only the full marker image.
+    // Mutates the store in place: AGGREGATE and QC then read the full marker image.
     tuple val(meta), path(sdata_path), emit: sdata
     path "versions.yml"              , emit: versions
 
     script:
+    def args = task.ext.args ?: ""
     """
-    project_channels.py drop --sdata ${sdata_path}
+    project_channels.py drop --sdata ${sdata_path} ${args}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

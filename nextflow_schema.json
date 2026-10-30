@@ -320,6 +320,10 @@
                     "type": "boolean",
                     "description": "Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose. Requires use_cellpose and use_preprocessing; leave cellpose_channels unset."
                 },
+                "keep_projection": {
+                    "type": "boolean",
+                    "description": "Keep the projected nuclear and cell image in the published store as `<image>_projected`. Requires use_projection."
+                },
                 "projection_method": {
                     "type": "string",
                     "default": "max",

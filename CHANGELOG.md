@@ -10,12 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `assets/params_template_compact.yml`: every parameter on one line with its default and a
   one-sentence description, for editing. Generated from the schema by a prek hook, like
   `assets/params_template.yml`, which stays the full reference. Both explain `null` at the top.
+- `keep_projection`: with `use_projection`, keep the projected `nuclear` and `cell` image in the
+  published store as `<image>_projected`.
 
 ### Changed
 
 - **Breaking:** `use_cellpose` runs Cellpose-SAM (`cpsam`) instead of Cellpose 3 (`cyto3`),
   from `docker.io/josenimo/sopa:2.2.12` with the weights baked in. `cellpose_diameter` and
   `cellpose_model_type` are removed; configs that set them fail. Slower per patch on CPU.
+- QC reads the image named by the store's `cell_segmentation_image` attribute instead of
+  requiring exactly one image element.
 
 ## v1.3.0 - [2026-10-29]
 
