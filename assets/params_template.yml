@@ -445,6 +445,15 @@
 # use_projection: null
 
 ## -----------------------------------------------------------------------------
+## keep_projection
+## -----------------------------------------------------------------------------
+##     Keep the projected nuclear and cell image in the published store as
+##     `<image>_projected`. Requires use_projection.
+##     Type: boolean
+## -----------------------------------------------------------------------------
+# keep_projection: null
+
+## -----------------------------------------------------------------------------
 ## projection_method
 ## -----------------------------------------------------------------------------
 ##     How the rescaled markers of a channel are combined. max keeps markers

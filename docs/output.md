@@ -111,6 +111,8 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 
 - `{sample}.zarr/`
   - Spatial elements: `images/`, `shapes/`, `tables/`, `points/`, ...
+  - With `keep_projection`, `images/` also holds `<image>_projected`: the `nuclear` and `cell`
+    channels Cellpose segmented, at full resolution.
 - `{sample}.zarr/.sopa_cache/`
   - What segmentation left behind: the patch definitions, and one parquet of cell boundaries
     per patch. Reproducible from the store, and about 4% of its size.

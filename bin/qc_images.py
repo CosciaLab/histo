@@ -643,11 +643,11 @@ def main() -> int:
         compartments_by_channel,
         read_column,
         read_marker_cycles,
-        sole_image_element,
+        segmentation_image_element,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    element = sole_image_element(args.sdata)
+    element = segmentation_image_element(args.sdata)
     table = zarr.open_group(str(args.sdata / "tables" / "table"), mode="r")
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     centroids = np.asarray(table["obsm"]["spatial"][:])

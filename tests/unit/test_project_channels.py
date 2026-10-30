@@ -218,6 +218,20 @@ class TestStoreRoundTrip:
         assert s.attrs["cell_segmentation_image"] == "sample"
         assert "histo_projection_source" not in s.attrs
 
+    def test_drop_keep_leaves_the_projection_beside_the_source(self, store, tmp_path, monkeypatch):
+        """keep_projection: AGGREGATE and QC follow the attribute back to the full image."""
+        import spatialdata as sd
+        from project_channels import drop, project
+
+        monkeypatch.chdir(tmp_path)
+        project(store, markers(tmp_path), method="max", low=1, high=99.9, sigma=0, prefix="sample")
+        drop(store, keep=True)
+
+        s = sd.read_zarr(store)
+        assert sorted(s.images) == ["sample", "sample_projected"]
+        assert s.attrs["cell_segmentation_image"] == "sample"
+        assert "histo_projection_source" not in s.attrs
+
     def test_project_is_rerunnable(self, store, tmp_path, monkeypatch):
         """A retried task meets the store it already mutated; it must not stack projections."""
         import spatialdata as sd

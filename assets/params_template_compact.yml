@@ -67,6 +67,7 @@
 
 ## Channel projection
 # use_projection: null              # Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose.
+# keep_projection: null             # Keep the projected nuclear and cell image in the published store as `<image>_projected`.
 # projection_method: "max"          # How the rescaled markers of a channel are combined. max keeps markers that stain only one cell type at full brightness; mean averages out noise but dims them. One of: max, mean.
 # projection_low_percentile: 1.0    # Per-marker percentile mapped to 0 before combining.
 # projection_high_percentile: 99.9  # Per-marker percentile mapped to 1 before combining.

@@ -47,6 +47,11 @@ def describe(prop: dict, required: bool) -> str:
 
 def render(schema: dict) -> str:
     """Render the template; uncommented, each line parses as YAML to the schema default."""
+    if schema.get("properties"):
+        raise ValueError(
+            f"parameters outside any group: {sorted(schema['properties'])}. Both templates would "
+            "leave them out; move them into a group with nf-core pipelines schema build."
+        )
     out = [
         f"# {schema['title']}: every parameter on one line, with its default.",
         "# Uncomment and edit what you change, then pass the file to -params-file.",

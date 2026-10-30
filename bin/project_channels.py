@@ -3,8 +3,8 @@
 
 `project` adds an image element `<source>_projected` with channels `nuclear` and `cell`
 and points sopa's `cell_segmentation_image` at it, so patchify, segmentation and resolve
-use it. `drop` deletes it and restores the attribute, so AGGREGATE quantifies the full
-image and the published store has one image element, as without projection.
+use it. `drop` points the attribute back, so AGGREGATE and QC read the full image, and
+deletes the element unless `--keep` (keep_projection) leaves it in the published store.
 
 Each channel is rescaled to [0, 1] by its own percentiles, optionally smoothed, then the
 group is combined by max or mean. Written as uint16: sopa refuses float images.
@@ -260,8 +260,8 @@ def project(
     return summary
 
 
-def drop(sdata_path: Path) -> None:
-    """Delete the projected element and point segmentation back at the source image."""
+def drop(sdata_path: Path, keep: bool = False) -> None:
+    """Point segmentation back at the source image and, unless `keep`, delete the projected element."""
     import spatialdata as sd
 
     sdata = sd.read_zarr(sdata_path)
@@ -271,13 +271,14 @@ def drop(sdata_path: Path) -> None:
     target = f"{source}_projected"
 
     # The in-memory element must go first: spatialdata refuses to delete backing files.
-    if target in sdata.images:
+    if target in sdata.images and not keep:
         del sdata[target]
         sdata.delete_element_from_disk(target)
     sdata.attrs[SEGMENTATION_ATTR] = source
     del sdata.attrs[SOURCE_ATTR]
     sdata.write_attrs()
-    print(f"[project_channels] {sdata_path} :: dropped {target}; segmentation image is {source} again")
+    done = "kept" if keep else "dropped"
+    print(f"[project_channels] {sdata_path} :: {done} {target}; segmentation image is {source} again")
 
 
 def main() -> int:
@@ -295,8 +296,9 @@ def main() -> int:
         "--sigma", type=float, default=1.0, help="Gaussian sigma in pixels, 0 for none (default: 1)"
     )
 
-    d = sub.add_parser("drop", help="delete the projected element")
+    d = sub.add_parser("drop", help="point segmentation back at the source; delete the projected element")
     d.add_argument("--sdata", required=True, type=Path, help="SpatialData .zarr store")
+    d.add_argument("--keep", action="store_true", help="leave the projected element in the store")
 
     args = ap.parse_args()
     if args.command == "project":
@@ -312,7 +314,7 @@ def main() -> int:
             prefix=args.prefix,
         )
     else:
-        drop(args.sdata)
+        drop(args.sdata, keep=args.keep)
     return 0
 
 
