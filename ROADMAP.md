@@ -136,6 +136,9 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
+6. **Documentation website** for curious users: one page per module with what it does and why,
+   its tool and version, inputs, outputs, parameters and defaults, and an exemplar-001 figure.
+   Generate what it can from `meta.yml` and the schema so it cannot drift. 1–2 weeks.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
