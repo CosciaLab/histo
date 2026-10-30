@@ -164,8 +164,11 @@ step that writes to the store.
     See [usage.md](usage.md#when-stitching-or-registration-looks-wrong) for what to change.
 - `qc/{sample}_projection.png` and `qc/{sample}_projection.json`
   - **With `use_projection` only.** The two channels Cellpose segmented, downsampled, nuclear in
-    magenta and cell in green; and the markers in each, their rescaling bounds and the method.
-    The projection itself is removed from the store before quantification.
+    magenta and cell in green; and the markers in each, their rescaling bounds, the share of
+    pixels in which each is the brightest (`win_share`), and the method. `dominant` lists any
+    marker brightest in over half of a channel, which then decides that channel alone; the task
+    log warns about it too. The projection is removed from the store before quantification
+    unless `keep_projection`.
 - `qc/{sample}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
     `use_qc_images: false`.

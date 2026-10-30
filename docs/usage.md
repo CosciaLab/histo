@@ -173,7 +173,9 @@ clip_limit: 0
 ```
 
 Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in
-magenta and cell in green. `keep_projection: true` also keeps it at full resolution in the store,
+magenta and cell in green. In the JSON, a marker under `dominant` swamps the others: one diffuse,
+bright cytoplasm marker can make Cellpose miss whole groups of cells. Leave it out with the
+`segmentation` column. `keep_projection: true` also keeps it at full resolution in the store,
 as `<image>_projected`, to view with the cell boundaries. How the defaults were chosen is in
 [decisions.md](decisions.md).
 
