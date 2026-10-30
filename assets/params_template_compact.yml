@@ -69,15 +69,13 @@
 # projection_sigma: 1.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
 
 ## Cellpose
-# use_cellpose: null         # Whether to run cellpose segmentation.
-# cellpose_diameter: null    # Cellpose `diameter` parameter.
-# cellpose_channels: null    # Channel(s) to segment with Cellpose.
-# flow_threshold: null       # Cellpose `flow_threshold` parameter.
-# cellprob_threshold: null   # Cellpose `cellprob_threshold` parameter.
-# cellpose_model_type: null  # Cellpose model type to use.
-# pretrained_model: null     # Cellpose `pretrained_model` parameter.
-# cellpose_use_gpu: null     # Whether to use GPU for Cellpose segmentation.
-# cellpose_kwargs: null      # Additional cellpose parameters as a python dict string.
+# use_cellpose: null        # Whether to run cellpose segmentation.
+# cellpose_channels: null   # Channel(s) to segment with Cellpose.
+# flow_threshold: null      # Cellpose `flow_threshold` parameter.
+# cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
+# pretrained_model: null    # Cellpose `pretrained_model` parameter.
+# cellpose_use_gpu: null    # Whether to use GPU for Cellpose segmentation.
+# cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
 
 ## Stardist
 # use_stardist: null         # Whether to run stardist segmentation.

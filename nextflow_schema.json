@@ -359,10 +359,6 @@
                     "type": "boolean",
                     "description": "Whether to run cellpose segmentation"
                 },
-                "cellpose_diameter": {
-                    "type": "number",
-                    "description": "Cellpose `diameter` parameter"
-                },
                 "cellpose_channels": {
                     "type": ["string", "integer"],
                     "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters."
@@ -374,10 +370,6 @@
                 "cellprob_threshold": {
                     "type": "number",
                     "description": "Cellpose `cellprob_threshold` parameter"
-                },
-                "cellpose_model_type": {
-                    "type": "string",
-                    "description": "Cellpose model type to use"
                 },
                 "pretrained_model": {
                     "type": "string",
