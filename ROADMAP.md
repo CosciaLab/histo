@@ -47,11 +47,12 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
    channel into membrane and cytoplasm. The cellpose docs say a third fluorescent channel needs
    retraining; item 3 should test it first.
 2. **Report chapters**, one per stage.
-3. **Preprocessing benchmark with ground truth.** Score permutations of combining (max, sum),
-   smoothing (`projection_sigma`, `gaussian_sigma`), CLAHE, thresholds (sopa's, Cellpose's) and
-   model (`cpsam`, `cpsam_v2`) against annotated cells: TissueNet (mIF, nuclear and whole-cell
-   labels) and a few in-house crops. Extends `tools/benchmark_projection.py`; on Apple MPS one
-   setting takes ~1.5 min per exemplar-001. Decides the defaults and item 1. 1–2 weeks.
+3. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (1.4 item 3). Score
+   permutations of the steps before the model: combining (max, sum), smoothing
+   (`projection_sigma`, `gaussian_sigma`), normalisation and CLAHE, and thresholds (sopa's,
+   Cellpose's), against annotated cells: TissueNet (mIF, nuclear and whole-cell labels) and a
+   few in-house crops. Extends `tools/benchmark_projection.py`; on Apple MPS one setting takes
+   ~1.5 min per exemplar-001. Decides the defaults and item 1. 1–2 weeks.
 
 ### 1.4: segmentation backends
 
