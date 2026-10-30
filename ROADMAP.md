@@ -6,36 +6,6 @@ The tracker for this project; GitHub Issues is not used. Reasoning is in
 Priorities, in order: transparency, robustness, troubleshootability. Sizes are focused working
 time, estimated before the release; treat them as rough.
 
-## Status
-
-| Phase                  | State                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------- |
-| 0. Freeze and diagnose | Done                                                                                                    |
-| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut                                              |
-| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                                                              |
-| 3. TMA path            | Done: per-core processing, per-slide merge and QC page                                                  |
-| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`                                                      |
-| 5. Containers          | Done: 7 images, manifest, pre-staging documented                                                        |
-| 6. Testing             | Done; exemplar releases checked by hand on the cluster                                                  |
-| 7. QC report           | Metrics, images and reports in; thresholds need more slides                                             |
-| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21, 1.3.0 on 2026-10-29, 1.4.0 on 2026-10-30 |
-
-## Verified on real data
-
-- mIF, 3 cycles, 12 channels: 9,855 cells.
-- TMA, 2 cycles: 4 cores, processed independently, merged to 29,574 cells.
-- 10-cycle TMA, with and without backsub.
-- Tiling: 9,855 cells as one patch versus 9,896 across six (0.4%).
-- WSI, 3 cycles, 15 channels (5 background), 21,798 x 11,295 px, backsub: 142,493 cells in 72
-  patches. All Phase 7 metrics and thresholds are calibrated on this one run.
-- Release candidate `3717ea0`, 2026-10-06, by `nextflow run`: exemplar-001 9,877 cells;
-  exemplar-002 with 2 and with 10 cycles, identical per-core counts (7,472, 4,779, 7,604, 9,678).
-  These are the exemplar test baselines.
-
-Memory: 8.7 GB peak RSS in `BASICPY` on the WSI run; 1.7 GB peak across 49 tasks on the
-smaller runs. `TO_SPATIALDATA` reported exactly 8.00 GiB, likely a ceiling, so treat it as
-unmeasured.
-
 ## Next releases
 
 Segmentation, then quantification, then learned features. Each release adds its own chapter
@@ -129,7 +99,7 @@ Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreo
 too large for GitHub runners.
 
 Commands and what each run covers are in [CONTRIBUTING](docs/CONTRIBUTING.md#testing). Cell counts must stay
-within ±2% of the baselines above. Nothing checks `use_preprocessing = false` on real data (stub
+within ±2% of the baselines in `tests/exemplar001.nf.test` and `tests/exemplar002.nf.test`. Nothing checks `use_preprocessing = false` on real data (stub
 only) or StarDist.
 
 ## Longer term
