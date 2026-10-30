@@ -2,6 +2,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 from params_templates import NULL_NOTE, add_note, render
 
@@ -66,6 +67,12 @@ def test_required_and_choices_are_marked():
     text = render(SCHEMA)
     assert "# Samplesheet. Required." in text
     assert "# Method. One of: otsu, saturation." in text
+
+
+def test_an_ungrouped_parameter_is_refused():
+    """nf-core's template silently leaves it out; both templates would miss it."""
+    with pytest.raises(ValueError, match="keep_projection"):
+        render({**SCHEMA, "properties": {"keep_projection": {"type": "boolean"}}})
 
 
 def test_only_the_first_sentence_is_kept():
