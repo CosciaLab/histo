@@ -3,6 +3,14 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- `assets/params_template_compact.yml`: every parameter on one line with its default and a
+  one-sentence description, for editing. Generated from the schema by a prek hook, like
+  `assets/params_template.yml`, which stays the full reference.
+
 ## v1.3.0 - [2026-10-29]
 
 ### Added

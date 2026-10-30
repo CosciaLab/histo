@@ -171,6 +171,14 @@ repos:
         pass_filenames: false
         entry: nf-core pipelines create-params-file . -o assets/params_template.yml --show-hidden --no-prompts --force
 
+      # The same parameters one per line, for editing; params_template.yml stays the full reference.
+      - id: params-template-compact
+        name: assets/params_template_compact.yml matches the schema
+        language: system
+        files: '^(nextflow_schema\.json|tools/params_template_compact\.py|assets/params_template_compact\.yml)$'
+        pass_filenames: false
+        entry: python3 tools/params_template_compact.py
+
       # containers.tsv is the image manifest for pre-staging; it must list every module's image.
       - id: container-manifest
         name: containers.tsv matches the modules
