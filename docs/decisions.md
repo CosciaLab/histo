@@ -89,8 +89,15 @@ automatic value would make the same slide segment differently on different hardw
 
 **Size profiles are one file**, `conf/sizes.config`, with its own `profiles` scope.
 
-**Tiled segmentation is not scaled by size profile.** Its cost follows `patch_width_pixel`. A
-larger slide means more tasks, not bigger ones.
+**Tiled segmentation is not scaled by size profile on CPU.** Its cost follows `patch_width_pixel`.
+GPU tasks are, as a stopgap: larger slides usually get larger patches. A tile-size benchmark
+replaces both (ROADMAP).
+
+**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on the patch tasks, and the
+module derives Cellpose's `--gpu` or InstanSeg's `--device` from it, so the two cannot disagree.
+The SLURM executor ignores `accelerator`, so `slurm` and `mdc` translate it into `--gres`. MDC asks
+for A40s: the sopa image's CUDA 13 has no V100 kernels, and only A40 nodes have Ceph. A CUDA check
+fails the task, since cellpose falls back to CPU silently.
 
 **Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
 Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so

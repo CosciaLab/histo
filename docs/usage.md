@@ -120,6 +120,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
+| `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose or InstanSeg patch. See [GPU segmentation](#gpu-segmentation).     |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
@@ -238,6 +239,14 @@ nextflow run /path/to/histo -profile singularity,size_small,slurm -params-file p
 All three temp variables are needed for different consumers: `TMPDIR` for tools inside
 containers, `NXF_TEMP` for Nextflow's own scratch, and `java.io.tmpdir` for the JVM,
 which is the one that fails first and least helpfully.
+
+### GPU segmentation
+
+`use_gpu: true` gives each Cellpose or InstanSeg patch task one GPU; StarDist has no GPU image.
+With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
+sopa image cannot run on the V100s. At most 16 patches run at once, with 1 CPU and 8 GB on
+`size_tiny` and `size_small`, else 2 CPUs and 16 GB. A task fails if CUDA is not usable in it,
+rather than running on CPU. Not on the Mac: Docker there has no GPU.
 
 Validate before submitting — this catches bad paths and parameter types in seconds rather than after
 a queue wait:
