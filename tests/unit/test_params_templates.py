@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 import yaml
-from params_template_compact import render
+from params_templates import NULL_NOTE, add_note, render
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -92,3 +92,35 @@ def test_uncommented_lines_parse_to_the_schema_defaults():
 def test_committed_file_is_current():
     schema = json.loads((REPO / "nextflow_schema.json").read_text())
     assert (REPO / "assets/params_template_compact.yml").read_text() == render(schema)
+
+
+NFCORE_HEADER = """## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##     Uncomment lines with a single '#' if you want to pass the parameter to
+##     the pipeline.
+## -----------------------------------------------------------------------------
+
+## =============================================================================
+## Input/output options
+## -----------------------------------------------------------------------------
+"""
+
+
+def test_the_compact_template_explains_null_at_the_top():
+    head = render(SCHEMA).split("## Input/output options")[0]
+    assert all(f"# {line}" in head for line in NULL_NOTE)
+
+
+def test_the_note_ends_the_nfcore_header_once():
+    once = add_note(NFCORE_HEADER)
+    lines = once.splitlines()
+    rule = lines.index("## " + "-" * 77)
+    assert lines[rule - len(NULL_NOTE) : rule] == [f"##     {line}" for line in NULL_NOTE]
+    assert add_note(once) == once
+
+
+def test_the_committed_nfcore_template_has_the_note():
+    assert (
+        add_note((REPO / "assets/params_template.yml").read_text())
+        == (REPO / "assets/params_template.yml").read_text()
+    )
+    assert f"##     {NULL_NOTE[0]}" in (REPO / "assets/params_template.yml").read_text()

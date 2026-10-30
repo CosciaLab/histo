@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `assets/params_template_compact.yml`: every parameter on one line with its default and a
   one-sentence description, for editing. Generated from the schema by a prek hook, like
-  `assets/params_template.yml`, which stays the full reference.
+  `assets/params_template.yml`, which stays the full reference. Both explain `null` at the top.
 
 ### Changed
 

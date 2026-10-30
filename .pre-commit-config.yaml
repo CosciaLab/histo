@@ -160,24 +160,17 @@ repos:
           echo "$f: output: block changed but stub: block did not; update the stub in this commit" >&2;
           fail=1; fi; done; exit $fail' --
 
-      # A colleague's full parameter list, regenerated from the schema so it cannot drift.
+      # A colleague's parameter lists, regenerated from the schema so they cannot drift: nf-core's
+      # with full descriptions, then tools/params_templates.py adds its null note and the compact one.
       # Exempt from the formatters above: nf-core's output is committed as written.
-      - id: params-template
-        name: assets/params_template.yml matches the schema
+      - id: params-templates
+        name: assets/params_template*.yml match the schema
         language: python
         # 4.0.3 writes ". 0.0.0" for the pipeline name and version.
         additional_dependencies: ["nf-core==4.2.0"]
-        files: '^(nextflow_schema\.json|nextflow\.config|assets/params_template\.yml)$'
+        files: '^(nextflow_schema\.json|nextflow\.config|tools/params_templates\.py|assets/params_template.*\.yml)$'
         pass_filenames: false
-        entry: nf-core pipelines create-params-file . -o assets/params_template.yml --show-hidden --no-prompts --force
-
-      # The same parameters one per line, for editing; params_template.yml stays the full reference.
-      - id: params-template-compact
-        name: assets/params_template_compact.yml matches the schema
-        language: system
-        files: '^(nextflow_schema\.json|tools/params_template_compact\.py|assets/params_template_compact\.yml)$'
-        pass_filenames: false
-        entry: python3 tools/params_template_compact.py
+        entry: bash -c 'nf-core pipelines create-params-file . -o assets/params_template.yml --show-hidden --no-prompts --force && python tools/params_templates.py'
 
       # containers.tsv is the image manifest for pre-staging; it must list every module's image.
       - id: container-manifest

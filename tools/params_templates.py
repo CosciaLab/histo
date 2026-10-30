@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Write assets/params_template_compact.yml: every schema parameter on one line, with its default.
+"""Finish the two parameter templates after nf-core pipelines create-params-file.
 
-The short sibling of assets/params_template.yml, which nf-core generates with full descriptions.
-nf-core has no compact layout, hence this script. Run by the params-template-compact prek hook.
+assets/params_template.yml is nf-core's, with full descriptions; this adds the null note to its
+header. assets/params_template_compact.yml has every parameter on one line; nf-core has no such
+layout, so this writes it. Run by the params-templates prek hook.
 
 Usage:
-    tools/params_template_compact.py
+    tools/params_templates.py
 """
 
 from __future__ import annotations
@@ -19,9 +20,17 @@ SENTENCE_END = re.compile(r"(?<!e\.g\.)(?<!i\.e\.)(?<=[.!?])\s+(?=[A-Z])")
 # Longer "# key: default" parts overflow rather than push the whole group's comments right.
 ALIGN_MAX = 40
 
+# nf-core prints null for every parameter without a schema default, including false booleans.
+NULL_NOTE = [
+    "null means not set. A true/false parameter at null is off. Any other",
+    "parameter at null is not passed on, so the pipeline or tool uses its own",
+    "default; docs/usage.md lists the few you must set.",
+]
+
 REPO = Path(__file__).resolve().parent.parent
 SCHEMA = REPO / "nextflow_schema.json"
-OUT = REPO / "assets/params_template_compact.yml"
+COMPACT = REPO / "assets/params_template_compact.yml"
+NFCORE = REPO / "assets/params_template.yml"
 
 
 def describe(prop: dict, required: bool) -> str:
@@ -42,7 +51,9 @@ def render(schema: dict) -> str:
         f"# {schema['title']}: every parameter on one line, with its default.",
         "# Uncomment and edit what you change, then pass the file to -params-file.",
         "# Full descriptions: assets/params_template.yml. Generated from nextflow_schema.json by",
-        "# tools/params_template_compact.py; do not edit by hand.",
+        "# tools/params_templates.py; do not edit by hand.",
+        "#",
+        *(f"# {line}" for line in NULL_NOTE),
     ]
     for ref in schema["allOf"]:
         group = schema["$defs"][ref["$ref"].split("/")[-1]]
@@ -61,8 +72,19 @@ def render(schema: dict) -> str:
     return "\n".join(out) + "\n"
 
 
+def add_note(text: str) -> str:
+    """Insert NULL_NOTE above the rule that closes nf-core's header; no-op if already there."""
+    if f"##     {NULL_NOTE[0]}" in text:
+        return text
+    lines = text.split("\n")
+    rule = next(i for i, line in enumerate(lines) if line.startswith("## ---"))
+    lines[rule:rule] = ["##", *(f"##     {line}" for line in NULL_NOTE)]
+    return "\n".join(lines)
+
+
 def main() -> None:
-    OUT.write_text(render(json.loads(SCHEMA.read_text())))
+    COMPACT.write_text(render(json.loads(SCHEMA.read_text())))
+    NFCORE.write_text(add_note(NFCORE.read_text()))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,11 @@
 # CosciaLab/histo pipeline parameters: every parameter on one line, with its default.
 # Uncomment and edit what you change, then pass the file to -params-file.
 # Full descriptions: assets/params_template.yml. Generated from nextflow_schema.json by
-# tools/params_template_compact.py; do not edit by hand.
+# tools/params_templates.py; do not edit by hand.
+#
+# null means not set. A true/false parameter at null is off. Any other
+# parameter at null is not passed on, so the pipeline or tool uses its own
+# default; docs/usage.md lists the few you must set.
 
 ## Input/output options
 # input: null   # Path to a comma-separated samplesheet. Required.
