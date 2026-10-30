@@ -31,7 +31,7 @@ guidelines anyway, so modules or the pipeline can go upstream later.
 - Branches: `main` released, `dev` integration, feature branch → PR into `dev`. Keep `TEMPLATE`.
 - Keep `CITATIONS.md` (mcmicro, sopa, every tool), `CHANGELOG.md` and `conf/slurm.config` current.
 - Never hand-edit `nextflow_schema.json`; use `nf-core pipelines schema build`.
-- Never hand-edit `assets/params_template.yml`; a prek hook regenerates it from the schema.
+- Never hand-edit `assets/params_template*.yml`; a prek hook regenerates them from the schema.
 - Optional steps are schema booleans with `default: false`.
 - After rewiring the graph, run
   `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg` and have a human

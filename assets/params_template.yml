@@ -6,6 +6,10 @@
 ##      
 ##     Uncomment lines with a single '#' if you want to pass the parameter to
 ##     the pipeline.
+##
+##     null means not set. A true/false parameter at null is off. Any other
+##     parameter at null is not passed on, so the pipeline or tool uses its own
+##     default; docs/usage.md lists the few you must set.
 ## -----------------------------------------------------------------------------
 
 ## =============================================================================

@@ -1,0 +1,103 @@
+# CosciaLab/histo pipeline parameters: every parameter on one line, with its default.
+# Uncomment and edit what you change, then pass the file to -params-file.
+# Full descriptions: assets/params_template.yml. Generated from nextflow_schema.json by
+# tools/params_templates.py; do not edit by hand.
+#
+# null means not set. A true/false parameter at null is off. Any other
+# parameter at null is not passed on, so the pipeline or tool uses its own
+# default; docs/usage.md lists the few you must set.
+
+## Input/output options
+# input: null   # Path to a comma-separated samplesheet. Required.
+# outdir: null  # The output directory where the results will be saved. Required.
+# email: null   # Email address for completion summary.
+
+## Preprocessing
+# use_preprocessing: true            # Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below.
+# preprocessing_only: null           # Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report.
+# skip_reference_dna_check: null     # Run even when Ashlar's alignment channel or Coreograph's dearray channel is not a dna channel in the marker sheet.
+# ashlar_args: "--maximum-shift 30"  # Extra command-line arguments passed through to Ashlar.
+# use_backsub: null                  # Subtract background channels after stitching.
+# backsub_args: null                 # Extra command-line arguments passed through to backsub.
+# use_tma_dearray: null              # Split a tissue microarray into individual cores with UNetCoreograph.
+# coreograph_args: "--downsampleFactor 5 --channel 0 --buffer 2"  # Extra command-line arguments passed through to UNetCoreograph.
+
+## Institutional config options
+# custom_config_version: "master"   # Git commit id for Institutional configs.
+# custom_config_base: "https://raw.githubusercontent.com/nf-core/configs/master"  # Base directory for Institutional configs.
+# config_profile_name: null         # Institutional config name.
+# config_profile_description: null  # Institutional config description.
+# config_profile_contact: null      # Institutional config contact information.
+# config_profile_url: null          # Institutional config URL link.
+
+## Generic options
+# version: null              # Display version and exit.
+# publish_dir_mode: "copy"   # Method used to save pipeline results to output directory. One of: symlink, rellink, link, copy, copyNoFollow, move.
+# email_on_fail: null        # Email address for completion summary, only when pipeline fails.
+# plaintext_email: null      # Send plain-text email instead of HTML.
+# monochrome_logs: null      # Do not use coloured log outputs.
+# validate_params: true      # Boolean whether to validate parameters against the schema at runtime.
+# pipelines_testdata_base_path: "https://raw.githubusercontent.com/nf-core/test-datasets/"  # Base URL or local path to location of pipeline test dataset files.
+# trace_report_suffix: null  # Suffix to add to the trace report filename.
+# help: null                 # Display the help message.
+# help_full: null            # Display the full detailed help message.
+# show_hidden: null          # Display hidden parameters in the help message (only works when --help or --help_full are provided).
+
+## Patches
+# patch_width_pixel: null    # Width and height of each segmentation patch, in pixels.
+# patch_overlap_pixel: null  # Overlap between neighbouring patches, in pixels.
+
+## Tissue segmentation
+# use_tissue_segmentation: null     # Whether to run tissue segmentation.
+# level: null                       # Level of the image pyramid to use for tissue segmentation.
+# mode: null                        # Mode for the tissue segmentation: 'staining' or 'saturation' (for H&E images). One of: staining, saturation.
+# tissue_segmentation_kwargs: null  # Additional tissue segmentation parameters as a python dict string.
+
+## Cell filtering
+# min_area_pixels2: null     # Cells with an area less than this value will be filtered.
+# min_intensity_ratio: null  # Cells whose mean channel intensity is less than `min_intensity_ratio * quantile_90` will be filtered.
+
+## Aggregation
+# expand_radius_ratio: null  # Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities only.
+
+## Image preprocessing
+# gaussian_sigma: null     # Parameter for scipy gaussian_filter (applied before running the segmentation method).
+# clip_limit: null         # Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method).
+# clahe_kernel_size: null  # Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method).
+
+## Channel projection
+# use_projection: null              # Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose.
+# projection_method: "max"          # How the rescaled markers of a channel are combined. max keeps markers that stain only one cell type at full brightness; mean averages out noise but dims them. One of: max, mean.
+# projection_low_percentile: 1.0    # Per-marker percentile mapped to 0 before combining.
+# projection_high_percentile: 99.9  # Per-marker percentile mapped to 1 before combining.
+# projection_sigma: 1.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
+
+## Cellpose
+# use_cellpose: null        # Whether to run cellpose segmentation.
+# cellpose_channels: null   # Channel(s) to segment with Cellpose.
+# flow_threshold: null      # Cellpose `flow_threshold` parameter.
+# cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
+# pretrained_model: null    # Cellpose `pretrained_model` parameter.
+# cellpose_use_gpu: null    # Whether to use GPU for Cellpose segmentation.
+# cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
+
+## Stardist
+# use_stardist: null         # Whether to run stardist segmentation.
+# stardist_model_type: null  # Name of stardist model to use.
+# prob_thresh: null          # Stardist `prob_thresh` parameter.
+# nms_thresh: null           # Stardist `nms_thresh` parameter.
+# stardist_channels: null    # Optional channel(s) to segment with StarDist.
+# stardist_kwargs: null      # Additional stardist parameters as a python dict string.
+
+## InstanSeg
+# use_instanseg: null         # Whether to run InstanSeg segmentation.
+# instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
+# instanseg_pixel_size: null  # Image resolution in microns per pixel.
+# instanseg_target: null      # Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`.
+# instanseg_channels: null    # Optional channel(s) to segment with InstanSeg; unset uses every channel.
+# instanseg_device: null      # Device for inference, e.g. `cpu` or `cuda`.
+# instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
+
+## QC report
+# use_qc: true         # Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report.
+# use_qc_images: true  # Whether to include the segmentation crops and the cell clustering in the QC report.

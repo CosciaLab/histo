@@ -124,9 +124,11 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
-Every parameter with its description and default is in
-[assets/params_template.yml](../assets/params_template.yml): copy it to `params.yml` and uncomment
-what you change. `null` there means off or unset. `--help` prints the same list.
+Every parameter and its default is in two generated files.
+[assets/params_template_compact.yml](../assets/params_template_compact.yml) has one line each:
+copy it to `params.yml` and uncomment what you change.
+[assets/params_template.yml](../assets/params_template.yml) has the full descriptions. `null` in
+either means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
