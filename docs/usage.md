@@ -118,7 +118,6 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_cellpose`             | `false`              | Exactly one of `use_cellpose`, `use_stardist` or `use_instanseg` must be true.                          |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
-| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                            |
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
@@ -165,8 +164,6 @@ the image shows. Cellpose's own values follow the membranes:
 ```yaml
 use_cellpose: true
 use_projection: true
-cellpose_model_type: cyto3
-cellpose_diameter: 15 # cell diameter in pixels: about 10 µm / pixel size
 flow_threshold: 0.4
 cellprob_threshold: 0
 clip_limit: 0
@@ -205,7 +202,6 @@ use_preprocessing: true
 
 use_cellpose: true
 cellpose_channels: "DNA_1"
-cellpose_diameter: 35
 patch_width_pixel: 1500
 patch_overlap_pixel: 50
 ```
