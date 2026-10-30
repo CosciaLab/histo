@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `use_gpu` replaces `cellpose_use_gpu` and `instanseg_device`: one GPU per Cellpose
+  or InstanSeg patch task (`conf/gpu.config`); an A40 under `-profile slurm,mdc`. GPU tasks fail
+  if CUDA is not usable instead of falling back to CPU. Not supported with StarDist.
 - **Breaking:** `use_cellpose` runs Cellpose-SAM (`cpsam`) instead of Cellpose 3 (`cyto3`),
   from `docker.io/josenimo/sopa:2.2.12` with the weights baked in. `cellpose_diameter` and
   `cellpose_model_type` are removed; configs that set them fail. Slower per patch on CPU.

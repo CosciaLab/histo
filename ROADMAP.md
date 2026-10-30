@@ -47,7 +47,7 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
    channel into membrane and cytoplasm. The cellpose docs say a third fluorescent channel needs
    retraining; item 3 should test it first.
 2. **Report chapters**, one per stage.
-3. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (1.4 item 3). Score
+3. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (1.4 item 4). Score
    permutations of the steps before the model: combining (max, sum), smoothing
    (`projection_sigma`, `gaussian_sigma`), normalisation and CLAHE, and thresholds (sopa's,
    Cellpose's), against annotated cells: TissueNet (mIF, nuclear and whole-cell labels) and a
@@ -56,9 +56,15 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.4: segmentation backends
 
-1. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
-2. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
-3. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
+1. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+2. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
+   patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
+   size-profile stopgap for GPU tasks and item 1. Crops and configs are ready outside the repo.
+3. **Automatic `patch_width_pixel`.** A first step reads the image size from its metadata and picks
+   the width that gives 300–400 patches, capped for resources, logged and overridable. Reverses a
+   decision (decisions.md, Parameters): a value derived from the image alone is the same on any
+   hardware. Needs item 2 for the cap.
+4. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
    regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
    in, select with `pretrained_model`, compare on exemplar-001 (or with 1.3 item 3). ~1 day.
 

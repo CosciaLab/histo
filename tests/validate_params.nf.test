@@ -63,6 +63,20 @@ nextflow_function {
         }
     }
 
+    test("use_gpu with StarDist is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: false, use_stardist: true, use_preprocessing: true, use_gpu: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_gpu does not support StarDist") }
+        }
+    }
+
     test("keep_projection without use_projection is rejected") {
         when {
             function {

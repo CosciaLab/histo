@@ -638,6 +638,8 @@ def validateParams(params) {
         assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
             "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
+    assert !(params.use_gpu && params.use_stardist) :
+        "use_gpu does not support StarDist: its TensorFlow image is CPU-only. Use Cellpose or InstanSeg, or drop use_gpu."
     assert !(params.keep_projection && !params.use_projection) :
         "keep_projection requires use_projection: without it there is no projected image to keep."
 
