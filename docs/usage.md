@@ -3,7 +3,7 @@
 ## Quick start
 
 ```bash
-nextflow run CosciaLab/histo -r v1.3.0 \
+nextflow run CosciaLab/histo -r v1.4.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -118,16 +118,18 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_cellpose`             | `false`              | Exactly one of `use_cellpose`, `use_stardist` or `use_instanseg` must be true.                          |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
-| `cellpose_diameter`        | none                 | Cells are not ~30 px across.                                                                            |
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
+| `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose or InstanSeg patch. See [GPU segmentation](#gpu-segmentation).     |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
-Every parameter with its description and default is in
-[assets/params_template.yml](../assets/params_template.yml): copy it to `params.yml` and uncomment
-what you change. `null` there means off or unset. `--help` prints the same list.
+Every parameter and its default is in two generated files.
+[assets/params_template_compact.yml](../assets/params_template_compact.yml) has one line each:
+copy it to `params.yml` and uncomment what you change.
+[assets/params_template.yml](../assets/params_template.yml) has the full descriptions. `null` in
+either means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
@@ -165,15 +167,17 @@ the image shows. Cellpose's own values follow the membranes:
 ```yaml
 use_cellpose: true
 use_projection: true
-cellpose_model_type: cyto3
-cellpose_diameter: 15 # cell diameter in pixels: about 10 µm / pixel size
 flow_threshold: 0.4
 cellprob_threshold: 0
 clip_limit: 0
 ```
 
 Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in
-magenta and cell in green. How the defaults were chosen is in [decisions.md](decisions.md).
+magenta and cell in green. In the JSON, a marker under `dominant` swamps the others: one diffuse,
+bright cytoplasm marker can make Cellpose miss whole groups of cells. Leave it out with the
+`segmentation` column. `keep_projection: true` also keeps it at full resolution in the store,
+as `<image>_projected`, to view with the cell boundaries. How the defaults were chosen is in
+[decisions.md](decisions.md).
 
 ## Profiles
 
@@ -205,7 +209,6 @@ use_preprocessing: true
 
 use_cellpose: true
 cellpose_channels: "DNA_1"
-cellpose_diameter: 35
 patch_width_pixel: 1500
 patch_overlap_pixel: 50
 ```
@@ -238,6 +241,14 @@ nextflow run /path/to/histo -profile singularity,size_small,slurm -params-file p
 All three temp variables are needed for different consumers: `TMPDIR` for tools inside
 containers, `NXF_TEMP` for Nextflow's own scratch, and `java.io.tmpdir` for the JVM,
 which is the one that fails first and least helpfully.
+
+### GPU segmentation
+
+`use_gpu: true` gives each Cellpose or InstanSeg patch task one GPU; StarDist has no GPU image.
+With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
+sopa image cannot run on the V100s. At most 16 patches run at once, with 1 CPU and 8 GB on
+`size_tiny` and `size_small`, else 2 CPUs and 16 GB. A task fails if CUDA is not usable in it,
+rather than running on CPU. Not on the Mac: Docker there has no GPU.
 
 Validate before submitting — this catches bad paths and parameter types in seconds rather than after
 a queue wait:

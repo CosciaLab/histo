@@ -3,6 +3,34 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.4.0 - [2026-10-30]
+
+### Added
+
+- `assets/params_template_compact.yml`: every parameter on one line with its default and a
+  one-sentence description, for editing. Generated from the schema by a prek hook, like
+  `assets/params_template.yml`, which stays the full reference. Both explain `null` at the top.
+- `qc/{sample}_projection.json`: `win_share`, the share of pixels each marker is the brightest
+  in, and `dominant`, any marker brightest in over half of a channel. The log warns about it.
+- `keep_projection`: with `use_projection`, keep the projected `nuclear` and `cell` image in the
+  published store as `<image>_projected`.
+
+### Changed
+
+- **Breaking:** `use_gpu` replaces `cellpose_use_gpu` and `instanseg_device`: one GPU per Cellpose
+  or InstanSeg patch task (`conf/gpu.config`); an A40 under `-profile slurm,mdc`. GPU tasks fail
+  if CUDA is not usable instead of falling back to CPU. Not supported with StarDist.
+- **Breaking:** `use_cellpose` runs Cellpose-SAM (`cpsam`) instead of Cellpose 3 (`cyto3`),
+  from `docker.io/josenimo/sopa:2.2.12` with the weights baked in. `cellpose_diameter` and
+  `cellpose_model_type` are removed; configs that set them fail. Slower per patch on CPU.
+- QC reads the image named by the store's `cell_segmentation_image` attribute instead of
+  requiring exactly one image element.
+
+### Fixed
+
+- `PROJECT_CHANNELS` published a full copy of each sample's store to `qc/{sample}.zarr`; only
+  the projection PNG and JSON are published now.
+
 ## v1.3.0 - [2026-10-29]
 
 ### Added

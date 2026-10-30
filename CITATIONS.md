@@ -57,6 +57,8 @@ Both are MIT licensed. This pipeline would not exist without them.
 
   > Stringer C, Wang T, Michaelos M, Pachitariu M. Cellpose: a generalist algorithm for cellular segmentation. Nat Methods 18, 100–106 (2021). https://doi.org/10.1038/s41592-020-01018-x
 
+  > Pachitariu M, Rariden M, Stringer C. Cellpose-SAM: superhuman generalization for cellular segmentation. bioRxiv (2025). https://doi.org/10.1101/2025.04.28.651001
+
 - [StarDist](https://doi.org/10.1007/978-3-030-00934-2_30) — alternative nucleus segmentation,
   under `use_stardist`
 

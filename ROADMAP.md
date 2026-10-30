@@ -6,36 +6,6 @@ The tracker for this project; GitHub Issues is not used. Reasoning is in
 Priorities, in order: transparency, robustness, troubleshootability. Sizes are focused working
 time, estimated before the release; treat them as rough.
 
-## Status
-
-| Phase                  | State                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------- |
-| 0. Freeze and diagnose | Done                                                                               |
-| 1. Scaffold            | Done: from nf-core/sopa, rebranded, out-of-scope parts cut                         |
-| 2. Preprocessing       | Done: BaSiCPy, Ashlar, backsub, Coreograph                                         |
-| 3. TMA path            | Done: per-core processing, per-slide merge and QC page                             |
-| 4. Resource profiles   | Done: `size_tiny`/`small`/`medium`/`huge`, `slurm`                                 |
-| 5. Containers          | Done: 8 images, manifest, pre-staging documented                                   |
-| 6. Testing             | Done; exemplar releases checked by hand on the cluster                             |
-| 7. QC report           | Metrics, images and reports in; thresholds need more slides                        |
-| 8. Releases            | 1.0.0 on 2026-10-06, 1.1.0 on 2026-10-09, 1.2.0 on 2026-10-21, 1.3.0 on 2026-10-29 |
-
-## Verified on real data
-
-- mIF, 3 cycles, 12 channels: 9,855 cells.
-- TMA, 2 cycles: 4 cores, processed independently, merged to 29,574 cells.
-- 10-cycle TMA, with and without backsub.
-- Tiling: 9,855 cells as one patch versus 9,896 across six (0.4%).
-- WSI, 3 cycles, 15 channels (5 background), 21,798 x 11,295 px, backsub: 142,493 cells in 72
-  patches. All Phase 7 metrics and thresholds are calibrated on this one run.
-- Release candidate `3717ea0`, 2026-10-06, by `nextflow run`: exemplar-001 9,877 cells;
-  exemplar-002 with 2 and with 10 cycles, identical per-core counts (7,472, 4,779, 7,604, 9,678).
-  These are the exemplar test baselines.
-
-Memory: 8.7 GB peak RSS in `BASICPY` on the WSI run; 1.7 GB peak across 49 tasks on the
-smaller runs. `TO_SPATIALDATA` reported exactly 8.00 GiB, likely a ceiling, so treat it as
-unmeasured.
-
 ## Next releases
 
 Segmentation, then quantification, then learned features. Each release adds its own chapter
@@ -44,20 +14,29 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 ### 1.3: segmentation input
 
 1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell`
-   channel into membrane and cytoplasm.
+   channel into membrane and cytoplasm. The cellpose docs say a third fluorescent channel needs
+   retraining; item 3 should test it first.
 2. **Report chapters**, one per stage.
+3. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (1.4 item 4). Score
+   permutations of the steps before the model: combining (max, sum), smoothing
+   (`projection_sigma`, `gaussian_sigma`), normalisation and CLAHE, and thresholds (sopa's,
+   Cellpose's), against annotated cells: TissueNet (mIF, nuclear and whole-cell labels) and a
+   few in-house crops. Extends `tools/benchmark_projection.py`; on Apple MPS one setting takes
+   ~1.5 min per exemplar-001. Decides the defaults and item 1. 1–2 weeks.
 
 ### 1.4: segmentation backends
 
-1. **Cellpose-SAM.** sopa selects `cpsam` under cellpose ≥ 4. `josenimo/sopa:2.2.12` (the
-   InstanSeg image) already ships cellpose 4.2.1.1 with `cpsam` weights; still needs a check of
-   what `--diameter` means for cpsam. 3–5 days. `use_projection` needs
-   no change: Cellpose-SAM takes its two channels as they are.
-2. **GPU on SLURM**: `process_gpu` is unused; CPSAM on CPU is too slow for a WSI.
-3. **Pre-staged weights**, for Cellpose. `CELLPOSE_LOCAL_MODELS_PATH` points at an empty
-   directory (`patch_segmentation_cellpose/main.nf:20`), so every task downloads weights.
-   Moving Cellpose to `josenimo/sopa:2.2.12`, which bakes them in, would also do. ~1 day.
-4. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+1. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+2. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
+   patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
+   size-profile stopgap for GPU tasks and item 1. Crops and configs are ready outside the repo.
+3. **Automatic `patch_width_pixel`.** A first step reads the image size from its metadata and picks
+   the width that gives 300–400 patches, capped for resources, logged and overridable. Reverses a
+   decision (decisions.md, Parameters): a value derived from the image alone is the same on any
+   hardware. Needs item 2 for the cap.
+4. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
+   regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
+   in, select with `pretrained_model`, compare on exemplar-001 (or with 1.3 item 3). ~1 day.
 
 ### 1.5: multiple segmentations, compared afterwards
 
@@ -120,7 +99,7 @@ Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreo
 too large for GitHub runners.
 
 Commands and what each run covers are in [CONTRIBUTING](docs/CONTRIBUTING.md#testing). Cell counts must stay
-within ±2% of the baselines above. Nothing checks `use_preprocessing = false` on real data (stub
+within ±2% of the baselines in `tests/exemplar001.nf.test` and `tests/exemplar002.nf.test`. Nothing checks `use_preprocessing = false` on real data (stub
 only) or StarDist.
 
 ## Longer term
@@ -143,6 +122,17 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
+6. **Documentation website** for curious users: one page per module with what it does and why,
+   its tool and version, inputs, outputs, parameters and defaults, and an exemplar-001 figure.
+   Generate what it can from `meta.yml` and the schema so it cannot drift. 1–2 weeks.
+7. **Segmentation preview**, so users pick settings by eye instead of worrying about optimising
+   them. A mode that stops after segmenting ~5 crops chosen to span the slide (dense, sparse,
+   tissue edge, brightest cell marker) over a small grid: `cellprob_threshold`, `flow_threshold`,
+   `clip_limit`, and with projection max or sum. An HTML sheet, settings by crops, shows each
+   row's cell count, median area and nuclei inside cells, and a params snippet to paste; a rerun
+   with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
+   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 1.3 item 3, which sets
+   the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
@@ -162,8 +152,6 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### Known limitations
 
-- **Cellpose downloads its weights at run time** (1.4 item 3).
-  Segmentation fails without network.
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
@@ -179,7 +167,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Local Mac test profile for the partial path.** Ashlar, backsub, sopa, Cellpose and InstanSeg
   run under `docker,emulate_amd64,laptop`; BaSiCPy, Coreograph and StarDist do not (no AVX under
   Rosetta). A real-data test without those three would catch tool behaviour before the cluster.
-  See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
+  Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
+  55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
   and unit-test it.
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,

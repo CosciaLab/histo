@@ -1,0 +1,36 @@
+// use_gpu under -stub: conf/gpu.config is included and the pipeline still wires up. The GPU
+// request, --nv and the CUDA check only act on a real cluster run.
+
+nextflow_pipeline {
+
+    name "GPU segmentation"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    test("use_gpu runs Cellpose once per patch, as without it") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_gpu = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() == 2 },
+                { assert names("RESOLVE_CELLPOSE").size() == 1 },
+
+                // A missing entry means the module lost its version capture.
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('PATCH_SEGMENTATION_CELLPOSE') }
+            )
+        }
+    }
+}

@@ -407,15 +407,24 @@ def tiff_channel_histograms(path: Path) -> tuple[list[Any], int, list[int]]:
         return hists, dtype_max, list(array.shape)
 
 
-def sole_image_element(sdata_path: Path) -> str:
-    """Name of the store's only image element; raises if there is not exactly one."""
+def segmentation_image_element(sdata_path: Path) -> str:
+    """The image element cells were segmented from and quantified on, as named by sopa.
+
+    Named, not guessed: a store may hold other images too, such as a kept projection.
+    """
     images = sdata_path / "images"
     if not images.is_dir():
         raise FileNotFoundError(f"{images} does not exist; {sdata_path} is not a SpatialData store")
     elements = sorted(p.name for p in images.iterdir() if (p / "zarr.json").exists() and p.is_dir())
-    if len(elements) != 1:
-        raise ValueError(f"expected exactly one image element, found {len(elements)}: {elements}")
-    return elements[0]
+    attrs = json.loads((sdata_path / "zarr.json").read_text()).get("attributes", {})
+    element = attrs.get("cell_segmentation_image")
+    if element is None:
+        raise ValueError(
+            f"{sdata_path} has no 'cell_segmentation_image' attribute. Image elements: {elements}"
+        )
+    if element not in elements:
+        raise ValueError(f"{sdata_path} names '{element}' as its segmentation image, but has only {elements}")
+    return element
 
 
 def collect(
@@ -432,7 +441,7 @@ def collect(
     import pyarrow.parquet as pq
     import zarr
 
-    element = sole_image_element(sdata_path)
+    element = segmentation_image_element(sdata_path)
     table = zarr.open_group(str(sdata_path / "tables" / "table"), mode="r")
 
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]

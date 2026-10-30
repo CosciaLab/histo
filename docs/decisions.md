@@ -53,8 +53,11 @@ Images stay in pixels; Ashlar keeps `PhysicalSizeX` in the OME-TIFF.
 
 **A transient image element, not a new OME-TIFF.** `PROJECT_CHANNELS` adds `<image>_projected`
 and points sopa's `cell_segmentation_image` attribute at it; patchify, segmentation and resolve
-follow that attribute. `DROP_PROJECTION` deletes it before `AGGREGATE`, so quantification reads
-every marker and the published store has one image, as without projection.
+follow that attribute. `DROP_PROJECTION` points the attribute back before `AGGREGATE`, so
+quantification reads every marker, and deletes the element unless `keep_projection`.
+
+**QC names its image.** It reads the element named by `cell_segmentation_image`, not the store's
+only image, so a store can hold others: a kept projection now, a pre-backsub image later.
 
 **Nuclear is the first `dna` channel by default**, the Ashlar reference: best registered, and
 free of the cell loss later cycles show.
@@ -86,8 +89,19 @@ automatic value would make the same slide segment differently on different hardw
 
 **Size profiles are one file**, `conf/sizes.config`, with its own `profiles` scope.
 
-**Tiled segmentation is not scaled by size profile.** Its cost follows `patch_width_pixel`. A
-larger slide means more tasks, not bigger ones.
+**Tiled segmentation is not scaled by size profile on CPU.** Its cost follows `patch_width_pixel`.
+GPU tasks are, as a stopgap: larger slides usually get larger patches. A tile-size benchmark
+replaces both (ROADMAP).
+
+**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on the patch tasks, and the
+module derives Cellpose's `--gpu` or InstanSeg's `--device` from it, so the two cannot disagree.
+The SLURM executor ignores `accelerator`, so `slurm` and `mdc` translate it into `--gres`. MDC asks
+for A40s: the sopa image's CUDA 13 has no V100 kernels, and only A40 nodes have Ceph. A CUDA check
+fails the task, since cellpose falls back to CPU silently.
+
+**Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
+Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so
+images are not rescaled.
 
 ## Containers
 

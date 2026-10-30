@@ -107,7 +107,7 @@ workflow HISTO {
             (ch_resolved, versions) = CELLPOSE(ch_image_patches)
             ch_versions = ch_versions.mix(versions)
 
-            // AGGREGATE must quantify the full marker image, not the projection.
+            // AGGREGATE must quantify the full marker image; keep_projection leaves the projection beside it.
             if (params.use_projection) {
                 DROP_PROJECTION(ch_resolved)
                 ch_resolved = DROP_PROJECTION.out.sdata

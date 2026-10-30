@@ -153,7 +153,7 @@ Regenerate it after adding or removing a module, or bumping a container.
 **Five images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
 BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
 the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`).
-`josenimo/sopa:2.2.12` (InstanSeg, with cellpose 4 and the weights baked in) is also ours. Their
+`josenimo/sopa:2.2.12` (Cellpose-SAM and InstanSeg, weights baked in) is also ours. Their
 `singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
 directly, which is slower and subject to Docker Hub rate limiting. Budget for that.
 
@@ -178,8 +178,8 @@ offers no AVX instructions. Checked on 2026-10-29:
 
 - **Fail:** BaSiCPy (jaxlib refuses to start without AVX), Coreograph and StarDist (TensorFlow
   hangs on import).
-- **Run:** Ashlar, backsub (which also has an arm64 build), sopa, Cellpose 3 (downloads its
-  weights, so needs internet) and InstanSeg, under `-profile docker,emulate_amd64,laptop`.
+- **Run:** Ashlar, backsub (which also has an arm64 build), sopa, Cellpose-SAM (40 to 55 min
+  per 1600 px patch) and InstanSeg, under `-profile docker,emulate_amd64,laptop`.
 
 So a real run on the Mac is possible only for the partial path: a stitched image, or tiles
 with illumination profiles from a cluster run, then Cellpose or InstanSeg, without dearraying.

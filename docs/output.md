@@ -111,6 +111,8 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 
 - `{sample}.zarr/`
   - Spatial elements: `images/`, `shapes/`, `tables/`, `points/`, ...
+  - With `keep_projection`, `images/` also holds `<image>_projected`: the `nuclear` and `cell`
+    channels Cellpose segmented, at full resolution.
 - `{sample}.zarr/.sopa_cache/`
   - What segmentation left behind: the patch definitions, and one parquet of cell boundaries
     per patch. Reproducible from the store, and about 4% of its size.
@@ -162,8 +164,11 @@ step that writes to the store.
     See [usage.md](usage.md#when-stitching-or-registration-looks-wrong) for what to change.
 - `qc/{sample}_projection.png` and `qc/{sample}_projection.json`
   - **With `use_projection` only.** The two channels Cellpose segmented, downsampled, nuclear in
-    magenta and cell in green; and the markers in each, their rescaling bounds and the method.
-    The projection itself is removed from the store before quantification.
+    magenta and cell in green; and the markers in each, their rescaling bounds, the share of
+    pixels in which each is the brightest (`win_share`), and the method. `dominant` lists any
+    marker brightest in over half of a channel, which then decides that channel alone; the task
+    log warns about it too. The projection is removed from the store before quantification
+    unless `keep_projection`.
 - `qc/{sample}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
     `use_qc_images: false`.

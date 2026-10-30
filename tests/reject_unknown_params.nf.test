@@ -64,6 +64,44 @@ nextflow_function {
         }
     }
 
+    test("Cellpose 3 parameters are rejected") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    cellpose_diameter: 35,
+                    cellpose_model_type: 'cyto3'
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("cellpose_diameter") }
+            assert function.stdout.any { it.contains("cellpose_model_type") }
+        }
+    }
+
+    test("the per-backend GPU parameters replaced by use_gpu are rejected") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    cellpose_use_gpu: true,
+                    instanseg_device: 'cuda'
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("cellpose_use_gpu") }
+            assert function.stdout.any { it.contains("instanseg_device") }
+        }
+    }
+
     test("a doubled prefix is rejected and the message names the parameter meant") {
         when {
             function {

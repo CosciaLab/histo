@@ -44,6 +44,8 @@ nextflow_pipeline {
                 { assert names("QC_REPORT").size() == 1 },
                 { assert path("$outputDir/qc/testsample_projection.png").exists() },
                 { assert path("$outputDir/qc/testsample_projection.json").exists() },
+                // Only the preview is QC; a copy of the store there would double its disk use.
+                { assert !path("$outputDir/qc/testsample.zarr").exists() },
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('PROJECT_CHANNELS') },

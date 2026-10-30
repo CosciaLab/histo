@@ -9,11 +9,13 @@ import pytest
 from project_channels import (
     coarse_level,
     combine,
+    dominant,
     percentile_bounds,
     preview_rgb,
     rescale,
     resolve_groups,
     scale_factors_of,
+    win_shares,
 )
 from qc_metrics import read_marker_cycles
 
@@ -110,6 +112,39 @@ class TestRescale:
         out = rescale(np.array([0, 10, 60, 110, 500], dtype=np.uint16), 10.0, 110.0)
         assert out.dtype == np.float32
         np.testing.assert_allclose(out, [0, 0, 0.5, 1, 1])
+
+
+class TestWinShares:
+    def test_share_of_pixels_each_marker_is_brightest_in(self):
+        a = np.array([[0.9, 0.9], [0.9, 0.1]])
+        b = np.array([[0.1, 0.2], [0.3, 0.8]])
+        assert win_shares([a, b], mask=None) == pytest.approx([0.75, 0.25])
+
+    def test_pixels_dark_in_every_marker_do_not_count(self):
+        """Glass and padding would otherwise go to whichever marker comes first."""
+        a = np.array([[0.0, 0.5]])
+        b = np.array([[0.0, 0.1]])
+        assert win_shares([a, b], mask=None) == pytest.approx([1.0, 0.0])
+
+    def test_only_tissue_counts(self):
+        a = np.array([[0.9, 0.1]])
+        b = np.array([[0.1, 0.9]])
+        assert win_shares([a, b], mask=np.array([[False, True]])) == pytest.approx([0.0, 1.0])
+
+    def test_all_dark_gives_zeros(self):
+        assert win_shares([np.zeros((2, 2)), np.zeros((2, 2))], mask=None) == [0.0, 0.0]
+
+
+class TestDominant:
+    def test_a_marker_winning_most_of_a_group_is_flagged(self):
+        channels = {
+            "nuclear": [{"marker": "DNA_1", "win_share": 1.0}],
+            "cell": [{"marker": "LDH", "win_share": 0.85}, {"marker": "CD45", "win_share": 0.15}],
+        }
+        assert dominant(channels) == [{"channel": "cell", "marker": "LDH", "win_share": 0.85}]
+
+    def test_a_single_marker_group_is_not_flagged(self):
+        assert dominant({"nuclear": [{"marker": "DNA_1", "win_share": 1.0}]}) == []
 
 
 class TestCombine:
@@ -209,12 +244,28 @@ class TestStoreRoundTrip:
 
         assert summary["dropped_constant"] == ["FLAT"]
         assert [c["marker"] for c in summary["channels"]["cell"]] == ["CD45", "ECAD"]
+        assert sum(c["win_share"] for c in summary["channels"]["cell"]) == pytest.approx(1.0)
+        assert summary["channels"]["nuclear"][0]["win_share"] == pytest.approx(1.0)
         assert json.loads((tmp_path / "sample_projection.json").read_text()) == summary
         assert (tmp_path / "sample_projection.png").stat().st_size > 0
 
         drop(store)
         s = sd.read_zarr(store)
         assert list(s.images) == ["sample"]
+        assert s.attrs["cell_segmentation_image"] == "sample"
+        assert "histo_projection_source" not in s.attrs
+
+    def test_drop_keep_leaves_the_projection_beside_the_source(self, store, tmp_path, monkeypatch):
+        """keep_projection: AGGREGATE and QC follow the attribute back to the full image."""
+        import spatialdata as sd
+        from project_channels import drop, project
+
+        monkeypatch.chdir(tmp_path)
+        project(store, markers(tmp_path), method="max", low=1, high=99.9, sigma=0, prefix="sample")
+        drop(store, keep=True)
+
+        s = sd.read_zarr(store)
+        assert sorted(s.images) == ["sample", "sample_projected"]
         assert s.attrs["cell_segmentation_image"] == "sample"
         assert "histo_projection_source" not in s.attrs
 
