@@ -22,7 +22,7 @@ from qc_metrics import (
     collect,
     image_channel_labels,
     read_column,
-    sole_image_element,
+    segmentation_image_element,
 )
 
 
@@ -91,6 +91,12 @@ def store(tmp_path):
     data[0, 1, 1] = 300
     data[1, :, :] = 7
     names = make_image(s, "sample", data)
+    # sopa's reader names the segmentation image in the root attributes.
+    (s / "zarr.json").write_text(
+        json.dumps(
+            {"zarr_format": 3, "node_type": "group", "attributes": {"cell_segmentation_image": "sample"}}
+        )
+    )
     areas = np.array([4.0, 50.0, 900.0, 1000.0])
     centroids = np.array([[1.0, 1.0], [2.0, 2.0], [6.0, 6.0], [7.0, 7.0]])
     make_table(s, areas, centroids, names)
@@ -121,21 +127,31 @@ class TestReadColumn:
             read_column(node)
 
 
-class TestSoleImageElement:
-    def test_finds_the_only_one(self, store):
-        assert sole_image_element(store) == "sample"
+class TestSegmentationImageElement:
+    def test_names_the_attribute_element(self, store):
+        assert segmentation_image_element(store) == "sample"
 
-    def test_two_elements_refused(self, store):
-        """The guard the pipeline actually depends on: exactly one image."""
-        extra = store / "images" / "other"
-        extra.mkdir()
-        (extra / "zarr.json").write_text("{}")
-        with pytest.raises(ValueError, match="expected exactly one image element, found 2"):
-            sole_image_element(store)
+    def test_a_kept_projection_beside_it_is_ignored(self, store):
+        make_image(store, "sample_projected", np.zeros((2, 8, 8), dtype=np.uint16))
+        assert segmentation_image_element(store) == "sample"
+
+    def test_missing_attribute_refused(self, store):
+        (store / "zarr.json").write_text('{"zarr_format": 3, "node_type": "group", "attributes": {}}')
+        with pytest.raises(ValueError, match="no 'cell_segmentation_image' attribute"):
+            segmentation_image_element(store)
+
+    def test_attribute_naming_an_absent_element_refused(self, store):
+        (store / "zarr.json").write_text(
+            json.dumps(
+                {"zarr_format": 3, "node_type": "group", "attributes": {"cell_segmentation_image": "gone"}}
+            )
+        )
+        with pytest.raises(ValueError, match=r"'gone'.*\['sample'\]"):
+            segmentation_image_element(store)
 
     def test_not_a_store_refused(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="not a SpatialData store"):
-            sole_image_element(tmp_path / "nope.zarr")
+            segmentation_image_element(tmp_path / "nope.zarr")
 
 
 class TestImageChannelLabels:
