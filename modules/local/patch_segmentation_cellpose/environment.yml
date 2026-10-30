@@ -3,5 +3,7 @@ channels:
   - bioconda
 dependencies:
   - python=3.12
-  - sopa=2.2.9
-  - cellpose=3.1.1.3
+  - pip
+  - pip:
+      - sopa[cellpose,instanseg]==2.2.12
+      - cellpose==4.2.1.1
