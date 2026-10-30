@@ -64,6 +64,25 @@ nextflow_function {
         }
     }
 
+    test("Cellpose 3 parameters are rejected") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    cellpose_diameter: 35,
+                    cellpose_model_type: 'cyto3'
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("cellpose_diameter") }
+            assert function.stdout.any { it.contains("cellpose_model_type") }
+        }
+    }
+
     test("a doubled prefix is rejected and the message names the parameter meant") {
         when {
             function {

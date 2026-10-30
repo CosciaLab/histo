@@ -89,6 +89,10 @@ automatic value would make the same slide segment differently on different hardw
 **Tiled segmentation is not scaled by size profile.** Its cost follows `patch_width_pixel`. A
 larger slide means more tasks, not bigger ones.
 
+**Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
+Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so
+images are not rescaled.
+
 ## Containers
 
 **Nothing is pulled at run time.** A pull failing hours in wastes the run and the queue slot.

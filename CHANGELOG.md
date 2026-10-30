@@ -3,6 +3,14 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- **Breaking:** `use_cellpose` runs Cellpose-SAM (`cpsam`) instead of Cellpose 3 (`cyto3`),
+  from `docker.io/josenimo/sopa:2.2.12` with the weights baked in. `cellpose_diameter` and
+  `cellpose_model_type` are removed; configs that set them fail. Slower per patch on CPU.
+
 ## v1.3.0 - [2026-10-29]
 
 ### Added

@@ -40,12 +40,12 @@ def stringifyValueForCli(value) {
 def extractSubArgs(Map args, String group) {
     if (group == "cellpose") {
         return [
-            diameter: args.cellpose_diameter,
+            // sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
+            diameter: 30,
             // sopa reads two channels as cytoplasm, then nucleus.
             channels: args.use_projection ? ['cell', 'nuclear'] : getChannels(args.cellpose_channels, false),
             flow_threshold: args.flow_threshold,
             cellprob_threshold: args.cellprob_threshold,
-            model_type: args.cellpose_model_type,
             pretrained_model: args.pretrained_model,
             gpu: args.cellpose_use_gpu,
             min_area: args.min_area_pixels2,

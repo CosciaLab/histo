@@ -37,4 +37,20 @@ nextflow_function {
             assert function.result.contains("--channels 'DNA_6'")
         }
     }
+
+    test("diameter is fixed at 30, cpsam's native size, and model_type is not passed") {
+        when {
+            function {
+                """
+                input[0] = "cellpose"
+                input[1] = [ use_projection: false, cellpose_channels: 'DNA_6', cellpose_diameter: 15, cellpose_model_type: 'cyto3' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.contains("--diameter 30")
+            assert !function.result.contains("--model-type")
+        }
+    }
 }
