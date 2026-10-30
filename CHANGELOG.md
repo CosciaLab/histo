@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - QC reads the image named by the store's `cell_segmentation_image` attribute instead of
   requiring exactly one image element.
 
+### Fixed
+
+- `PROJECT_CHANNELS` published a full copy of each sample's store to `qc/{sample}.zarr`; only
+  the projection PNG and JSON are published now.
+
 ## v1.3.0 - [2026-10-29]
 
 ### Added
