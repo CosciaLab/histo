@@ -10,6 +10,8 @@ components:
   - patch/segmentation/instanseg
   - resolve/instanseg
   - argscli
+  - defaultinstansegchannels
+  - stringifyitem
 input:
   - ch_patches:
       type: file
