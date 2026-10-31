@@ -3,6 +3,16 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- InstanSeg with `instanseg_channels` unset reads the channels from each sample's marker sheet:
+  `dna` and `marker` for `instanseg_target` `cells`, `dna` only for `nuclei`. Autofluorescence,
+  blank and backsub-removed channels are left out. Before, it failed in sopa, which accepts no
+  channel list only for 3-channel RGB images. Without a marker sheet (`use_preprocessing: false`),
+  `instanseg_channels` is now required and checked at startup.
+
 ## v1.4.0 - [2026-10-30]
 
 ### Added
