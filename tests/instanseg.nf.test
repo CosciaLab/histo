@@ -1,11 +1,12 @@
-// The InstanSeg backend through the same pre-stitched entry point as the default test.
+// The InstanSeg backend, from pre-stitched input and from raw tiles with a marker sheet.
 // Under -stub: it checks wiring and parameter validation, not segmentation.
+// -profile laptop puts tests/stub_bin on PATH for ashlar.
 
 nextflow_pipeline {
 
     name "InstanSeg backend"
     script "../main.nf"
-    profile "test"
+    profile "test,laptop"
     options "-stub"
     tag "stub"
     tag "pipeline"
@@ -40,6 +41,39 @@ nextflow_pipeline {
         }
     }
 
+    test("without instanseg_channels, the channels come from the marker sheet") {
+
+        when {
+            // Absolute paths, since nf-test launches from its own directory.
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testsample,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testsample,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
+                { assert names("RESOLVE_INSTANSEG").size() == 1 }
+            )
+        }
+    }
+
     test("InstanSeg without a pixel size is rejected at startup") {
 
         when {
@@ -54,6 +88,25 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.failed },
                 { assert (workflow.stdout + workflow.stderr).join("\n").contains("instanseg_pixel_size") }
+            )
+        }
+    }
+
+    test("InstanSeg on pre-stitched input without channels is rejected at startup") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join("\n").contains("instanseg_channels") }
             )
         }
     }

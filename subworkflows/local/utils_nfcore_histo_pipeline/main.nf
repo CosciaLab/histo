@@ -620,6 +620,11 @@ def validateParams(params) {
         "use_instanseg requires instanseg_pixel_size (microns per pixel of the image). Without it " +
         "InstanSeg does not rescale and may return no cells."
 
+    // Channel roles come from the marker sheet, which pre-stitched input does not have.
+    assert !(params.use_instanseg && params.instanseg_channels == null && !params.use_preprocessing) :
+        "use_instanseg without use_preprocessing needs instanseg_channels: the default channels " +
+        "come from the marker sheet. Name the channels, separated by space, comma or pipe."
+
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +
             "pre-stitched input there is nothing to run."

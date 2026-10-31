@@ -95,7 +95,7 @@
 # instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
 # instanseg_pixel_size: null  # Image resolution in microns per pixel.
 # instanseg_target: null      # Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`.
-# instanseg_channels: null    # Optional channel(s) to segment with InstanSeg; unset uses every channel.
+# instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
 
 ## QC report
