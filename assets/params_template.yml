@@ -646,7 +646,8 @@
 ## instanseg_target
 ## -----------------------------------------------------------------------------
 ##     Whether to output `cells` or `nuclei` boundaries. sopa defaults to
-##     `cells`
+##     `cells`. Also sets the default `instanseg_channels`: `dna` and
+##     `marker` channels for `cells`, `dna` only for `nuclei`
 ##     Type: string
 ## -----------------------------------------------------------------------------
 # instanseg_target: null
@@ -654,9 +655,12 @@
 ## -----------------------------------------------------------------------------
 ## instanseg_channels
 ## -----------------------------------------------------------------------------
-##     Optional channel(s) to segment with InstanSeg; unset uses every
-##     channel. Use marker names from the marker sheet, separated by space,
-##     comma or pipe characters.
+##     Channel(s) to segment with InstanSeg. Unset takes them from each
+##     sample's marker sheet: `dna` and `marker` channels for `cells`, `dna`
+##     only for `nuclei`; autofluorescence, blank and removed channels are
+##     left out. Required without a marker sheet (`use_preprocessing =
+##     false`). Use marker names, separated by space, comma or pipe
+##     characters.
 ##     Type: ['string', 'integer']
 ## -----------------------------------------------------------------------------
 # instanseg_channels: null

@@ -119,7 +119,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
-| `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size` (µm per pixel); channels optional. |
+| `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size`; channels default from each sheet. |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose or InstanSeg patch. See [GPU segmentation](#gpu-segmentation).     |
 | `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
 | `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
