@@ -1,0 +1,137 @@
+// One spec per method x target, built from params.
+
+nextflow_function {
+
+    name "segmentationSpecs"
+    script "../modules/local/utils.nf"
+    function "segmentationSpecs"
+    tag "unit"
+    tag "validation"
+
+    test("Cellpose cells take cytoplasm then nucleus") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'CD45 DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'cellpose_cells'
+            assert function.result[0].image == 'full'
+            assert function.result[0].channels == ['CD45', 'DAPI']
+        }
+    }
+
+    test("Cellpose nuclei use the last channel name") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, segment_cells: false, segment_nuclei: true, cellpose_channels: 'CD45 DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'cellpose_nuclei'
+            assert function.result[0].channels == ['DAPI']
+        }
+    }
+
+    test("projection gives Cellpose the projected image and its channels") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_projection: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei']
+            assert function.result[0].channels == ['cell', 'nuclear']
+            assert function.result[1].channels == ['nuclear']
+            assert function.result*.image == ['projected', 'projected']
+        }
+    }
+
+    test("InstanSeg nuclei: target, full image, channels left for the marker sheet") {
+        when {
+            function {
+                """
+                input[0] = [ use_instanseg: true, segment_cells: false, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].method_kwargs.target == 'nuclei'
+            assert function.result[0].image == 'full'
+            assert function.result[0].channels == null
+        }
+    }
+
+    test("only Cellpose asks for a GPU") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, use_gpu: true, cellpose_channels: 'DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'instanseg_cells']
+            assert function.result[0].gpu == true
+            assert function.result[1].gpu == false
+        }
+    }
+
+    test("methods and targets come in a fixed order") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, segment_nuclei: true, cellpose_channels: 'DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei', 'instanseg_cells', 'instanseg_nuclei']
+        }
+    }
+
+    test("Cellpose method_kwargs: diameter 30, nulls dropped, free-form kwargs merged flat") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: 1.5,
+                             min_area_pixels2: 20, cellpose_kwargs: [ batch_size: 4 ] ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result[0].method_kwargs == [ diameter: 30, flow_threshold: 1.5, batch_size: 4 ]
+            assert function.result[0].segmentation_kwargs == [ min_area: 20 ]
+        }
+    }
+
+    test("a free-form kwarg that collides with an explicit one fails naming the key") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', cellpose_kwargs: [ diameter: 10 ] ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.toString().contains('diameter') || function.stderr.toString().contains('diameter')
+        }
+    }
+}

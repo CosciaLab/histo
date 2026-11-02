@@ -90,6 +90,93 @@ def extractSubArgs(Map args, String group) {
     }
 }
 
+// Targets to segment; cells unless segment_cells is false (param added later), nuclei opt-in.
+def segmentationTargets(Map args) {
+    def targets = []
+    if (args.segment_cells != false) {
+        targets << 'cells'
+    }
+    if (args.segment_nuclei == true) {
+        targets << 'nuclei'
+    }
+    return targets
+}
+
+// One spec per enabled method x target. Unset values are dropped, not defaulted: sopa's
+// defaults are applied per method downstream.
+def segmentationSpecs(Map args) {
+    def specs = []
+    def targets = segmentationTargets(args)
+    def image = args.use_projection ? 'projected' : 'full'
+    def segmentation_kwargs = [
+        min_area: args.min_area_pixels2,
+        clip_limit: args.clip_limit,
+        clahe_kernel_size: args.clahe_kernel_size,
+        gaussian_sigma: args.gaussian_sigma,
+    ].findAll { _k, v -> v != null }
+
+    if (args.use_cellpose) {
+        targets.each { target ->
+            def channels
+            if (args.use_projection) {
+                channels = target == 'cells' ? ['cell', 'nuclear'] : ['nuclear']
+            } else {
+                def names = getChannels(args.cellpose_channels, false)
+                channels = target == 'cells' ? names : [names.last()]
+            }
+            specs << [
+                name: "cellpose_${target}".toString(),
+                method: 'cellpose',
+                target: target,
+                image: image,
+                channels: channels,
+                // diameter: sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
+                method_kwargs: mergeMethodKwargs('cellpose', [
+                    diameter: 30,
+                    flow_threshold: args.flow_threshold,
+                    cellprob_threshold: args.cellprob_threshold,
+                    pretrained_model: args.pretrained_model,
+                ], args.cellpose_kwargs),
+                segmentation_kwargs: segmentation_kwargs,
+                gpu: args.use_gpu ? true : false,
+            ]
+        }
+    }
+    if (args.use_instanseg) {
+        targets.each { target ->
+            specs << [
+                name: "instanseg_${target}".toString(),
+                method: 'instanseg',
+                target: target,
+                image: image,
+                channels: getChannels(args.instanseg_channels, true),
+                method_kwargs: mergeMethodKwargs('instanseg', [
+                    model_type: args.instanseg_model_type,
+                    pixel_size: args.instanseg_pixel_size,
+                    target: target,
+                ], args.instanseg_kwargs),
+                segmentation_kwargs: segmentation_kwargs,
+                gpu: false,
+            ]
+        }
+    }
+    return specs
+}
+
+// Free-form kwargs sit at the same level as the explicit ones, as sopa's CLI does; a clash is an error.
+def mergeMethodKwargs(String method, Map explicit, Map extra) {
+    def merged = explicit.findAll { _k, v -> v != null }
+    (extra ?: [:]).each { k, v ->
+        if (explicit.containsKey(k)) {
+            error("${method}_kwargs sets '${k}', which is already set by a dedicated parameter. Remove it from ${method}_kwargs.")
+        }
+        if (v != null) {
+            merged[k] = v
+        }
+    }
+    return merged
+}
+
 // Shapes element the resolve step of the enabled backend writes; null without a backend.
 def boundariesKey(Map args) {
     def backend = ['cellpose', 'instanseg'].find { args['use_' + it] }
