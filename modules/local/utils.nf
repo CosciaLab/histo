@@ -148,7 +148,8 @@ def segmentationSpecs(Map args) {
                 name: "instanseg_${target}".toString(),
                 method: 'instanseg',
                 target: target,
-                image: image,
+                // The projection is Cellpose's input only; its channels do not exist for InstanSeg.
+                image: 'full',
                 channels: getChannels(args.instanseg_channels, true),
                 method_kwargs: mergeMethodKwargs('instanseg', [
                     model_type: args.instanseg_model_type,
@@ -168,7 +169,7 @@ def mergeMethodKwargs(String method, Map explicit, Map extra) {
     def merged = explicit.findAll { _k, v -> v != null }
     (extra ?: [:]).each { k, v ->
         if (explicit.containsKey(k)) {
-            error("${method}_kwargs sets '${k}', which is already set by a dedicated parameter. Remove it from ${method}_kwargs.")
+            error("${method}_kwargs key '${k}' collides with a dedicated parameter. Remove it from ${method}_kwargs.")
         }
         if (v != null) {
             merged[k] = v

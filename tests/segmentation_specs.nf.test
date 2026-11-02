@@ -75,6 +75,21 @@ nextflow_function {
         }
     }
 
+    test("projection is Cellpose's input only; InstanSeg stays on the full image") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, use_projection: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.findAll { it.method == 'cellpose' }*.image == ['projected', 'projected']
+            assert function.result.findAll { it.method == 'instanseg' }*.image == ['full', 'full']
+        }
+    }
+
     test("only Cellpose asks for a GPU") {
         when {
             function {
@@ -131,7 +146,8 @@ nextflow_function {
         }
         then {
             assert function.failed
-            assert function.stdout.toString().contains('diameter') || function.stderr.toString().contains('diameter')
+            def out = function.stdout.toString() + function.stderr.toString()
+            assert out.contains("cellpose_kwargs key 'diameter' collides")
         }
     }
 }
