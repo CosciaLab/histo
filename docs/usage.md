@@ -121,7 +121,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size`; channels default from each sheet. |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                  |
-| `patch_width_pixel`        | `3000`               | Your slide is larger than a few TMA cores. See below.                                                   |
+| `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                   |
 | `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
@@ -133,7 +133,7 @@ either means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
-This decides whether segmentation parallelises, and it is not automatic. The default, 3000 px
+This decides whether segmentation parallelises, and it is not automatic. The default, 2000 px
 with 100 px overlap, suits TMA cores and small slides; set it for anything larger. Aim for
 **16 to 200 patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
 
@@ -146,8 +146,8 @@ with 100 px overlap, suits TMA cores and small slides; set it for anything large
 
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
 InstanSeg's memory follows the patch: each task asks for 2 GB + megapixels × max(1.3, 0.3 ×
-channels), megapixels counted at its model's 0.5 µm/px. At 3000 px and 0.65 µm/px that is 25 GB
-for 5 channels and 171 GB for 37; fewer `instanseg_channels` or a smaller patch ask for less.
+channels), megapixels counted at its model's 0.5 µm/px. At the default 2000 px and 0.65 µm/px that
+is 13 GB for 5 channels and 78 GB for 37; fewer `instanseg_channels` or a smaller patch ask for less.
 Above 64 GB the run warns and names a `patch_width_pixel` that fits.
 
 Get the dimensions with

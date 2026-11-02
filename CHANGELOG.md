@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `patch_width_pixel` defaults to 3000 and `patch_overlap_pixel` to 100; unset, sopa used 5000
-  and 100. At 5000, InstanSeg patches ran out of memory and needed a retry. Runs that left them
+- `patch_width_pixel` defaults to 2000 and `patch_overlap_pixel` to 100; unset, sopa used 5000
+  and 100. InstanSeg's memory grows with patch area: at 5000 its patches ran out of memory. Runs that left them
   unset now patch differently, so `-resume` redoes segmentation.
 - InstanSeg patch tasks ask for 4 CPUs, not 2: PyTorch used about 3.
 
