@@ -7,7 +7,7 @@ nextflow_function {
     tag "unit"
     tag "validation"
 
-    test("5 channels on the default 3000 px patch at 0.65 µm/px ask for 29 GB") {
+    test("5 channels on a 3000 px patch at 0.65 µm/px ask for 25 GB") {
         function "instansegMemoryGB"
         when {
             function {
@@ -20,11 +20,12 @@ nextflow_function {
         }
         then {
             assert function.success
-            assert function.result == 29
+            // Peaked at 18.6 GB on a 2900 px core (test7 07).
+            assert function.result == 25
         }
     }
 
-    test("37 channels on the same patch ask for 102 GB") {
+    test("37 channels on the same patch ask for 171 GB") {
         function "instansegMemoryGB"
         when {
             function {
@@ -37,7 +38,8 @@ nextflow_function {
         }
         then {
             assert function.success
-            assert function.result == 102
+            // Peaked at 132 GB on a 2900 px core (test7 11).
+            assert function.result == 171
         }
     }
 
@@ -54,8 +56,8 @@ nextflow_function {
         }
         then {
             assert function.success
-            // 2300 px asks for 61 GB; 2400 would ask for 66.
-            assert function.result == 2300
+            // 1800 px asks for 63 GB; 1900 would ask for 70.
+            assert function.result == 1800
         }
     }
 }

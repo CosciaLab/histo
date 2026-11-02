@@ -89,8 +89,8 @@ default, 3000 px, is below sopa's 5000, at which an InstanSeg patch ran out of 1
 [usage.md](usage.md).
 
 **InstanSeg memory is computed from the patch**, not set per size profile: it grows with channels
-times patch area, so 2 channels needed 8 GB and 37 more than 24 GB on the same patch. The
-coefficients fit test7 and dropbox peaks (`instansegMemoryGB`).
+times patch area. Per megapixel it is flat up to about 4 channels, then ~0.25 GB per channel: on
+one exemplar core, 2 channels peaked at 15 GB and 37 at 130 GB. See `instansegMemoryGB`.
 
 **Size profiles are one file**, `conf/sizes.config`, with its own `profiles` scope.
 

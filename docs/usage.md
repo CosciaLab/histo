@@ -145,9 +145,9 @@ with 100 px overlap, suits TMA cores and small slides; set it for anything large
 | 115k × 115k    | 3364 | 529  | 225  | 144   |
 
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
-InstanSeg's memory follows the patch: each task asks for 2 GB + megapixels × (1 + 0.15 × channels),
-megapixels counted at its model's 0.5 µm/px. At the default 3000 px and 0.65 µm/px that is 29 GB
-for 5 channels and 102 GB for 37; fewer `instanseg_channels` or a smaller patch ask for less.
+InstanSeg's memory follows the patch: each task asks for 2 GB + megapixels × max(1.3, 0.3 ×
+channels), megapixels counted at its model's 0.5 µm/px. At 3000 px and 0.65 µm/px that is 25 GB
+for 5 channels and 171 GB for 37; fewer `instanseg_channels` or a smaller patch ask for less.
 Above 64 GB the run warns and names a `patch_width_pixel` that fits.
 
 Get the dimensions with
