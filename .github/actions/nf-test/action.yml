@@ -37,7 +37,10 @@ runs:
 
     - name: Setup apptainer
       if: contains(inputs.profile, 'singularity')
-      uses: eWaterCycle/setup-apptainer@3f706d898c9db585b1d741b4692e66755f3a1b40
+      uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3.0.0
+      with:
+        # v3 floats to the latest release by default.
+        apptainer-version: 1.3.6
 
     - name: Set up Singularity
       if: contains(inputs.profile, 'singularity')
