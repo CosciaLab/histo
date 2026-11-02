@@ -1,15 +1,45 @@
 #!/usr/bin/env python3
 """Mean marker intensity per cell, one AnnData table per method, written to a file.
 
-Copied from sopa 2.2.12 (BSD 3-Clause, Copyright (c) 2023, Blampey Quentin), with one change:
-polygon holes are honoured, so a cytoplasm ring is not measured as the whole cell.
+Copied from sopa 2.2.12 (BSD 3-Clause, licence below) with two changes: polygon holes are
+honoured, so a cytoplasm ring is not measured as the whole cell, and the mask origin follows the
+clipped chunk (an upstream chunk-edge bug).
 The store is only read; a later step writes the table into it.
 
 Optional compartments (nucleus, cytoplasm) become layers of the same table. Their parquets
 are indexed by cell id; cells absent from them get NaN. `--links` is a parquet of per-cell
 columns indexed by cell id (for example n_nuclei), joined into obs.
 
-Licence text of the sopa code: https://github.com/gustaveroussy/sopa/blob/v2.2.12/LICENSE
+
+BSD 3-Clause License
+
+Copyright (c) 2023, Blampey Quentin
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
 from __future__ import annotations
@@ -21,12 +51,10 @@ from pathlib import Path
 
 # Heavy libraries are imported inside functions so pure helpers test without them.
 
-SOPA_TABLE_COLUMNS = ("region", "slide", "cell_id", "area")  # mirrors sopa's parse_table
-
 
 def rasterize(cell, shape, xy_min=(0, 0)):
     """1 where the polygon touches a pixel, else 0; holes (interiors) are 0."""
-    # From sopa 2.2.12 (shapes/_rasterize.py); change: holes rasterized as 0
+    # From sopa 2.2.12 (shapes/_rasterize.py); change: holes rasterized as 0, each part in its own mask
     import numpy as np
     import shapely.affinity
     from shapely.geometry import MultiPolygon
@@ -42,13 +70,16 @@ def rasterize(cell, shape, xy_min=(0, 0)):
     rasterized_image = np.zeros(shape, dtype=np.int8)
 
     for geom in geoms:
+        # own mask per part, so one part's hole cannot erase another part
+        part = np.zeros(shape, dtype=np.int8)
         x, y = geom.exterior.coords.xy
         rr, cc = polygon(y, x, shape)
-        rasterized_image[rr, cc] = 1
+        part[rr, cc] = 1
         for interior in geom.interiors:
             x, y = interior.coords.xy
             rr, cc = polygon(y, x, shape)
-            rasterized_image[rr, cc] = 0
+            part[rr, cc] = 0
+        rasterized_image |= part
 
     return rasterized_image
 
@@ -63,7 +94,8 @@ def pixel_outer_bounds(bounds):
 def mean_intensities(image, shapes):
     """Mean intensity per shape and channel: array (n_shapes, n_channels). Image and shapes share pixel coordinates."""
     # From sopa 2.2.12 (aggregation/channels.py::_aggregate_channels_aligned, mode "average");
-    # change: uses the hole-aware rasterize, returns the array instead of an AnnData
+    # changes: hole-aware rasterize, mask origin follows the clipped chunk, NaN for empty masks,
+    # returns the array instead of an AnnData
     import dask
     import numpy as np
     import shapely
@@ -100,7 +132,7 @@ def mean_intensities(image, shapes):
             if sub_image.shape[1] == 0 or sub_image.shape[2] == 0:
                 continue
 
-            mask = rasterize(cell, sub_image.shape[1:], bounds)
+            mask = rasterize(cell, sub_image.shape[1:], (max(bounds[0], xmin), max(bounds[1], ymin)))
 
             areas[index] += np.sum(mask)
             aggregation[index] += np.sum(sub_image * mask, axis=(1, 2))
@@ -110,9 +142,11 @@ def mean_intensities(image, shapes):
         for iy, row in enumerate(image.chunk({"c": -1}).data.to_delayed()[0])
         for ix, chunk in enumerate(row)
     ]
-    dask.compute(tasks)
+    # synchronous: tasks add into shared per-cell arrays, which threads would race on
+    dask.compute(tasks, scheduler="synchronous")
 
-    return aggregation / areas[:, None].clip(1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        return np.where(areas[:, None] > 0, aggregation / areas[:, None], np.nan)
 
 
 def label_cells(obs, slide: str, core_id: str | None = None):
@@ -136,6 +170,7 @@ def specs_by_name(specs: list[dict]) -> dict:
 
 def build_table(cells, x, var_names, layers, obs_extra, region, slide, core_id, specs):
     """AnnData with sopa's obs columns, obs_names = cell index unchanged, parsed as a SpatialData table."""
+    # area and obsm['spatial'] describe the cells as given (unexpanded); sopa used the expanded ones
     import pandas as pd
     from anndata import AnnData
     from spatialdata.models import TableModel
@@ -184,7 +219,10 @@ def main() -> int:
     parser.add_argument("--slide", required=True, help="slide name from the samplesheet")
     parser.add_argument("--core-id", help="TMA core ID; omit off-TMA")
     parser.add_argument(
-        "--expand-radius-ratio", type=float, default=0, help="expand cells (cell compartment only)"
+        "--expand-radius-ratio",
+        type=float,
+        default=0,
+        help="expand cells for measuring (cell compartment only); obs area and obsm spatial stay unexpanded",
     )
     parser.add_argument("--output", required=True, help="h5ad file to write")
     args = parser.parse_args()

@@ -10,7 +10,7 @@ xr = pytest.importorskip("xarray", reason="needs xarray")
 pytest.importorskip("dask", reason="needs dask")
 pytest.importorskip("anndata", reason="needs anndata")
 pytest.importorskip("spatialdata", reason="needs spatialdata")
-from shapely.geometry import MultiPolygon, Polygon, box  # noqa: E402
+from shapely.geometry import MultiPolygon, Point, Polygon, box  # noqa: E402
 
 
 def make_image(arrays, chunks=None):
@@ -94,6 +94,36 @@ class TestCompartmentLayer:
     def test_empty_compartment_is_all_nan(self):
         cells = frame([box(0, 0, 4, 4)], ["a_0"])
         assert np.isnan(compartment_layer(bright_centre_image(), frame([]), cells)).all()
+
+
+def position_image(h=40, w=40):
+    """value = y*w + x, so any mask/pixel offset changes the mean."""
+    return np.arange(h * w, dtype=float).reshape(1, h, w)
+
+
+class TestChunkEdges:
+    def test_chunked_equals_single_chunk(self):
+        round_cell = Point(19.5, 19.5).buffer(7)
+        two_part = MultiPolygon([box(14, 3, 22, 9), box(16, 30, 26, 37)])
+        ring = Polygon(box(10, 10, 30, 30).exterior.coords, [box(15, 15, 25, 25).exterior.coords])
+        shapes = frame([round_cell, two_part, ring])
+        data = position_image()
+        want = mean_intensities(make_image(list(data)), shapes)
+        got = mean_intensities(make_image(list(data), chunks=(1, 16, 16)), shapes)
+        np.testing.assert_allclose(got, want)
+
+    def test_empty_mask_is_nan(self):
+        tiny = box(5.2, 5.2, 5.4, 5.4)  # touches no pixel centre
+        out = mean_intensities(bright_centre_image(), frame([tiny, box(0, 0, 4, 4)]))
+        assert np.isnan(out[0, 0]) and not np.isnan(out[1, 0])
+
+
+class TestRasterizeParts:
+    def test_island_in_lake_listed_first_survives(self):
+        island = box(8, 8, 12, 12)
+        lake = Polygon(box(2, 2, 18, 18).exterior.coords, [box(5, 5, 15, 15).exterior.coords])
+        mask = rasterize(MultiPolygon([island, lake]), (20, 20))
+        assert mask[10, 10] == 1 and mask[6, 6] == 0 and mask[3, 3] == 1
 
 
 def three_cells():
