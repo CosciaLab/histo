@@ -81,6 +81,8 @@ def extractSubArgs(Map args, String group) {
         return [
             // Always on: sopa defaults to off, which leaves no intensities to quantify.
             aggregate_channels: true,
+            // sopa's shapes_key. Named, because sopa 2.2.9's lookup does not know instanseg_boundaries.
+            method_name: boundariesKey(args),
             expand_radius_ratio: args.expand_radius_ratio,
             min_intensity_ratio: args.min_intensity_ratio,
         ]
@@ -100,6 +102,12 @@ def extractSubArgs(Map args, String group) {
     }
 }
 
+// Shapes element the resolve step of the enabled backend writes; null without a backend.
+def boundariesKey(Map args) {
+    def backend = ['cellpose', 'stardist', 'instanseg'].find { args['use_' + it] }
+    return backend ? backend + '_boundaries' : null
+}
+
 // Channels may be a string or a number (schema type ["string", "integer"]); left untyped so
 // Groovy does not coerce silently.
 def getChannels(channels, Boolean allow_null = false) {
@@ -116,6 +124,23 @@ def getChannels(channels, Boolean allow_null = false) {
     }
 
     return channels.toString().split(/[ ,|]+/).findAll { it }
+}
+
+// GB one InstanSeg patch task asks for. Per megapixel at the model's 0.5 µm/px, peak_rss is flat
+// to ~4 channels, then ~0.25 GB per channel (test7, dropbox run 00009); ~1.2x headroom.
+def instansegMemoryGB(int n_channels, patch_width, pixel_size) {
+    def megapixels = Math.pow(patch_width * pixel_size / 0.5, 2) / 1e6
+    return Math.ceil(2 + megapixels * instansegGBPerMegapixel(n_channels)) as int
+}
+
+def instansegGBPerMegapixel(int n_channels) {
+    return Math.max(1.3, 0.3 * n_channels)
+}
+
+// Largest patch_width_pixel, in steps of 100, whose request stays within gigabytes.
+def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
+    def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
+    return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
 }
 
 // Marker names InstanSeg reads when instanseg_channels is unset: nuclear stains, plus markers

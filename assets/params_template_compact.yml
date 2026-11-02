@@ -44,9 +44,9 @@
 # show_hidden: null          # Display hidden parameters in the help message (only works when --help or --help_full are provided).
 
 ## Patches
-# patch_width_pixel: null    # Width and height of each segmentation patch, in pixels.
-# patch_overlap_pixel: null  # Overlap between neighbouring patches, in pixels.
-# use_gpu: null              # One GPU per Cellpose or InstanSeg patch task.
+# patch_width_pixel: 2000     # Width and height of each segmentation patch, in pixels.
+# patch_overlap_pixel: 100.0  # Overlap between neighbouring patches, in pixels.
+# use_gpu: null               # One GPU per Cellpose patch task.
 
 ## Tissue segmentation
 # use_tissue_segmentation: null     # Whether to run tissue segmentation.

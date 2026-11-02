@@ -58,7 +58,8 @@ nextflow_pipeline {
                 use_preprocessing = true
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                // Small, so the memory request stays under the tests' 6 GB cap (tests/nextflow.config).
+                instanseg_pixel_size = 0.1
             }
         }
 
@@ -66,10 +67,43 @@ nextflow_pipeline {
             def ran = workflow.trace.succeeded().collect { it.name }
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
+            // 4 channels (dna and marker) of a 5000 px patch at 0.1 µm/px, 1000 px at the model's
+            // 0.5: 2 + 1 * 1.3 = 3.3, so 4 GB (instansegMemoryGB).
+            // nf-test's own trace: its task objects carry no memory field.
+            def rows = new File("$metaDir/trace.csv").readLines()*.split('\t')
+            def col = { name -> rows[0].findIndexOf { it == name } }
+            def memory = rows.tail().findAll { it[col('name')].contains('PATCH_SEGMENTATION_INSTANSEG') }.collect { it[col('memory')] }
+
             assertAll(
                 { assert workflow.success },
                 { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
-                { assert names("RESOLVE_INSTANSEG").size() == 1 }
+                { assert names("RESOLVE_INSTANSEG").size() == 1 },
+                { assert memory == ['4 GB', '4 GB'] }
+            )
+        }
+    }
+
+    test("a patch too large for its channels warns with a width that fits") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                // 5000 px at 1 µm/px is 10000 px at the model's 0.5: 132 GB for one channel.
+                instanseg_pixel_size = 1.0
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            // log.warn reaches .nextflow.log, not the stdout nf-test captures.
+            def log = new File("$metaDir/nextflow.log").text
+
+            assertAll(
+                { assert workflow.success },
+                { assert log.contains("InstanSeg on 1 channels asks for 132 GB per patch task") },
+                { assert log.contains("set patch_width_pixel to 3400") }
             )
         }
     }
