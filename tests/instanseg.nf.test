@@ -58,7 +58,8 @@ nextflow_pipeline {
                 use_preprocessing = true
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                // Small, so the memory request stays under the tests' 6 GB cap (tests/nextflow.config).
+                instanseg_pixel_size = 0.1
             }
         }
 
@@ -66,10 +67,18 @@ nextflow_pipeline {
             def ran = workflow.trace.succeeded().collect { it.name }
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
+            // 4 channels (dna and marker) of a 5000 px patch at 0.1 µm/px, 1000 px at the model's
+            // 0.5: 2 + 1 * (1 + 0.15 * 4) = 3.6, so 4 GB (conf/base.config).
+            // nf-test's own trace: its task objects carry no memory field.
+            def rows = new File("$metaDir/trace.csv").readLines()*.split('\t')
+            def col = { name -> rows[0].findIndexOf { it == name } }
+            def memory = rows.tail().findAll { it[col('name')].contains('PATCH_SEGMENTATION_INSTANSEG') }.collect { it[col('memory')] }
+
             assertAll(
                 { assert workflow.success },
                 { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
-                { assert names("RESOLVE_INSTANSEG").size() == 1 }
+                { assert names("RESOLVE_INSTANSEG").size() == 1 },
+                { assert memory == ['4 GB', '4 GB'] }
             )
         }
     }

@@ -145,7 +145,9 @@ with 100 px overlap, suits TMA cores and small slides; set it for anything large
 | 115k × 115k    | 3364 | 529  | 225  | 144   |
 
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
-Memory can be: InstanSeg on a 5000 px patch of 6 channels needed more than 12 GB.
+InstanSeg's memory follows the patch: each task asks for 2 GB + megapixels × (1 + 0.15 × channels),
+megapixels counted at its model's 0.5 µm/px. At the default 3000 px and 0.65 µm/px that is 29 GB
+for 5 channels and 102 GB for 37; fewer `instanseg_channels` or a smaller patch ask for less.
 
 Get the dimensions with
 `python -c "import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)"`.

@@ -1,6 +1,6 @@
 include { PATCH_SEGMENTATION_INSTANSEG } from '../../../modules/local/patch_segmentation_instanseg'
 include { RESOLVE_INSTANSEG } from '../../../modules/local/resolve_instanseg'
-include { argsCLI; defaultInstansegChannels; stringifyItem } from '../../../modules/local/utils'
+include { argsCLI; defaultInstansegChannels; getChannels; stringifyItem } from '../../../modules/local/utils'
 
 workflow INSTANSEG {
     take:
@@ -18,16 +18,17 @@ workflow INSTANSEG {
         ch_with_args = ch_patches.join(ch_markers).map { meta, sdata_path, patches_file_image, sheet ->
             def channels = defaultInstansegChannels(sheet.splitCsv(header: true), params.instanseg_target)
             assert channels : "Sample '${meta.sample}': no channels for InstanSeg. Set instanseg_channels, or give the marker sheet a 'dna' channel."
-            [meta, sdata_path, patches_file_image, "${instanseg_args} ${stringifyItem('channels', channels)}"]
+            [meta, sdata_path, patches_file_image, "${instanseg_args} ${stringifyItem('channels', channels)}", channels.size()]
         }
     }
     else {
-        ch_with_args = ch_patches.map { meta, sdata_path, patches_file_image -> [meta, sdata_path, patches_file_image, instanseg_args] }
+        def n_channels = getChannels(params.instanseg_channels).size()
+        ch_with_args = ch_patches.map { meta, sdata_path, patches_file_image -> [meta, sdata_path, patches_file_image, instanseg_args, n_channels] }
     }
 
     ch_with_args
-        .map { meta, sdata_path, patches_file_image, cli_args -> [meta, sdata_path, patches_file_image.text.trim().toInteger(), cli_args] }
-        .flatMap { meta, sdata_path, n_patches, cli_args -> (0..<n_patches).collect { index -> [meta, sdata_path, cli_args, index, n_patches] } }
+        .map { meta, sdata_path, patches_file_image, cli_args, n_channels -> [meta, sdata_path, patches_file_image.text.trim().toInteger(), cli_args, n_channels] }
+        .flatMap { meta, sdata_path, n_patches, cli_args, n_channels -> (0..<n_patches).collect { index -> [meta, sdata_path, cli_args, index, n_patches, n_channels] } }
         .set { ch_instanseg }
 
     (ch_patch_segmented, versions) = PATCH_SEGMENTATION_INSTANSEG(ch_instanseg)
