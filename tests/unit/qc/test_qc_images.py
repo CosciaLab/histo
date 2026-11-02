@@ -269,11 +269,18 @@ class TestClusteringExclusions:
 
 
 class TestBoundariesName:
-    @pytest.mark.parametrize("key", ["cellpose_boundaries", "instanseg_boundaries"])
-    def test_follows_the_backend(self, key):
-        """QC_IMAGES must draw whichever backend ran, not assume Cellpose."""
-        assert boundaries_name([key, key]) == key
+    @pytest.mark.parametrize("region", ["instanseg_cells", "cellpose_nuclei", "cellpose_boundaries"])
+    def test_is_the_tables_region(self, region):
+        assert boundaries_name([region, region], "t", [region, "other"]) == region
 
     def test_more_than_one_region_is_an_error(self):
-        with pytest.raises(ValueError, match="one shapes element"):
-            boundaries_name(["cellpose_boundaries", "instanseg_boundaries"])
+        with pytest.raises(ValueError, match="'t'.*one shapes element"):
+            boundaries_name(["a", "b"], "t", ["a", "b"])
+
+    def test_no_region_is_an_error(self):
+        with pytest.raises(ValueError, match="'t'.*one shapes element"):
+            boundaries_name([], "t", ["a"])
+
+    def test_region_absent_from_store_is_an_error(self):
+        with pytest.raises(ValueError, match="'t'.*gone_cells"):
+            boundaries_name(["gone_cells"], "t", ["a"])

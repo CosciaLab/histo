@@ -63,6 +63,18 @@ class TestRetargetTable:
             retarget_table(t, {"b": "c1__b"}, "c1")
 
 
+class TestTwoTablesInOneCore:
+    def test_each_table_is_retargeted_to_its_own_shapes(self):
+        core = "c1"
+        rename = {m: f"{core}{SEP}{m}" for m in ("cellpose_cells", "instanseg_cells")}
+        out = {}
+        for name, region in [("cellpose_table", "cellpose_cells"), ("instanseg_table", "instanseg_cells")]:
+            out[f"{core}{SEP}{name}"] = retarget_table(FakeTable(region), rename, core)
+        assert list(out) == ["c1__cellpose_table", "c1__instanseg_table"]
+        assert out["c1__cellpose_table"].uns["spatialdata_attrs"]["region"] == "c1__cellpose_cells"
+        assert out["c1__instanseg_table"].uns["spatialdata_attrs"]["region"] == "c1__instanseg_cells"
+
+
 class TestElementNaming:
     """The rule that keeps core identity visible without doubling it."""
 

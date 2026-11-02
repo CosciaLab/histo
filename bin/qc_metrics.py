@@ -427,8 +427,24 @@ def segmentation_image_element(sdata_path: Path) -> str:
     return element
 
 
+def open_table(sdata_path: Path, name: str) -> Any:
+    """Open tables/<name>, failing with the name and the tables that do exist."""
+    import zarr
+
+    path = sdata_path / "tables" / name
+    if not path.is_dir():
+        have = (
+            sorted(p.name for p in (sdata_path / "tables").glob("*"))
+            if (sdata_path / "tables").is_dir()
+            else []
+        )
+        raise FileNotFoundError(f"table '{name}' not found in {sdata_path}; tables present: {have}")
+    return zarr.open_group(str(path), mode="r")
+
+
 def collect(
     sdata_path: Path,
+    table: str,
     min_cell_area: float,
     markers: list[str] | None = None,
     marker_rows: list[dict[str, Any]] | None = None,
@@ -442,7 +458,7 @@ def collect(
     import zarr
 
     element = segmentation_image_element(sdata_path)
-    table = zarr.open_group(str(sdata_path / "tables" / "table"), mode="r")
+    table = open_table(sdata_path, table)
 
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     image_labels = image_channel_labels(sdata_path, element)
@@ -594,6 +610,7 @@ def collect(
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sdata", required=True, type=Path, help="SpatialData .zarr store")
+    ap.add_argument("--table", required=True, help="name of the table under tables/, e.g. cellpose_table")
     ap.add_argument("--out", required=True, type=Path, help="where to write the metrics JSON")
     ap.add_argument("--markers", type=Path, help="marker sheet CSV, to cross-check channel names")
     ap.add_argument(
@@ -639,6 +656,7 @@ def main() -> int:
 
     metrics = collect(
         args.sdata,
+        args.table,
         args.min_cell_area,
         markers,
         marker_rows=marker_rows,

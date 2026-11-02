@@ -73,11 +73,15 @@ def clustering_exclusions(nuclear: list[str], marker_rows: list[dict[str, Any]] 
     return excluded
 
 
-def boundaries_name(regions: Any) -> str:
-    """The shapes element the table annotates: cellpose_ or instanseg_boundaries."""
+def boundaries_name(regions: Any, table: str, shapes: Any) -> str:
+    """The shapes element the table annotates (its region), which must exist in the store."""
     names = sorted({str(r) for r in regions})
     if len(names) != 1:
-        raise ValueError(f"expected the table to annotate one shapes element, found {names}")
+        raise ValueError(f"expected table '{table}' to annotate one shapes element, found {names}")
+    if names[0] not in set(shapes):
+        raise ValueError(
+            f"table '{table}' annotates '{names[0]}', which is not in the store's shapes: {sorted(shapes)}"
+        )
     return names[0]
 
 
@@ -598,6 +602,7 @@ def main() -> int:
         "channel_role == 'dna' from the marker sheet. Needed only for a sheet with no "
         "channel_role column, or to override a wrong one.",
     )
+    ap.add_argument("--table", required=True, help="name of the table under tables/, e.g. cellpose_table")
     ap.add_argument("--window", type=int, default=1000, help="crop size in pixels (default: 1000)")
     ap.add_argument("--n-windows", type=int, default=6, help="how many crops (default: 6)")
     ap.add_argument("--cells-per-cluster", type=int, default=5, help="snapshots per cluster (default: 5)")
@@ -638,9 +643,9 @@ def main() -> int:
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import numpy as np
-    import zarr
     from qc_metrics import (
         compartments_by_channel,
+        open_table,
         read_column,
         read_marker_cycles,
         segmentation_image_element,
@@ -648,10 +653,13 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     element = segmentation_image_element(args.sdata)
-    table = zarr.open_group(str(args.sdata / "tables" / "table"), mode="r")
+    table = open_table(args.sdata, args.table)
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     centroids = np.asarray(table["obsm"]["spatial"][:])
-    boundaries = read_boundaries(args.sdata, boundaries_name(read_column(table["obs"]["region"])))
+    shapes_dir = args.sdata / "shapes"
+    shapes = [p.name for p in shapes_dir.glob("*")] if shapes_dir.is_dir() else []
+    region = boundaries_name(read_column(table["obs"]["region"]), args.table, shapes)
+    boundaries = read_boundaries(args.sdata, region)
 
     marker_rows = read_marker_cycles(args.markers) if args.markers else None
     nuclear, nuclear_how = select_nuclear_channels(channel_names, marker_rows, args.nuclear_pattern)
