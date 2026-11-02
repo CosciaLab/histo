@@ -644,7 +644,11 @@ def validateParams(params) {
             "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
     assert !(params.use_gpu && params.use_stardist) :
-        "use_gpu does not support StarDist: its TensorFlow image is CPU-only. Use Cellpose or InstanSeg, or drop use_gpu."
+        "use_gpu does not support StarDist: its TensorFlow image is CPU-only. Use Cellpose, or drop use_gpu."
+    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails. ROADMAP: lift when fixed.
+    assert !(params.use_gpu && params.use_instanseg) :
+        "use_gpu does not support InstanSeg yet: sopa's InstanSeg wrapper fails on CUDA. Run InstanSeg " +
+        "on CPU (drop use_gpu), or use Cellpose on GPU."
     assert !(params.keep_projection && !params.use_projection) :
         "keep_projection requires use_projection: without it there is no projected image to keep."
 

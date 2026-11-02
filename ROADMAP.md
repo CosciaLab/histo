@@ -155,6 +155,9 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
+- **InstanSeg does not run on GPU.** sopa calls `.numpy()` on its CUDA tensor without `.cpu()`
+  (`sopa/segmentation/methods/_instanseg.py`, 2.2.12 and main), so `use_gpu` with
+  `use_instanseg` is rejected at startup. Report upstream; lift the check once fixed.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
   sopa's CLI uses 0. Filtering belongs after aggregation (1.6 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².

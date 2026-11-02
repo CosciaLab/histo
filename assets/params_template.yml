@@ -302,7 +302,7 @@
 ##     height / target_patches).
 ##     Type: number
 ## -----------------------------------------------------------------------------
-# patch_width_pixel: null
+# patch_width_pixel: 3000.0
 
 ## -----------------------------------------------------------------------------
 ## patch_overlap_pixel
@@ -311,13 +311,13 @@
 ##     diameter.
 ##     Type: number
 ## -----------------------------------------------------------------------------
-# patch_overlap_pixel: null
+# patch_overlap_pixel: 100.0
 
 ## -----------------------------------------------------------------------------
 ## use_gpu
 ## -----------------------------------------------------------------------------
-##     One GPU per Cellpose or InstanSeg patch task. Cluster only; not with
-##     StarDist.
+##     One GPU per Cellpose patch task. Cluster only; not with StarDist or
+##     InstanSeg.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # use_gpu: null
