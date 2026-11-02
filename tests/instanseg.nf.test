@@ -83,6 +83,31 @@ nextflow_pipeline {
         }
     }
 
+    test("a patch too large for its channels warns with a width that fits") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                // 5000 px at 1 µm/px is 10000 px at the model's 0.5: 117 GB for one channel.
+                instanseg_pixel_size = 1.0
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            // log.warn reaches .nextflow.log, not the stdout nf-test captures.
+            def log = new File("$metaDir/nextflow.log").text
+
+            assertAll(
+                { assert workflow.success },
+                { assert log.contains("InstanSeg on 1 channels asks for 117 GB per patch task") },
+                { assert log.contains("set patch_width_pixel to 3600") }
+            )
+        }
+    }
+
     test("InstanSeg without a pixel size is rejected at startup") {
 
         when {

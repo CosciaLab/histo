@@ -5,6 +5,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- A warning when an InstanSeg patch task would ask for more than 64 GB, naming a
+  `patch_width_pixel` that fits.
+
 ### Changed
 
 - `patch_width_pixel` defaults to 3000 and `patch_overlap_pixel` to 100; unset, sopa used 5000

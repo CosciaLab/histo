@@ -7,8 +7,8 @@ process PATCH_SEGMENTATION_INSTANSEG {
     container "docker.io/josenimo/sopa:2.2.12"
 
     input:
-    // n_channels sizes the memory request (conf/base.config).
-    tuple val(meta), path(sdata_path), val(cli_arguments), val(index), val(n_patches), val(n_channels)
+    // memory_gb is the request, from instansegMemoryGB (conf/base.config).
+    tuple val(meta), path(sdata_path), val(cli_arguments), val(index), val(n_patches), val(memory_gb)
 
     output:
     tuple val(meta), path(sdata_path), path("${index}.parquet"), val(n_patches)
