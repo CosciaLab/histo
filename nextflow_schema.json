@@ -232,7 +232,7 @@
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "One GPU per Cellpose or InstanSeg patch task. Cluster only; not with StarDist."
+                    "description": "One GPU per Cellpose patch task. Cluster only; not with StarDist or InstanSeg."
                 }
             },
             "fa_icon": "far fa-square"

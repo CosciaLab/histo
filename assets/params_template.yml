@@ -316,8 +316,8 @@
 ## -----------------------------------------------------------------------------
 ## use_gpu
 ## -----------------------------------------------------------------------------
-##     One GPU per Cellpose or InstanSeg patch task. Cluster only; not with
-##     StarDist.
+##     One GPU per Cellpose patch task. Cluster only; not with StarDist or
+##     InstanSeg.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # use_gpu: null

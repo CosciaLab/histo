@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `AGGREGATE` failed after InstanSeg with "no valid segmentation boundary": its sopa (2.2.9) does
   not look up `instanseg_boundaries`. It is now told the boundaries of the backend that ran.
+- `use_gpu` with `use_instanseg` is rejected at startup. It failed in every patch task: sopa's
+  InstanSeg wrapper does not move the result off the GPU.
 
 ## v1.4.1 - [2026-10-31]
 
