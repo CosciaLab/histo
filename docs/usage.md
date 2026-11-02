@@ -121,8 +121,8 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size`; channels default from each sheet. |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                  |
-| `patch_width_pixel`        | none                 | Always. See below.                                                                                      |
-| `patch_overlap_pixel`      | none                 | Set to roughly twice a cell diameter.                                                                   |
+| `patch_width_pixel`        | `3000`               | Your slide is larger than a few TMA cores. See below.                                                   |
+| `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                   |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
 
 Every parameter and its default is in two generated files.
@@ -133,8 +133,9 @@ either means off or unset. `--help` prints the same list.
 
 ### Choosing `patch_width_pixel`
 
-This decides whether segmentation parallelises, and it is not automatic. Aim for **16 to 200
-patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
+This decides whether segmentation parallelises, and it is not automatic. The default, 3000 px
+with 100 px overlap, suits TMA cores and small slides; set it for anything larger. Aim for
+**16 to 200 patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
 
 | Stitched image | 2000 | 5000 | 8000 | 10000 |
 | -------------- | ---- | ---- | ---- | ----- |
@@ -144,7 +145,7 @@ patches**: `patch_width_pixel = sqrt(width * height / target_patches)`.
 | 115k × 115k    | 3364 | 529  | 225  | 144   |
 
 One patch means no parallelism at all. Thousands means the scheduler costs more than the work.
-Memory is not the constraint — a 5000 px patch is about 50 MB.
+Memory can be: InstanSeg on a 5000 px patch of 6 channels needed more than 12 GB.
 
 Get the dimensions with
 `python -c "import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)"`.

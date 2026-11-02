@@ -84,7 +84,8 @@ panel (0.35 µm/px, raw). No ground truth; outlines were judged by eye, with met
 ## Parameters
 
 **`patch_width_pixel` is not computed for you.** It changes results at patch boundaries, so an
-automatic value would make the same slide segment differently on different hardware. See
+automatic value would make the same slide segment differently on different hardware. The fixed
+default, 3000 px, is below sopa's 5000, at which an InstanSeg patch ran out of 12 GB. See
 [usage.md](usage.md).
 
 **Size profiles are one file**, `conf/sizes.config`, with its own `profiles` scope.
