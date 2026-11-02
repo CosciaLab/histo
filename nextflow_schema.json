@@ -221,7 +221,7 @@
             "properties": {
                 "patch_width_pixel": {
                     "type": "number",
-                    "default": 2000,
+                    "default": 2000.0,
                     "description": "Width and height of each segmentation patch, in pixels. Choose it so the image yields roughly 16 to 200 patches: patch_width = sqrt(width * height / target_patches).",
                     "help_text": "This parameter sets how segmentation parallelises, and it is not automatic. Tiled segmentation is the reason this pipeline scales, but only if the tiling suits the image.\n\nToo large and you get one patch and no parallelism at all: a 3138 x 2511 image at patch_width_pixel = 5000 produces a single task. Too small and you get thousands of tasks, each paying container startup and scheduler overhead; a 115000 x 115000 image at 2000 produces 3364 of them.\n\nTask count is usually the constraint, so aim for a few times your cluster's concurrency and no more. Memory can be too: InstanSeg on a 5000 pixel patch of 6 channels needed more than 12 GB.\n\nRough guide, patches = ceil(width/p) * ceil(height/p):\n  3k x 3k      -> 1000 gives 9,    2000 gives 4,    5000 gives 1\n  25k x 25k    -> 2000 gives 169,  5000 gives 25,   8000 gives 16\n  50k x 50k    -> 5000 gives 100,  8000 gives 49,   10000 gives 25\n  115k x 115k  -> 8000 gives 225,  10000 gives 144, 15000 gives 64\n\nGet the dimensions of a stitched image with: python -c \"import tifffile; print(tifffile.TiffFile('stitched.ome.tif').series[0].shape)\"",
                     "fa_icon": "fas fa-th-large"
@@ -392,39 +392,6 @@
             },
             "fa_icon": "fas fa-tools"
         },
-        "stardist": {
-            "title": "Stardist",
-            "type": "object",
-            "description": "Parameters related to the stardist segmentation method",
-            "default": "",
-            "properties": {
-                "use_stardist": {
-                    "type": "boolean",
-                    "description": "Whether to run stardist segmentation"
-                },
-                "stardist_model_type": {
-                    "type": "string",
-                    "description": "Name of stardist model to use"
-                },
-                "prob_thresh": {
-                    "type": "number",
-                    "description": "Stardist `prob_thresh` parameter"
-                },
-                "nms_thresh": {
-                    "type": "number",
-                    "description": "Stardist `nms_thresh` parameter"
-                },
-                "stardist_channels": {
-                    "type": ["string", "integer"],
-                    "description": "Optional channel(s) to segment with StarDist. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters."
-                },
-                "stardist_kwargs": {
-                    "type": "string",
-                    "description": "Additional stardist parameters as a python dict string"
-                }
-            },
-            "fa_icon": "fas fa-tools"
-        },
         "instanseg": {
             "title": "InstanSeg",
             "type": "object",
@@ -513,9 +480,6 @@
         },
         {
             "$ref": "#/$defs/cellpose"
-        },
-        {
-            "$ref": "#/$defs/stardist"
         },
         {
             "$ref": "#/$defs/instanseg"

@@ -69,8 +69,8 @@ channel a marker feeds: `nuclear`, `cell` or `none`. Without the column, the fir
 `autofluorescence`. The two columns describe one fact, so they are checked against each other.
 
 `remove` set to `true` drops a channel after backsub; without `--use_backsub` it is ignored with a
-warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`,
-`stardist_channels` or `instanseg_channels`; both are rejected at startup.
+warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`
+or `instanseg_channels`; both are rejected at startup.
 
 Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_args`, default
 0), and Coreograph dearrays on one channel of the stitched image (`--channel` in
@@ -97,8 +97,7 @@ Paths must be absolute.
 
 Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend. Cellpose
 also needs `cellpose_channels` or `use_projection`. InstanSeg reads every channel unless you name
-some. StarDist defaults to sopa's H&E model: for mIF set `stardist_model_type: 2D_versatile_fluo`
-and one nuclear `stardist_channels` (untested on real data). Everything else has a default.
+some. Everything else has a default.
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -115,10 +114,9 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_backsub`              | `false`              | You have background channels to subtract.                                                               |
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                               |
 | `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide.  |
-| `use_cellpose`             | `false`              | Exactly one of `use_cellpose`, `use_stardist` or `use_instanseg` must be true.                          |
+| `use_cellpose`             | `false`              | Exactly one of `use_cellpose` or `use_instanseg` must be true.                                          |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
 | `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
-| `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
 | `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size`; channels default from each sheet. |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                  |
 | `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                   |
@@ -248,8 +246,8 @@ which is the one that fails first and least helpfully.
 
 ### GPU segmentation
 
-`use_gpu: true` gives each Cellpose patch task one GPU. StarDist has no GPU image, and sopa's
-InstanSeg wrapper fails on CUDA ([ROADMAP](../ROADMAP.md)); both are rejected at startup.
+`use_gpu: true` gives each Cellpose patch task one GPU. sopa's InstanSeg
+wrapper fails on CUDA ([ROADMAP](../ROADMAP.md)); `use_gpu` with InstanSeg is rejected at startup.
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
 sopa image cannot run on the V100s. At most 16 patches run at once, with 1 CPU and 8 GB on
 `size_tiny` and `size_small`, else 2 CPUs and 16 GB. A task fails if CUDA is not usable in it,

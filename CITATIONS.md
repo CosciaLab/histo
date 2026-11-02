@@ -59,9 +59,6 @@ Both are MIT licensed. This pipeline would not exist without them.
 
   > Pachitariu M, Rariden M, Stringer C. Cellpose-SAM: superhuman generalization for cellular segmentation. bioRxiv (2025). https://doi.org/10.1101/2025.04.28.651001
 
-- [StarDist](https://doi.org/10.1007/978-3-030-00934-2_30) — alternative nucleus segmentation,
-  under `use_stardist`
-
 - [InstanSeg](https://arxiv.org/abs/2408.15954) — alternative cell segmentation, under `use_instanseg`
 
   > Goldsborough T, et al. InstanSeg: an embedding-based instance segmentation algorithm optimized for accurate, efficient and portable cell segmentation (2024). https://arxiv.org/abs/2408.15954

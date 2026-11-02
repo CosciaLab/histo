@@ -27,7 +27,7 @@ nextflow_function {
         }
     }
 
-    test("technology and aggregate_channels are accepted with a deprecation warning until 2.0") {
+    test("technology and aggregate_channels were removed in 2.0 and stop the run") {
         when {
             function {
                 """
@@ -40,10 +40,29 @@ nextflow_function {
             }
         }
         then {
-            def log = file("${metaDir}/nextflow.log").text
-            assert function.success
-            assert log.contains("technology is deprecated and ignored")
-            assert log.contains("aggregate_channels is deprecated and ignored")
+            assert function.failed
+            assert function.stdout.any { it.contains("technology was removed in 2.0") }
+            assert function.stdout.any { it.contains("aggregate_channels was removed in 2.0") }
+        }
+    }
+
+    test("StarDist parameters were removed in 2.0 and stop the run") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    use_stardist: true,
+                    stardist_model_type: '2D_versatile_fluo'
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_stardist was removed in 2.0") }
+            assert function.stdout.any { it.contains("stardist_model_type was removed in 2.0") }
+            assert function.stdout.any { it.contains("use use_cellpose or use_instanseg") }
         }
     }
 

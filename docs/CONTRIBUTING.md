@@ -176,8 +176,7 @@ the cache holds exactly what the pipeline will ask for.
 The laptop is macOS on Apple Silicon. Docker Desktop runs the amd64 images under Rosetta, which
 offers no AVX instructions. Checked on 2026-10-29:
 
-- **Fail:** BaSiCPy (jaxlib refuses to start without AVX), Coreograph and StarDist (TensorFlow
-  hangs on import).
+- **Fail:** BaSiCPy (jaxlib refuses to start without AVX), and Coreograph.
 - **Run:** Ashlar, backsub (which also has an arm64 build), sopa, Cellpose-SAM (40 to 55 min
   per 1600 px patch) and InstanSeg, under `-profile docker,emulate_amd64,laptop`.
 

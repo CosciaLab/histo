@@ -53,18 +53,6 @@ def extractSubArgs(Map args, String group) {
             gaussian_sigma: args.gaussian_sigma,
             method_kwargs: args.cellpose_kwargs,
         ]
-    } else if (group == "stardist") {
-        return [
-            model_type: args.stardist_model_type,
-            prob_thresh: args.prob_thresh,
-            nms_thresh: args.nms_thresh,
-            channels: getChannels(args.stardist_channels, true),
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.stardist_kwargs,
-        ]
     } else if (group == "instanseg") {
         return [
             model_type: args.instanseg_model_type,
@@ -104,7 +92,7 @@ def extractSubArgs(Map args, String group) {
 
 // Shapes element the resolve step of the enabled backend writes; null without a backend.
 def boundariesKey(Map args) {
-    def backend = ['cellpose', 'stardist', 'instanseg'].find { args['use_' + it] }
+    def backend = ['cellpose', 'instanseg'].find { args['use_' + it] }
     return backend ? backend + '_boundaries' : null
 }
 

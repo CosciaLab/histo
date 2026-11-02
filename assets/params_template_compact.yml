@@ -44,7 +44,7 @@
 # show_hidden: null          # Display hidden parameters in the help message (only works when --help or --help_full are provided).
 
 ## Patches
-# patch_width_pixel: 2000     # Width and height of each segmentation patch, in pixels.
+# patch_width_pixel: 2000.0   # Width and height of each segmentation patch, in pixels.
 # patch_overlap_pixel: 100.0  # Overlap between neighbouring patches, in pixels.
 # use_gpu: null               # One GPU per Cellpose patch task.
 
@@ -81,14 +81,6 @@
 # cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
 # pretrained_model: null    # Cellpose `pretrained_model` parameter.
 # cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
-
-## Stardist
-# use_stardist: null         # Whether to run stardist segmentation.
-# stardist_model_type: null  # Name of stardist model to use.
-# prob_thresh: null          # Stardist `prob_thresh` parameter.
-# nms_thresh: null           # Stardist `nms_thresh` parameter.
-# stardist_channels: null    # Optional channel(s) to segment with StarDist.
-# stardist_kwargs: null      # Additional stardist parameters as a python dict string.
 
 ## InstanSeg
 # use_instanseg: null         # Whether to run InstanSeg segmentation.

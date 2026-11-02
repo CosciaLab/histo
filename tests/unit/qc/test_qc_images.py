@@ -269,7 +269,7 @@ class TestClusteringExclusions:
 
 
 class TestBoundariesName:
-    @pytest.mark.parametrize("key", ["cellpose_boundaries", "stardist_boundaries", "instanseg_boundaries"])
+    @pytest.mark.parametrize("key", ["cellpose_boundaries", "instanseg_boundaries"])
     def test_follows_the_backend(self, key):
         """QC_IMAGES must draw whichever backend ran, not assume Cellpose."""
         assert boundaries_name([key, key]) == key

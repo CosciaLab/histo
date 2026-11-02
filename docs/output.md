@@ -45,8 +45,8 @@ Variations not in the table:
   carry its own channel names.
 - Supplying illumination profiles in the samplesheet bypasses `BASICPY`.
 - `preprocessing_only` ends every path at the preprocessing outputs.
-- StarDist or InstanSeg substitutes `PATCH_SEGMENTATION_STARDIST` and `RESOLVE_STARDIST`, or
-  `PATCH_SEGMENTATION_INSTANSEG` and `RESOLVE_INSTANSEG`, for the two Cellpose stations.
+- InstanSeg substitutes `PATCH_SEGMENTATION_INSTANSEG` and `RESOLVE_INSTANSEG` for the two
+  Cellpose stations.
 - `use_projection` adds `PROJECT_CHANNELS` before `MAKE_IMAGE_PATCHES` and `DROP_PROJECTION`
   before `AGGREGATE` (Cellpose only).
 

@@ -74,7 +74,7 @@ def clustering_exclusions(nuclear: list[str], marker_rows: list[dict[str, Any]] 
 
 
 def boundaries_name(regions: Any) -> str:
-    """The shapes element the table annotates: cellpose_, stardist_ or instanseg_boundaries."""
+    """The shapes element the table annotates: cellpose_ or instanseg_boundaries."""
     names = sorted({str(r) for r in regions})
     if len(names) != 1:
         raise ValueError(f"expected the table to annotate one shapes element, found {names}")

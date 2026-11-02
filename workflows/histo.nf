@@ -18,7 +18,6 @@ include { PROJECT_CHANNELS        } from '../modules/local/project_channels'
 include { DROP_PROJECTION         } from '../modules/local/drop_projection'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
 include { CELLPOSE                } from '../subworkflows/local/cellpose'
-include { STARDIST                } from '../subworkflows/local/stardist'
 include { INSTANSEG               } from '../subworkflows/local/instanseg'
 include { QC                      } from '../subworkflows/local/qc'
 
@@ -113,14 +112,6 @@ workflow HISTO {
                 ch_resolved = DROP_PROJECTION.out.sdata
                 ch_versions = ch_versions.mix(DROP_PROJECTION.out.versions)
             }
-        }
-
-        if (params.use_stardist) {
-            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
-            ch_versions = ch_versions.mix(versions)
-
-            (ch_resolved, versions) = STARDIST(ch_image_patches)
-            ch_versions = ch_versions.mix(versions)
         }
 
         if (params.use_instanseg) {
