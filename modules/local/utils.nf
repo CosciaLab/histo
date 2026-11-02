@@ -81,6 +81,8 @@ def extractSubArgs(Map args, String group) {
         return [
             // Always on: sopa defaults to off, which leaves no intensities to quantify.
             aggregate_channels: true,
+            // sopa's shapes_key. Named, because sopa 2.2.9's lookup does not know instanseg_boundaries.
+            method_name: boundariesKey(args),
             expand_radius_ratio: args.expand_radius_ratio,
             min_intensity_ratio: args.min_intensity_ratio,
         ]
@@ -98,6 +100,12 @@ def extractSubArgs(Map args, String group) {
     } else {
         exit 1, "Unknown argument group: ${group}"
     }
+}
+
+// Shapes element the resolve step of the enabled backend writes; null without a backend.
+def boundariesKey(Map args) {
+    def backend = ['cellpose', 'stardist', 'instanseg'].find { args['use_' + it] }
+    return backend ? backend + '_boundaries' : null
 }
 
 // Channels may be a string or a number (schema type ["string", "integer"]); left untyped so
