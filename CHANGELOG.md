@@ -3,13 +3,20 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v1.4.2 - [2026-11-02]
+
+### Added
+
+- A warning when an InstanSeg patch task would ask for more than 64 GB, naming a
+  `patch_width_pixel` that fits.
 
 ### Changed
 
-- `patch_width_pixel` defaults to 3000 and `patch_overlap_pixel` to 100; unset, sopa used 5000
-  and 100. At 5000, InstanSeg patches ran out of memory and needed a retry. Runs that left them
+- `patch_width_pixel` defaults to 2000 and `patch_overlap_pixel` to 100; unset, sopa used 5000
+  and 100. InstanSeg's memory grows with patch area: at 5000 its patches ran out of memory. Runs that left them
   unset now patch differently, so `-resume` redoes segmentation.
+- Cellpose and InstanSeg patch tasks on CPU ask for 4 CPUs, not 1 and 2: PyTorch uses every
+  thread it gets.
 
 ### Fixed
 
@@ -17,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not look up `instanseg_boundaries`. It is now told the boundaries of the backend that ran.
 - `use_gpu` with `use_instanseg` is rejected at startup. It failed in every patch task: sopa's
   InstanSeg wrapper does not move the result off the GPU.
+- InstanSeg patch tasks asked for 12 GB whatever the channel count, so 37 channels ran out of
+  memory twice and failed. The request now follows channel count, patch width and pixel size.
 
 ## v1.4.1 - [2026-10-31]
 

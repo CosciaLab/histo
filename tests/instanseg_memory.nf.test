@@ -1,0 +1,63 @@
+// The memory each InstanSeg patch task asks for, and the patch width the warning suggests.
+
+nextflow_function {
+
+    name "instansegMemoryGB"
+    script "../modules/local/utils.nf"
+    tag "unit"
+    tag "validation"
+
+    test("5 channels on a 3000 px patch at 0.65 µm/px ask for 25 GB") {
+        function "instansegMemoryGB"
+        when {
+            function {
+                """
+                input[0] = 5
+                input[1] = 3000
+                input[2] = 0.65
+                """
+            }
+        }
+        then {
+            assert function.success
+            // Peaked at 18.6 GB on a 2900 px core (test7 07).
+            assert function.result == 25
+        }
+    }
+
+    test("37 channels on the same patch ask for 171 GB") {
+        function "instansegMemoryGB"
+        when {
+            function {
+                """
+                input[0] = 37
+                input[1] = 3000
+                input[2] = 0.65
+                """
+            }
+        }
+        then {
+            assert function.success
+            // Peaked at 132 GB on a 2900 px core (test7 11).
+            assert function.result == 171
+        }
+    }
+
+    test("the suggested width for 37 channels keeps the request within 64 GB") {
+        function "instansegMaxPatchWidth"
+        when {
+            function {
+                """
+                input[0] = 37
+                input[1] = 64
+                input[2] = 0.65
+                """
+            }
+        }
+        then {
+            assert function.success
+            // 1800 px asks for 63 GB; 1900 would ask for 70.
+            assert function.result == 1800
+        }
+    }
+}

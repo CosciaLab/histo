@@ -126,6 +126,23 @@ def getChannels(channels, Boolean allow_null = false) {
     return channels.toString().split(/[ ,|]+/).findAll { it }
 }
 
+// GB one InstanSeg patch task asks for. Per megapixel at the model's 0.5 µm/px, peak_rss is flat
+// to ~4 channels, then ~0.25 GB per channel (test7, dropbox run 00009); ~1.2x headroom.
+def instansegMemoryGB(int n_channels, patch_width, pixel_size) {
+    def megapixels = Math.pow(patch_width * pixel_size / 0.5, 2) / 1e6
+    return Math.ceil(2 + megapixels * instansegGBPerMegapixel(n_channels)) as int
+}
+
+def instansegGBPerMegapixel(int n_channels) {
+    return Math.max(1.3, 0.3 * n_channels)
+}
+
+// Largest patch_width_pixel, in steps of 100, whose request stays within gigabytes.
+def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
+    def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
+    return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
+}
+
 // Marker names InstanSeg reads when instanseg_channels is unset: nuclear stains, plus markers
 // when segmenting cells. Autofluorescence and blank channels are left out.
 def defaultInstansegChannels(List rows, String target) {

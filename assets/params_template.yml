@@ -1,5 +1,5 @@
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##     CosciaLab/histo 1.4.1
+##     CosciaLab/histo 1.4.2
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##     This is an example parameter file to pass to the `-params-file` option
 ##     of nextflow run with the CosciaLab/histo pipeline.
@@ -302,7 +302,7 @@
 ##     height / target_patches).
 ##     Type: number
 ## -----------------------------------------------------------------------------
-# patch_width_pixel: 3000.0
+# patch_width_pixel: 2000.0
 
 ## -----------------------------------------------------------------------------
 ## patch_overlap_pixel

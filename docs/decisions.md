@@ -85,8 +85,13 @@ panel (0.35 µm/px, raw). No ground truth; outlines were judged by eye, with met
 
 **`patch_width_pixel` is not computed for you.** It changes results at patch boundaries, so an
 automatic value would make the same slide segment differently on different hardware. The fixed
-default, 3000 px, is below sopa's 5000, at which an InstanSeg patch ran out of 12 GB. See
+default, 2000 px, is well below sopa's 5000 to keep InstanSeg's memory down: 37 channels need 78 GB
+at 2000 px and 171 GB at 3000. See
 [usage.md](usage.md).
+
+**InstanSeg memory is computed from the patch**, not set per size profile: it grows with channels
+times patch area. Per megapixel it is flat up to about 4 channels, then ~0.25 GB per channel: on
+one exemplar core, 2 channels peaked at 15 GB and 37 at 130 GB. See `instansegMemoryGB`.
 
 **Size profiles are one file**, `conf/sizes.config`, with its own `profiles` scope.
 
