@@ -138,7 +138,7 @@ Each enabled method (`use_cellpose`, `use_instanseg`) segments each enabled targ
 (`segment_cells`, `segment_nuclei`), and each method gets its own table, `{method}_table`.
 With both targets, each nucleus is linked to the cell holding at least half of it, the cytoplasm
 is the cell minus its nuclei, and the table gains `nucleus` and `cytoplasm` layers. With both
-methods segmenting cells, `qc/{sample}_comparison.html` compares them. The layout is in
+methods segmenting cells and `use_qc`, `qc/{sample}_comparison.html` compares them. The layout is in
 [output.md](output.md#spatialdata-directory).
 
 Cellpose segments nuclei on the last of `cellpose_channels` (with `use_projection`, the

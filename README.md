@@ -45,7 +45,7 @@ Downstream (from sopa):
 6. Tiled segmentation of cells, nuclei or both, with Cellpose, InstanSeg or both, optionally
    skipping empty tiles; nuclei are linked to their cells and the cytoplasm derived
 7. Aggregation of mean channel intensity per cell, and per nucleus and cytoplasm
-8. QC report per sample and method, a comparison when both methods ran, and for a TMA a merged
+8. QC report per sample and method, a comparison when both methods segment cells, and for a TMA a merged
    object per slide
 
 `use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops

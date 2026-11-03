@@ -133,7 +133,9 @@ go to the cell first in the frame. Nothing is dropped.
 so a cytoplasm ring would be measured as the whole cell. And it places the mask of a cell crossing a
 dask chunk edge at the cell's bounds, not the clipped window's: the mask is shifted, so 1.x
 intensities of such cells were wrong (errors up to ~3600 units in review). Building the table
-with `TableModel.parse` keeps the cell ids sopa's `parse_table` renumbers. Offer both fixes
+with `TableModel.parse` keeps the cell ids sopa's `parse_table` renumbers. Also: each part of a
+MultiPolygon gets its own mask, OR-ed (an island in a lake survives); a synchronous dask
+scheduler, as tasks add into shared arrays; NaN for an empty mask. Offer both fixes
 upstream (ROADMAP).
 
 **NaN is "not measured", 0 "measured, nothing there".** A cell without a nucleus has NaN layers
@@ -150,8 +152,7 @@ does. On a TMA one empty core stops the slide: loud, not silent.
 Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, and a String in
 the kwargs JSON fails sopa in every patch task.
 
-**StarDist was removed.** It was never in a release check, had no GPU path and does not run on
-the Mac; Cellpose and InstanSeg now segment nuclei too.
+**StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
 
 ## Containers
 

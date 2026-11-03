@@ -119,7 +119,7 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
     `cell` channels Cellpose segmented, at full resolution.
   - `shapes/{m}_cells` (`segment_cells`): cell polygons, indexed by cell id.
   - `shapes/{m}_nuclei` (`segment_nuclei`): nucleus polygons. With both targets, its
-    `linked_cell_id` names the cell holding at least half of the nucleus; empty if none.
+    `linked_cell_id` names the cell holding at least half of the nucleus; null if none.
   - `shapes/{m}_cytoplasm` (both targets): each cell minus its linked nuclei, for cells with
     non-empty cytoplasm only, indexed by their cell ids.
   - `tables/{m}_table`: one row per cell, or per nucleus in a nuclei-only run. Below.
@@ -166,15 +166,15 @@ step that writes to the store.
 
 #### From 1.x
 
-| 1.x                                         | 2.0                                          |
-| ------------------------------------------- | -------------------------------------------- |
-| `tables/table`                              | `tables/{m}_table`                           |
-| `shapes/cellpose_boundaries`, `instanseg_…` | `shapes/{m}_cells`                           |
-| `qc/{sample}_qc.json`, `_qc_report.html`    | `qc/{sample}_{m}_qc.json`, `_qc_report.html` |
-| `qc/{sample}_qc_images/`                    | `qc/{sample}_{m}_qc_images/`                 |
-| `qc/{slide}_slide_report.html`              | `qc/{slide}_{m}_slide_report.html`           |
-| `obs_names` renumbered by sopa              | the cell ids of the shapes                   |
-| a cell covering no pixel centre: `X` 0      | NaN                                          |
+| 1.x                                                  | 2.0                                          |
+| ---------------------------------------------------- | -------------------------------------------- |
+| `tables/table`                                       | `tables/{m}_table`                           |
+| `shapes/cellpose_boundaries`, `instanseg_boundaries` | `shapes/{m}_cells`                           |
+| `qc/{sample}_qc.json`, `_qc_report.html`             | `qc/{sample}_{m}_qc.json`, `_qc_report.html` |
+| `qc/{sample}_qc_images/`                             | `qc/{sample}_{m}_qc_images/`                 |
+| `qc/{slide}_slide_report.html`                       | `qc/{slide}_{m}_slide_report.html`           |
+| `obs_names` renumbered by sopa                       | the cell ids of the shapes                   |
+| a cell covering no pixel centre: `X` 0               | NaN                                          |
 
 Removed parameters stop the run at startup: `use_stardist` and every StarDist option,
 `instanseg_target` (use `segment_cells`, `segment_nuclei`), `min_intensity_ratio`,

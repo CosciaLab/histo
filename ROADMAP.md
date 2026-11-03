@@ -10,7 +10,7 @@ time, estimated before the release; treat them as rough.
 
 Segmentation, then quantification, then learned features. Each release adds its own chapter
 to the HTML QC report; MultiQC suits tool logs, not our figures. The planned 1.5 (multiple
-segmentations, compared) shipped as 2.0; see [CHANGELOG](CHANGELOG.md).
+segmentations, compared) becomes 2.0; see [CHANGELOG](CHANGELOG.md).
 
 ### 1.3: segmentation input
 
@@ -105,7 +105,7 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
 4. **Dearray across every nuclear channel** to detect cores lost between cycles. One Coreograph
    call per `dna` channel; each writes every core again, so disk grows with cycles. Decide first
    what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
-5. **H&E input.** Separate path: no preprocessing, StarDist's H&E model, morphology features,
+5. **H&E input.** Separate path: no preprocessing, an H&E nuclear model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
 6. **Documentation website** for curious users: one page per module with what it does and why,
    its tool and version, inputs, outputs, parameters and defaults, and an exemplar-001 figure.
