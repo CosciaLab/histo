@@ -197,6 +197,20 @@ def patch_metrics(counts: Any, n_cells: int) -> dict[str, Any]:
     }
 
 
+def linking_metrics(n_nuclei: Any, cytoplasm_area: Any, unlinked_nuclei: int) -> dict[str, Any]:
+    """Cells by linked nucleus count, unlinked nuclei, and cells whose nuclei fill them (cytoplasm area 0)."""
+    import numpy as np
+
+    n = np.asarray(n_nuclei)
+    # NaN (no nucleus) compares unequal to 0, so only cells with a nucleus can count as empty.
+    empty = (n >= 1) & (np.asarray(cytoplasm_area, dtype=np.float64) == 0)
+    return {
+        "cells_by_n_nuclei": {"0": int((n == 0).sum()), "1": int((n == 1).sum()), "2+": int((n >= 2).sum())},
+        "unlinked_nuclei": int(unlinked_nuclei),
+        "empty_cytoplasm": int(empty.sum()),
+    }
+
+
 # Reading the store.
 
 
@@ -592,6 +606,19 @@ def collect(
                 **cycle_ratio_metrics(x[:, first_i], x[:, last_i]),
             }
 
+    # n_nuclei is in obs only when nuclei were linked to cells (both targets).
+    if "n_nuclei" in table["obs"]:
+        nuclei_name = f"{table_name.removesuffix('_table')}_nuclei"
+        nuclei_file = sdata_path / "shapes" / nuclei_name / "shapes.parquet"
+        if not nuclei_file.exists():
+            raise FileNotFoundError(f"table '{table_name}' has n_nuclei but {nuclei_file} does not exist")
+        links = pq.read_table(nuclei_file, columns=["linked_cell_id"]).column("linked_cell_id")
+        out["linking"] = linking_metrics(
+            read_column(table["obs"]["n_nuclei"]),
+            read_column(table["obs"]["cytoplasm_area"]),
+            links.null_count,
+        )
+
     patches_file = sdata_path / "shapes" / "image_patches" / "shapes.parquet"
     if patches_file.exists():
         patches = pq.read_table(patches_file)
@@ -677,6 +704,13 @@ def main() -> int:
         f"  channels   : {metrics['channels']['n_channels']}, table matches image: "
         f"{metrics['channels']['table_matches_image']}"
     )
+    if "linking" in metrics:
+        link = metrics["linking"]
+        by_n = ", ".join(f"{k}: {v}" for k, v in link["cells_by_n_nuclei"].items())
+        print(
+            f"  linking    : cells by nuclei {by_n}; {link['unlinked_nuclei']} nuclei unlinked; "
+            f"{link['empty_cytoplasm']} cells without cytoplasm"
+        )
     if metrics["patches"]:
         p = metrics["patches"]
         print(f"  patches    : {p['n_patches']} ({p['n_empty_patches']} with no cells)")

@@ -275,3 +275,42 @@ class TestCollect:
         )
         m = collect(store, table="table", min_cell_area=10.0, markers=None)
         assert m["channels"]["table_matches_image"] is False
+
+
+def add_links(store, table, n_nuclei, cytoplasm_area, nuclei_name, linked):
+    """obs columns from LINK_COMPARTMENTS and the nuclei element with its link column."""
+    root = zarr.open_group(str(store / "tables" / table), mode="a")
+    root.create_array("obs/n_nuclei", shape=(len(n_nuclei),), dtype="i8")[:] = n_nuclei
+    root.create_array("obs/cytoplasm_area", shape=(len(n_nuclei),), dtype="f8")[:] = cytoplasm_area
+    d = store / "shapes" / nuclei_name
+    d.mkdir(parents=True)
+    pq.write_table(pa.table({"linked_cell_id": pa.array(linked, type=pa.string())}), d / "shapes.parquet")
+
+
+class TestLinking:
+    def test_counts_from_table_and_nuclei(self, store):
+        add_links(
+            store,
+            "table",
+            [0, 1, 2, 1],
+            [np.nan, 5.0, 0.0, 3.0],
+            "m_nuclei",
+            ["a", None, "b", "b", None, "c"],
+        )
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        m = collect(store, table="m_table", min_cell_area=10.0, markers=None)
+        assert m["linking"] == {
+            "cells_by_n_nuclei": {"0": 1, "1": 2, "2+": 1},
+            "unlinked_nuclei": 2,
+            "empty_cytoplasm": 1,
+        }
+        json.dumps(m)
+
+    def test_absent_without_nuclei(self, store):
+        assert "linking" not in collect(store, table="table", min_cell_area=10.0, markers=None)
+
+    def test_missing_nuclei_element_names_it(self, store):
+        add_links(store, "table", [1, 1, 1, 1], [1.0] * 4, "other_nuclei", [])
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        with pytest.raises(FileNotFoundError, match="m_nuclei"):
+            collect(store, table="m_table", min_cell_area=10.0, markers=None)

@@ -318,6 +318,22 @@ class TestBuild:
         """The renderer's only input is the file on disk, so it must survive it."""
         assert build(json.loads(json.dumps(minimal_metrics()))).startswith("<!DOCTYPE")
 
+    def test_linking_is_shown_with_nuclei(self):
+        m = minimal_metrics()
+        m["linking"] = {
+            "cells_by_n_nuclei": {"0": 1, "1": 2, "2+": 1},
+            "unlinked_nuclei": 7,
+            "empty_cytoplasm": 3,
+        }
+        page = build(m)
+        assert "<h2>Nuclei per cell</h2>" in page
+        assert "<td>Nuclei linked to no cell</td><td>7</td>" in page
+        assert "<td>Cells whose nuclei fill them (no cytoplasm)</td><td>3</td>" in page
+        assert "<td>2+</td><td>1</td>" in page
+
+    def test_no_linking_section_without_nuclei(self):
+        assert "Nuclei per cell" not in build(minimal_metrics())
+
     def test_hero_number_is_present_unabbreviated(self):
         """The one number the page leads with is exact, not compacted."""
         m = minimal_metrics()

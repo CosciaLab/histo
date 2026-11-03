@@ -835,6 +835,31 @@ def cycle_ratio_section(ratio: dict[str, Any]) -> str:
 """
 
 
+def linking_section(linking: dict[str, Any]) -> str:
+    """Nuclei linked per cell, nuclei left unlinked and cells with no cytoplasm left."""
+    by_n = linking["cells_by_n_nuclei"]
+    rows = [(f"{k} nuclei" if k != "1" else "1 nucleus", float(v)) for k, v in by_n.items()]
+    counts = table(["Nuclei in the cell", "Cells"], [[esc(k), thousands(v)] for k, v in by_n.items()])
+    others = table(
+        ["Count", "Value"],
+        [
+            ["Nuclei linked to no cell", thousands(linking["unlinked_nuclei"])],
+            ["Cells whose nuclei fill them (no cytoplasm)", thousands(linking["empty_cytoplasm"])],
+        ],
+    )
+    return f"""
+<section>
+  <h2>Nuclei per cell</h2>
+  <p class="note">A nucleus belongs to the cell holding at least half of its area. A cell
+  without one has no nucleus or cytoplasm intensities (NaN); several in one cell can be a
+  merged cell or a dividing one.</p>
+  {hbar_chart(rows, "cells", thousands)}
+  {details("Show as table", counts)}
+  {others}
+</section>
+"""
+
+
 def inline_png(path: Path) -> str:
     """Return a PNG or JPEG file as a base64 data URI."""
     import base64
@@ -1773,6 +1798,8 @@ def build(
   {area_chart}
   {details("Show as table", area_table)}
 </section>
+
+{linking_section(metrics["linking"]) if metrics.get("linking") else ""}
 
 {patch_block}
 
