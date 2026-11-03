@@ -29,11 +29,13 @@ matplotlib; TensorFlow only in the container), pytest via `uv run`.
 - No `tifffile.imread`, `imageio.imread` or `skimage.io.imread` in `bin/` (prek hook
   `no-eager-image-reads`).
 - Every local module: a `stub:` block and a versions topic entry (prek hooks).
-- Never hand-edit `nextflow_schema.json` or `assets/params_template*.yml`.
+- `nextflow_schema.json` may be edited by hand once Task 0 lands (hooks lint it). Never
+  hand-edit `assets/params_template*.yml`.
 - Commit titles under ~60 chars; one-line "why" comments; end commits with
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Never push.
-- Mac cannot run the Coreograph image. Container-only code is checked on the cluster
-  (Task 6); everything else by pytest and `-stub` nf-tests.
+- Mac cannot run the Coreograph image, but Coreograph runs natively in
+  `/Users/jnimoca/Jose_BI/2_Infrastructure/PY46_coreograph_test/.venv-coreograph` (Task 2
+  local check). The image itself is exercised on the cluster (Task 6).
 
 ## Review Focus
 
@@ -47,6 +49,40 @@ matplotlib; TensorFlow only in the container), pytest via `uv run`.
 4. **More than 255 cores.** The sweep's coremask stays `uint16` and `n_cores` counts past 255.
    Test in Task 2.
 5. **Two slides in one run.** Each slide gets its own k; groups do not mix. Test in Task 5.
+
+---
+
+### Task 0: Allow agent schema edits, lint after each
+
+**Files:**
+
+- Modify: `CLAUDE.md` §3 (the "Never hand-edit `nextflow_schema.json`" line), the matching
+  sentence in `docs/CONTRIBUTING.md` (~line 36)
+- Create: `.claude/settings.json` (committed; `settings.local.json` stays personal)
+- Create: `tools/lint_schema_hook.sh`
+- Modify: `.pre-commit-config.yaml` (local hook `schema-lint`)
+
+**Interfaces:**
+
+- Produces: after any agent `Edit`/`Write` whose `tool_input.file_path` ends in
+  `nextflow_schema.json`, `tools/lint_schema_hook.sh` runs
+  `nf-core pipelines schema lint nextflow_schema.json`; on failure it prints the lint output
+  to stderr and exits 2 (Claude Code feeds that back to the agent). Other files: exit 0
+  silently. prek runs the same lint when `nextflow_schema.json` or `nextflow.config` changes.
+
+- [ ] **Step 1: Check what `schema lint` catches.** In a scratch copy, add a param to
+      `nextflow.config` only and run the lint. If it passes, the prek hook also runs
+      `nf-core pipelines lint --dir . -k schema_params`; record which in the hook comment.
+- [ ] **Step 2: Write the hook script and settings** (`PostToolUse`, matcher
+      `Edit|Write|MultiEdit`, command `"$CLAUDE_PROJECT_DIR"/tools/lint_schema_hook.sh`).
+      Use the `update-config` skill for the settings file.
+- [ ] **Step 3: Verify both ways.** Pipe a fake hook payload naming `nextflow_schema.json`
+      into the script with a deliberately broken copy (missing comma) → exit 2 and the error;
+      restored → exit 0. A payload naming `README.md` → exit 0, no lint run.
+      `prek run schema-lint --all-files` passes.
+- [ ] **Step 4: Edit `CLAUDE.md` and `CONTRIBUTING`:** "Agents may edit
+      `nextflow_schema.json` directly; a hook lints it after every edit and at commit."
+- [ ] **Step 5: Commit** — `Allow agent schema edits, lint after each`
 
 ---
 
@@ -70,10 +106,11 @@ matplotlib; TensorFlow only in the container), pytest via `uv run`.
     parsed with `xml.etree.ElementTree`; unit default `µm`; `nm`/`mm` converted; missing
     size or other unit → `ValueError` whose message contains `"pixel size"`.
   - `core_metrics(labels: np.ndarray, est_core_diam_px: float, k: int, pixel_um: float, expected_cores: int, diameter_mm: float) -> dict`
-    with keys `k, n_cores, count_error, diam_mm, diam_error, size_cv, crop_ratio, core_px_at_k`.
+    with keys `k, n_cores, count_error, diam_mm, diam_error, size_cv, crop_ratio, core_px_at_k, um_per_px`.
     Labels are at the downsampled scale. `diam_mm` = median of `2*sqrt(area/π)` × `2**k` ×
     `pixel_um` / 1000. `crop_ratio` = `est_core_diam_px * 2**k * pixel_um / 1000 / diameter_mm`.
-    `core_px_at_k` = `diameter_mm * 1000 / pixel_um / 2**k`. With zero labels, `diam_mm`,
+    `core_px_at_k` = `diameter_mm * 1000 / pixel_um / 2**k`; `um_per_px` = `pixel_um * 2**k`.
+    With zero labels, `diam_mm`,
     `diam_error`, `size_cv`, `crop_ratio` are `None`.
   - `centroids_full_res(labels: np.ndarray, k: int) -> np.ndarray` — regionprops centroids
     (y, x) × `2**k`, label order, matching Coreograph's `centroids / dsFactor`.
@@ -119,6 +156,7 @@ def test_metrics_four_discs():
     assert m["diam_error"] < 0.02 and m["size_cv"] < 0.02
     assert m["crop_ratio"] == pytest.approx(1.2)
     assert m["core_px_at_k"] == pytest.approx(100)
+    assert m["um_per_px"] == pytest.approx(2.0)
 
 def test_metrics_merged_blob_raises_size_cv():
     labels = discs([(100, 100), (300, 100), (300, 300)], 50, (400, 400))
@@ -225,6 +263,15 @@ covers `bin/`.)
       (a comment) and stop before line 1040 (`P = regionprops(coreLabel)`). Return
       `coreLabel.astype(np.int32), float(estCoreDiam)`.
 - [ ] **Step 4: Run, expect PASS**; `prek run --files bin/coreograph_detect.py modules/local/coreograph_detect/main.nf`.
+- [ ] **Step 4b: Native check against real Coreograph (local, not committed).** With
+      `PY46=/Users/jnimoca/Jose_BI/2_Infrastructure/PY46_coreograph_test` and
+      `IMG=$PY46/out/baseline/wsi_allcycles.ome.tif`, in a scratchpad directory:
+      `$PY46/.venv-coreograph/bin/python $PY46/vendor/UNetCoreograph/UNetCoreograph.py --imagePath $IMG --outputPath ref --downsampleFactor 4 --channel 0 --buffer 2`,
+      then run `bin/coreograph_detect.py` with the same venv (with `/app` replaced by
+      `$PY46/vendor/UNetCoreograph` through an env var `COREOGRAPH_APP`, default `/app`) at
+      k = 4, N = 4, D = 1.5. Expected: `diff ref/centroidsY-X.txt <prefix>_k4_centroids.txt`
+      is empty. Then run k = 3…7 and select, and report the TSV to the user. If the venv is
+      gone, say so and leave this to Task 6.
 - [ ] **Step 5: Commit** — `Add COREOGRAPH_DETECT for the downsample sweep`
 
 ---
@@ -245,7 +292,7 @@ covers `bin/`.)
     `warning(m: dict) -> str | None`.
   - CLI: `coreograph_select.py --metrics F [F ...] --overlays F [F ...] --prefix P`.
   - `main(argv: list[str] | None = None) -> None` writes `{P}_sweep.tsv` (columns, in order:
-    `k, n_cores, count_error, diam_mm, diam_error, size_cv, crop_ratio, core_px_at_k, score, selected, warning`,
+    `k, um_per_px, n_cores, count_error, diam_mm, diam_error, size_cv, crop_ratio, core_px_at_k, score, selected, warning`,
     rows sorted by score then k), `{P}_sweep_overlays.png` (overlays in a row, ordered by k),
     and `{P}_selection.json` = `{"downsample_factor": int, "warning": str | null}`. Prints
     the warning to stderr. All scores infinite → `sys.exit` with a message naming the prefix,
@@ -328,11 +375,12 @@ tma_core_diameter_mm: 1.5` → failed, mentions `tma_expected_cores`.
 - [ ] **Step 3: Add the asserts.** Message (exact):
       `"use_tma_dearray needs tma_expected_cores (total cores on the slide) and tma_core_diameter_mm (core diameter in mm) to choose Coreograph's downsample factor. To set Coreograph's arguments yourself instead, set coreograph_args."`
       A second assert requires both values > 0, naming the offending param.
-- [ ] **Step 4: Update the schema.** Run `nf-core pipelines schema build --no-prompts` so the
-      new params appear and `coreograph_args` loses its default. **Human step:** ask the user
-      to set types (`integer`, `number`), `minimum`, descriptions and help text in the
-      builder (`nf-core pipelines schema build`, web editor). Then let the prek hook
-      regenerate the params templates.
+- [ ] **Step 4: Edit the schema by hand** (Task 0's hook lints it): in the
+      `preprocessing_options` group, `tma_expected_cores` (`integer`, `minimum: 1`) and
+      `tma_core_diameter_mm` (`number`, `exclusiveMinimum: 0`), each with a one-line
+      description and help text saying they are required with `use_tma_dearray` unless
+      `coreograph_args` is set; `coreograph_args` loses its default and its description
+      says setting it skips the sweep. Let the prek hook regenerate the params templates.
 - [ ] **Step 5: Run, expect PASS.** `nf-test test --tag validation`
 - [ ] **Step 6: Commit** — `Add TMA core count and diameter params`
 
@@ -430,7 +478,8 @@ COREOGRAPH(ch_to_dearray)
       mode via `coreograph_args`; where to look (`*_sweep.tsv`, `*_sweep_overlays.png`).
 - [ ] **Step 3: Metro map.** Add the sweep stations before `COREOGRAPH` in
       `docs/pipeline_paths.mmd`, run
-      `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg`.
+      `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate`,
+      and add `--animate` to the render command in `CLAUDE.md` §3 and `CONTRIBUTING`.
       **Human step:** the user looks at the SVG.
 - [ ] **Step 4: Verify locally:** `prek run --all-files`, `nf-test test --tag stub,validation`,
       `uv run pytest`.

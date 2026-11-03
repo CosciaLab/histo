@@ -31,6 +31,17 @@ From `UNetCoreograph.py` at 2.4.6:
   read `[::2^k, ::2^k]`, cropped to ⌊shape/2^k⌋, gives the same image. Then `getProbMaps(I, 0)`
   skips its own halving. The exemplar-002 equality check confirms this.
 
+From the dearray-first spike (`PY46_coreograph_test`, `DEARRAY_FIRST_INTEGRATION.md` §4.4):
+
+- **Detection is scale-sensitive and fails silently.** On exemplar-002, 4 cores at 6.4–9.0
+  µm/px; one glandular core splits into 2–3 below ~6.2 µm/px, and Coreograph exits 0. At
+  0.65 µm/px, k = 3 is 5.2 µm/px (in the split zone), k = 4 is 10.4, the default k = 5 is 20.8.
+- **Coreograph 2.4.6 runs natively on Apple silicon** (TF 2.21 arm64 wheels), unlike its
+  amd64-only image. The spike's `.venv-coreograph`, `vendor/UNetCoreograph` (2.4.6) and
+  `out/baseline/wsi_allcycles.ome.tif` let the detect script be checked against real
+  Coreograph on the Mac.
+- Dearray before Ashlar is a separate spec. It reuses detect and select on a nominal mosaic.
+
 ## Parameters
 
 Schema via `nf-core pipelines schema build` only.
@@ -76,6 +87,7 @@ Metrics per k:
 | `size_cv`      | std / mean of core areas; merges and splits                  |
 | `crop_ratio`   | Coreograph's would-be crop size / D; one merged blob         |
 | `core_px_at_k` | D / pixel size / 2^k; the core size the UNet sees, reference |
+| `um_per_px`    | pixel size × 2^k; the scale the UNet sees, reference         |
 
 Score = `count_error + diam_error + size_cv`, lowest wins. Zero cores scores infinity. Ties go
 to the smaller k (more resolution). Weights change only if real TMAs show a wrong pick.
@@ -118,6 +130,9 @@ and core labels.
 
 - pytest (Mac): metrics on synthetic label images with known count and diameter; a merged
   blob; zero cores; the tie-break; the warning thresholds.
+- Native on the Mac, before any cluster run: the detect script at k = 4 on the spike's
+  exemplar-002 whole-slide image gives the same centroids as `UNetCoreograph.py` itself.
+  A local check, not a committed test.
 - Stub nf-test: sweep mode gives 5 detect, 1 select, 1 `COREOGRAPH` per slide; manual mode
   gives no detect or select; missing `tma_*` params fail at startup.
 - `test_exemplar002` on the cluster, its `coreograph_args` removed: N = 4, D = 1.5 mm
@@ -128,7 +143,12 @@ and core labels.
 
 `sizes.config` entries for both processes (detect starts at `COREOGRAPH`'s size, refit after
 the cluster run); `usage.md`; `CHANGELOG` (breaking: TMA runs now need `tma_*` params or
-`coreograph_args`); `CITATIONS` unchanged; re-render the metro map for a human to check.
+`coreograph_args`); `CITATIONS` unchanged; re-render the metro map with `--animate` (dots
+travel each path) for a human to check.
+
+Before the sweep, a separate commit: agents may hand-edit `nextflow_schema.json`. `CLAUDE.md`
+and `CONTRIBUTING` say so, and hooks lint the schema after each agent edit
+(`.claude/settings.json`) and at commit (prek).
 
 ## Not now
 
