@@ -13,15 +13,18 @@ def frame(n):
 
 
 def test_assign_ids_names_index_and_counts_from_zero():
-    out = assign_ids(frame(3), "img", "nuclei")
-    assert list(out.index) == ["img_nuclei_0", "img_nuclei_1", "img_nuclei_2"]
+    out = assign_ids(frame(3), "img", "instanseg", "nuclei")
+    assert list(out.index) == ["img_instanseg_nuclei_0", "img_instanseg_nuclei_1", "img_instanseg_nuclei_2"]
     assert out.index.name == "cell_id"
 
 
 def test_assign_ids_ignores_incoming_index():
     cells = frame(2)
     cells.index = [7, 3]
-    assert list(assign_ids(cells, "img", "cells").index) == ["img_cells_0", "img_cells_1"]
+    assert list(assign_ids(cells, "img", "cellpose", "cells").index) == [
+        "img_cellpose_cells_0",
+        "img_cellpose_cells_1",
+    ]
 
 
 def test_check_not_empty_names_the_spec():

@@ -78,7 +78,7 @@ TO_SPATIALDATA ✎ → SET_CHANNEL_NAMES ✎ → TISSUE_SEGMENTATION ✎
   `write_patch_cells`, with an explicit `image_key`. Offer `--image-key` to sopa upstream; drop
   the script once released.
 - `RESOLVE`: sopa's `read_patches_cells` and `solve_conflicts`, written to GeoParquet. Sets the
-  index once: `{image_key}_{target}_{n}`, unique per store and across TMA cores.
+  index once: `{image_key}_{method}_{target}_{n}`, unique per store and across TMA cores.
 - `AGGREGATE`: reads the image read-only. Sets `obs/slide` and `obs/core_id` directly, which
   replaces `bin/set_cell_metadata.py`. Builds the table with `TableModel.parse`, not sopa's
   `parse_table`, so indices are kept.

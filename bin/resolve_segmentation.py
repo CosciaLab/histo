@@ -47,10 +47,13 @@ def check_not_empty(cells, name: str) -> None:
         raise ValueError(f"segmentation '{name}' found no cells")
 
 
-def assign_ids(cells, image_key: str, target: str):
-    """Index `{image_key}_{target}_{n}` named `cell_id`, n from 0; any incoming index is dropped."""
+def assign_ids(cells, image_key: str, method: str, target: str):
+    """Index `{image_key}_{method}_{target}_{n}` named `cell_id`, n from 0, unique per store.
+
+    Any incoming index is dropped.
+    """
     out = cells.reset_index(drop=True)
-    out.index = [f"{image_key}_{target}_{n}" for n in range(len(out))]
+    out.index = [f"{image_key}_{method}_{target}_{n}" for n in range(len(out))]
     out.index.name = "cell_id"
     return out
 
@@ -71,7 +74,7 @@ def main() -> int:
     cells = read_patches(args.patches)
     check_not_empty(cells, spec["name"])
     n_before = len(cells)
-    cells = assign_ids(solve_conflicts(cells), image_key, spec["target"])
+    cells = assign_ids(solve_conflicts(cells), image_key, spec["method"], spec["target"])
     print(f"[resolve] {spec['name']}: {n_before} patch cells -> {len(cells)} after resolving overlaps")
     cells.to_parquet(args.output)
     return 0

@@ -131,8 +131,9 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 
 The `{sample}.zarr` directory contains a [SpatialData](https://spatialdata.scverse.org/en/stable/) object, where the `sample` name is either (i) specified by the samplesheet, or (ii) based on the name of the corresponding input directory.
 
-Cell ids are `{image}_cells_{n}` (`{image}_nuclei_{n}` for nuclei): the shapes' index and the
-table's `obs_names` and `obs['cell_id']` are the same ids. `{m}_table` holds:
+Cell ids are `{image}_{m}_cells_{n}` (`{image}_{m}_nuclei_{n}` for nuclei), unique within a
+store: the shapes' index and the table's `obs_names` and `obs['cell_id']` are the same ids.
+`{m}_table` holds:
 
 - `X`: mean intensity per marker over the whole cell (the nucleus in a nuclei-only run), after
   `expand_radius_ratio` if set.
@@ -156,9 +157,10 @@ NaN means "not measured", 0 means "measured, nothing there":
 
 Cells are never dropped. A cell covering no pixel centre is left out of the QC clustering.
 
-`slide` and `core_id` say where cells came from, so tables can be concatenated safely: `slide`
-is the sample name from the samplesheet, `core_id` the core (e.g. `TMA01_core001`). Runs
-without dearraying have no `core_id` column.
+`slide` and `core_id` say where cells came from: `slide` is the sample name from the
+samplesheet, `core_id` the core (e.g. `TMA01_core001`). Runs without dearraying have no
+`core_id` column. Ids may repeat across stores, so keep these columns when concatenating tables
+of several stores, and make `obs_names` unique (e.g. `anndata.concat(..., index_unique="-")`).
 
 Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for usage details, or to the [documentation of `sopa` as a Python package](https://prism-oncology.github.io/sopa/).
 

@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Breaking
 
 - Tables and shapes are per method `{m}`: `tables/table` is now `tables/{m}_table`, and
-  `shapes/{m}_boundaries` is `shapes/{m}_cells`. Table rows are indexed by the shapes' cell ids,
-  not renumbered. See [output.md](docs/output.md#from-1x).
+  `shapes/{m}_boundaries` is `shapes/{m}_cells`. Table rows are indexed by the shapes' cell ids
+  (`{image}_{m}_{target}_{n}`), not renumbered. See [output.md](docs/output.md#from-1x).
 - QC files carry the method: `qc/{sample}_{m}_qc.json`, `_qc_report.html`, `_qc_images/`, and
   `qc/{slide}_{m}_slide_report.html`.
 - Removed parameters stop the run at startup: `use_stardist`, `stardist_model_type`,
