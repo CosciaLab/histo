@@ -1,0 +1,163 @@
+// segment_nuclei under -stub: linking per method with both targets, and which parquet reaches the writer.
+// -profile test supplies Cellpose; laptop puts tests/stub_bin on PATH for ashlar.
+
+nextflow_pipeline {
+
+    name "Nuclei and cells"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    // WRITE_SEGMENTATIONS' stub lists each staged file and its symlink target, one file per task.
+    def staged = { work ->
+        def tasks = new File("$work").listFiles().findAll { it.isDirectory() }.collectMany { d -> d.listFiles().findAll { it.isDirectory() } }
+        tasks.collect { new File(it, 'staged_inputs.txt') }.findAll { it.exists() }.collect { f ->
+            f.readLines().collectEntries { line -> def (name, target) = line.tokenize(' '); [(name): target] }
+        }
+    }
+
+    test("InstanSeg nuclei and cells: linked, one table, nuclei from LINK_COMPARTMENTS") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+                segment_nuclei = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def writes = staged(workDir)
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() == 4 },
+                { assert names("RESOLVE").size() == 2 },
+                { assert names("LINK_COMPARTMENTS").size() == 1 },
+                { assert names("AGGREGATE").size() == 1 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
+                // The nucleus compartment and links feed AGGREGATE only.
+                { assert writes.size() == 1 },
+                { assert writes[0].keySet().sort() == ['instanseg_cells.parquet', 'instanseg_cytoplasm.parquet', 'instanseg_nuclei.parquet', 'instanseg_table.h5ad'] },
+                // RESOLVE's nuclei have the same name but no links; the writer must get LINK_COMPARTMENTS'.
+                { assert writes[0]['instanseg_nuclei.parquet'].contains('/linked/') },
+                { assert !writes[0]['instanseg_cells.parquet'].contains('/linked/') },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('LINK_COMPARTMENTS') }
+            )
+        }
+    }
+
+    test("both methods, both targets: two links, two tables, one write") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+                segment_nuclei = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def writes = staged(workDir)
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("RESOLVE").size() == 4 },
+                { assert names("LINK_COMPARTMENTS").size() == 2 },
+                { assert names("AGGREGATE").size() == 2 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
+                { assert writes.size() == 1 },
+                { assert writes[0].keySet().sort() == [
+                    'cellpose_cells.parquet', 'cellpose_cytoplasm.parquet', 'cellpose_nuclei.parquet', 'cellpose_table.h5ad',
+                    'instanseg_cells.parquet', 'instanseg_cytoplasm.parquet', 'instanseg_nuclei.parquet', 'instanseg_table.h5ad',
+                ] },
+                { assert writes[0]['cellpose_nuclei.parquet'].contains('/linked/') },
+                { assert writes[0]['instanseg_nuclei.parquet'].contains('/linked/') }
+            )
+        }
+    }
+
+    test("nuclei only: no linking, the table is over the nuclei") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                segment_cells = false
+                segment_nuclei = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def writes = staged(workDir)
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("RESOLVE").size() == 1 },
+                { assert names("LINK_COMPARTMENTS").isEmpty() },
+                { assert names("AGGREGATE").size() == 1 },
+                { assert writes.size() == 1 },
+                { assert writes[0].keySet().sort() == ['cellpose_nuclei.parquet', 'cellpose_table.h5ad'] },
+                { assert !writes[0]['cellpose_nuclei.parquet'].contains('/linked/') }
+            )
+        }
+    }
+
+    test("TMA with nuclei: every core is linked, then the slide is merged") {
+
+        when {
+            // Absolute paths, since nf-test launches from its own directory.
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_tma_dearray = true
+                use_cellpose = false
+                use_instanseg = true
+                instanseg_pixel_size = 0.1
+                instanseg_channels = "DNA_6"
+                segment_nuclei = true
+                use_qc = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                // The Coreograph stub emits two cores.
+                { assert names("RESOLVE").size() == 4 },
+                { assert names("LINK_COMPARTMENTS").size() == 2 },
+                { assert names("AGGREGATE").size() == 2 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 2 },
+                { assert names("QC_REPORT").size() == 2 },
+                { assert names("MERGE_SPATIALDATA").size() == 1 },
+                { assert names("MERGE_REPORT").size() == 1 },
+                // One write per core; the count keeps every() from passing on an empty list.
+                { assert staged(workDir).size() == 2 },
+                { assert staged(workDir).every { it['instanseg_nuclei.parquet'].contains('/linked/') } }
+            )
+        }
+    }
+}

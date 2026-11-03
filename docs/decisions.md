@@ -52,9 +52,8 @@ Images stay in pixels; Ashlar keeps `PhysicalSizeX` in the OME-TIFF.
 ## Channel projection
 
 **A transient image element, not a new OME-TIFF.** `PROJECT_CHANNELS` adds `<image>_projected`
-and points sopa's `cell_segmentation_image` attribute at it; patchify, segmentation and resolve
-follow that attribute. `DROP_PROJECTION` points the attribute back before `AGGREGATE`, so
-quantification reads every marker, and deletes the element unless `keep_projection`.
+beside the full image; Cellpose specs name it as their image (see Segmentation), and
+`WRITE_SEGMENTATIONS` deletes it unless `keep_projection`. Quantification reads the full image.
 
 **QC names its image.** It reads the element named by `cell_segmentation_image`, not the store's
 only image, so a store can hold others: a kept projection now, a pre-backsub image later.
@@ -99,8 +98,9 @@ one exemplar core, 2 channels peaked at 15 GB and 37 at 130 GB. See `instansegMe
 GPU tasks are, as a stopgap: larger slides usually get larger patches. A tile-size benchmark
 replaces both (ROADMAP).
 
-**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on the patch tasks, and the
-module derives Cellpose's `--gpu` or InstanSeg's `--device` from it, so the two cannot disagree.
+**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on Cellpose patch tasks,
+and `SEGMENT_PATCH` derives the device from it, so the two cannot disagree. InstanSeg stays on
+CPU until sopa's wrapper works on CUDA (ROADMAP).
 The SLURM executor ignores `accelerator`, so `slurm` and `mdc` translate it into `--gres`. MDC asks
 for A40s: the sopa image's CUDA 13 has no V100 kernels, and only A40 nodes have Ceph. A CUDA check
 fails the task, since cellpose falls back to CPU silently.
@@ -108,6 +108,51 @@ fails the task, since cellpose falls back to CPU silently.
 **Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
 Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so
 images are not rescaled.
+
+## Segmentation
+
+**One spec per method × target**, built once from params (`segmentationSpecs`), so a new
+method is one more entry. Unset options keep sopa's per-method CLI defaults:
+`StainingSegmentation`'s own would blur and equalise InstanSeg's input.
+
+**One writer per store.** `sopa resolve` and `sopa aggregate` write into the store, and parallel
+writers race on its root metadata: last writer wins, silently. So patch, resolve, link and
+aggregate tasks read the store and write files; `WRITE_SEGMENTATIONS` alone writes them in.
+
+**An explicit image key.** sopa's CLI segments the image named by `cell_segmentation_image`,
+which two methods on two images cannot share. `segment_patch.py` passes `image_key` to
+`StainingSegmentation` instead of flipping the attribute. Ids are built on the attribute's image,
+so a method's cells and nuclei share a prefix whatever image each segmented.
+
+**Nuclei link to cells by geometry, after resolve.** Methods return nuclei and cells in separate
+passes, so geometry is all they share, and only resolved shapes are final. A nucleus links to
+the cell holding the largest share of its area if that share is at least 0.5, a constant; ties
+go to the cell first in the frame. Nothing is dropped.
+
+**Aggregation is copied from sopa 2.2.12, with two fixes.** sopa rasterizes the exterior only,
+so a cytoplasm ring would be measured as the whole cell. And it places the mask of a cell crossing a
+dask chunk edge at the cell's bounds, not the clipped window's: the mask is shifted, so 1.x
+intensities of such cells were wrong (errors up to ~3600 units in review). Building the table
+with `TableModel.parse` keeps the cell ids sopa's `parse_table` renumbers. Also: each part of a
+MultiPolygon gets its own mask, OR-ed (an island in a lake survives); a synchronous dask
+scheduler, as tasks add into shared arrays; NaN for an empty mask. Offer both fixes
+upstream (ROADMAP).
+
+**NaN is "not measured", 0 "measured, nothing there".** A cell without a nucleus has NaN layers
+and `cytoplasm_area`; a cell its nuclei fill has `cytoplasm_area` 0.
+
+**Invalid polygons are repaired only where geometry is combined**, linking and comparison, with
+`make_valid`, counted in the log. Stored shapes are what the method produced; a long unattended
+run should not die on a vectorisation nit.
+
+**A segmentation that resolves to nothing fails the run**, naming the spec, as an unreadable core
+does. On a TMA one empty core stops the slide: loud, not silent.
+
+**Numbers from the command line are parsed where used** (`toNumber`). Nextflow passes them as
+Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, and a String in
+the kwargs JSON fails sopa in every patch task.
+
+**StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
 
 ## Containers
 

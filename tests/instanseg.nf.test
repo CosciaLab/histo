@@ -1,10 +1,10 @@
-// The InstanSeg backend, from pre-stitched input and from raw tiles with a marker sheet.
+// InstanSeg, from pre-stitched input and from raw tiles with a marker sheet.
 // Under -stub: it checks wiring and parameter validation, not segmentation.
 // -profile laptop puts tests/stub_bin on PATH for ashlar.
 
 nextflow_pipeline {
 
-    name "InstanSeg backend"
+    name "InstanSeg"
     script "../main.nf"
     profile "test,laptop"
     options "-stub"
@@ -29,14 +29,15 @@ nextflow_pipeline {
 
             assertAll(
                 { assert workflow.success },
-                { assert names("CELLPOSE").isEmpty() },
+                { assert names("SEGMENT_PATCH_CELLPOSE").isEmpty() },
 
                 // Two patches at 5000 px; one would mean tiling silently collapsed.
-                { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
-                { assert names("RESOLVE_INSTANSEG").size() == 1 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() == 2 },
+                { assert names("RESOLVE").size() == 1 },
                 { assert names("AGGREGATE").size() == 1 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
 
-                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('RESOLVE_INSTANSEG') }
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_INSTANSEG') }
             )
         }
     }
@@ -72,12 +73,12 @@ nextflow_pipeline {
             // nf-test's own trace: its task objects carry no memory field.
             def rows = new File("$metaDir/trace.csv").readLines()*.split('\t')
             def col = { name -> rows[0].findIndexOf { it == name } }
-            def memory = rows.tail().findAll { it[col('name')].contains('PATCH_SEGMENTATION_INSTANSEG') }.collect { it[col('memory')] }
+            def memory = rows.tail().findAll { it[col('name')].contains('SEGMENT_PATCH_INSTANSEG') }.collect { it[col('memory')] }
 
             assertAll(
                 { assert workflow.success },
-                { assert names("PATCH_SEGMENTATION_INSTANSEG").size() == 2 },
-                { assert names("RESOLVE_INSTANSEG").size() == 1 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() == 2 },
+                { assert names("RESOLVE").size() == 1 },
                 { assert memory == ['4 GB', '4 GB'] }
             )
         }

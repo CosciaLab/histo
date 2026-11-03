@@ -64,6 +64,12 @@ def esc(text: Any) -> str:
     return html.escape(str(text), quote=True)
 
 
+def method_of(metrics: dict[str, Any]) -> str | None:
+    """`cellpose_table` -> `cellpose`; None for metrics from before 2.0, which record no table."""
+    table_name = metrics.get("table")
+    return str(table_name).removesuffix("_table") if table_name else None
+
+
 def compact(n: float) -> str:
     """Format a count for a stat tile: 1284 -> 1,284, 142493 -> 142.5K."""
     n = float(n)
@@ -829,6 +835,31 @@ def cycle_ratio_section(ratio: dict[str, Any]) -> str:
 """
 
 
+def linking_section(linking: dict[str, Any]) -> str:
+    """Nuclei linked per cell, nuclei left unlinked and cells with no cytoplasm left."""
+    by_n = linking["cells_by_n_nuclei"]
+    rows = [(f"{k} nuclei" if k != "1" else "1 nucleus", float(v)) for k, v in by_n.items()]
+    counts = table(["Nuclei in the cell", "Cells"], [[esc(k), thousands(v)] for k, v in by_n.items()])
+    others = table(
+        ["Count", "Value"],
+        [
+            ["Nuclei linked to no cell", thousands(linking["unlinked_nuclei"])],
+            ["Cells whose nuclei fill them (no cytoplasm)", thousands(linking["empty_cytoplasm"])],
+        ],
+    )
+    return f"""
+<section>
+  <h2>Nuclei per cell</h2>
+  <p class="note">A nucleus belongs to the cell holding at least half of its area. A cell
+  without one has no nucleus or cytoplasm intensities (NaN); several in one cell can be a
+  merged cell or a dividing one.</p>
+  {hbar_chart(rows, "cells", thousands)}
+  {details("Show as table", counts)}
+  {others}
+</section>
+"""
+
+
 def inline_png(path: Path) -> str:
     """Return a PNG or JPEG file as a base64 data URI."""
     import base64
@@ -1423,13 +1454,16 @@ def clustering_section(images: dict[str, Any], asset_dir: Path) -> str:
         ]
         for i, c in enumerate(clustering["clusters"])
     ]
+    unmeasured = clustering.get("n_cells_unmeasured", 0)
     subsample_note = (
-        f" Clustered on a random {thousands(clustering['n_cells_clustered'])}-cell subsample of "
-        f"{thousands(clustering['n_cells_total'])}, because the neighbour graph costs minutes at "
-        f"full size and cluster structure does not sharpen past a few tens of thousands."
+        f" Clustered on a random {thousands(clustering['n_cells_clustered'])}-cell subsample of the "
+        f"{thousands(clustering['n_cells_total'] - unmeasured)} measured cells, because the neighbour graph "
+        f"costs minutes at full size and cluster structure does not sharpen past a few tens of thousands."
         if clustering.get("subsampled")
         else ""
     )
+    if unmeasured:
+        subsample_note += f" {thousands(unmeasured)} cells cover no pixel centre, so have no intensities, and are not clustered."
 
     tree_block = ""
     if clustering.get("tree") and clustering.get("sweep"):
@@ -1577,6 +1611,8 @@ def build(
     channels = metrics["channels"]
     patches = metrics.get("patches")
     c, h, w = img["shape_cyx"]
+    # The method tells apart the reports of two methods.
+    heading = " &middot; ".join(esc(part) for part in (metrics["sample"], method_of(metrics)) if part)
 
     integrity = [
         status_row(
@@ -1719,7 +1755,7 @@ def build(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QC report &middot; {esc(metrics["sample"])}</title>
+<title>QC report &middot; {heading}</title>
 <style>{css()}</style>
 </head>
 <body>
@@ -1731,7 +1767,7 @@ def build(
 <div class="wrap">
 <header>
   <div>
-    <h1>QC report &middot; {esc(metrics["sample"])}</h1>
+    <h1>QC report &middot; {heading}</h1>
     <div class="sub">Image element <strong>{esc(metrics["image_element"])}</strong>,
       {c} channels, {w:,} &times; {h:,} px<br>
       <code>{esc(metrics["store"])}</code></div>
@@ -1765,6 +1801,8 @@ def build(
   {area_chart}
   {details("Show as table", area_table)}
 </section>
+
+{linking_section(metrics["linking"]) if metrics.get("linking") else ""}
 
 {patch_block}
 

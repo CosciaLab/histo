@@ -15,6 +15,7 @@ include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
+include { segmentationTargets       } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -344,7 +345,7 @@ def validateMarkersheet(rows, sample = null) {
 
         // Segmentation runs after backsub, so a removed channel is no longer in the image.
         def removed = rows.findAll { it.remove }.collect { it.marker_name } as Set
-        ['cellpose_channels', 'stardist_channels', 'instanseg_channels'].each { param ->
+        ['cellpose_channels', 'instanseg_channels'].each { param ->
             def value = params[param]
             if (!(value instanceof CharSequence)) {
                 return
@@ -572,18 +573,26 @@ def rejectUnknownParams(params) {
         'modules_testdata_base_path',
     ] as Set
 
-    // Removed in 1.2 but accepted until 2.0 (ROADMAP), since the old usage.md example set both.
-    def deprecated = [
+    // Removed params stop the run: a stale params file must not silently run something else.
+    def gone = 'StarDist is no longer offered; use use_cellpose or use_instanseg'
+    def removed = [
         technology: 'always ome_tif',
         aggregate_channels: 'always on',
+        use_stardist: gone,
+        stardist_model_type: gone,
+        prob_thresh: gone,
+        nms_thresh: gone,
+        stardist_channels: gone,
+        stardist_kwargs: gone,
+        instanseg_target: 'use segment_cells and segment_nuclei',
+        min_intensity_ratio: 'cells are never dropped at aggregation; filtering comes in a later release',
     ]
-    deprecated.each { name, now ->
-        if (params.containsKey(name)) {
-            log.warn("${name} is deprecated and ignored (${now}). Delete it from your params file; from 2.0 it stops the run.")
-        }
+    def stale = removed.findAll { name, _now -> params.containsKey(name) }
+    if (stale) {
+        error(stale.collect { name, now -> "${name} was removed in 2.0 (${now})" }.join('\n'))
     }
 
-    def unknown = (params.keySet() - declared - injected - deprecated.keySet()).sort()
+    def unknown = (params.keySet() - declared - injected).sort()
     if (!unknown) {
         return params
     }
@@ -608,11 +617,8 @@ def rejectUnknownParams(params) {
 }
 
 def validateParams(params) {
-    def STAINING_BASED_METHODS = ['use_stardist', 'use_cellpose', 'use_instanseg']
+    def STAINING_BASED_METHODS = ['use_cellpose', 'use_instanseg']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
-
-    // Exactly one backend: with none, ch_resolved is unassigned and AGGREGATE fails obscurely.
-    assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
 
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
@@ -631,24 +637,26 @@ def validateParams(params) {
         log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or sample QC (Ashlar's QC stays with use_qc).")
     }
     else {
-        assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
-            "or use a profile that does (for example -profile test)"
+        assert enabled >= 1 : "A segmentation method is required: set at least one of use_cellpose and use_instanseg " +
+            "to true, or use a profile that does (for example -profile test)"
+        // The same function that builds the specs, so validation and segmentation cannot disagree.
+        assert segmentationTargets(params) :
+            "At least one of segment_cells and segment_nuclei must be true: otherwise there is nothing to segment."
     }
 
     if (params.use_projection) {
         assert params.use_cellpose : "use_projection requires use_cellpose: the projection is " +
-            "Cellpose's two input channels, and StarDist reads only one."
+            "Cellpose's two input channels."
         assert params.use_preprocessing : "use_projection requires use_preprocessing: the channels " +
             "come from the marker sheet, which pre-stitched input does not have."
         assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
             "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
-    assert !(params.use_gpu && params.use_stardist) :
-        "use_gpu does not support StarDist: its TensorFlow image is CPU-only. Use Cellpose, or drop use_gpu."
-    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails. ROADMAP: lift when fixed.
-    assert !(params.use_gpu && params.use_instanseg) :
-        "use_gpu does not support InstanSeg yet: sopa's InstanSeg wrapper fails on CUDA. Run InstanSeg " +
-        "on CPU (drop use_gpu), or use Cellpose on GPU."
+    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails, so conf/gpu.config
+    // gives the GPU to Cellpose only. ROADMAP: lift when fixed.
+    if (params.use_gpu && params.use_instanseg) {
+        log.warn("use_gpu applies to Cellpose; InstanSeg runs on CPU (sopa cannot run it on CUDA yet)")
+    }
     assert !(params.keep_projection && !params.use_projection) :
         "keep_projection requires use_projection: without it there is no projected image to keep."
 

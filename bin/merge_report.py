@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render one slide-level HTML QC summary for a dearrayed TMA.
 
-Reads every core's `{core}_qc.json` from qc_metrics.py and writes a single HTML file
-that compares cores side by side, reusing qc_report.py's rendering. Sets no thresholds.
+Reads every core's `{core}_{method}_qc.json` from qc_metrics.py, one method per call, and
+writes a single HTML file that compares cores side by side, reusing qc_report.py's
+rendering. Sets no thresholds.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from qc_report import (  # noqa: E402
     esc,
     hbar_chart,
     load_registration,
+    method_of,
     registration_section,
     status_row,
     table,
@@ -346,13 +348,16 @@ def build(slide: str, cores: list[dict[str, Any]], registration: dict[str, Any] 
             f"{totals['n_empty_patches']} with no cells" if totals["n_patches"] else "not tiled",
         ),
     ]
+    # The method tells apart the reports of two methods; metrics from before 2.0 have none.
+    methods = sorted({m for m in map(method_of, cores) if m})
+    heading = " &middot; ".join(esc(part) for part in [slide, *methods])
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slide QC &middot; {esc(slide)}</title>
+<title>Slide QC &middot; {heading}</title>
 <style>{css()}</style>
 </head>
 <body>
@@ -364,7 +369,7 @@ def build(slide: str, cores: list[dict[str, Any]], registration: dict[str, Any] 
 <div class="wrap">
 <header>
   <div>
-    <h1>Slide QC &middot; {esc(slide)}</h1>
+    <h1>Slide QC &middot; {heading}</h1>
     <div class="sub">{totals["n_cores"]} cores, dearrayed and processed independently,
       merged into one store<br>
       <code>{esc(slide)}_merged.zarr</code></div>

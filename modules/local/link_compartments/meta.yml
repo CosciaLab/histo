@@ -1,0 +1,67 @@
+name: "link_compartments"
+description: Link one method's resolved nuclei to its resolved cells, and derive each cell's nucleus and cytoplasm compartments.
+keywords:
+  - segmentation
+  - nuclei
+  - cytoplasm
+  - geometry
+tools:
+  - "geopandas":
+      description: "Geographic data in pandas: GeoDataFrames of shapely geometries."
+      homepage: "https://geopandas.org"
+      documentation: "https://geopandas.org/en/stable/docs.html"
+      tool_dev_url: "https://github.com/geopandas/geopandas"
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+  - "shapely":
+      description: "Manipulation and analysis of planar geometric objects, based on GEOS."
+      homepage: "https://shapely.readthedocs.io"
+      documentation: "https://shapely.readthedocs.io"
+      tool_dev_url: "https://github.com/shapely/shapely"
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - method:
+        type: string
+        description: Segmentation method, cellpose or instanseg
+    - cells:
+        type: file
+        description: The method's resolved cells from RESOLVE
+        pattern: "*_cells.parquet"
+    - nuclei:
+        type: file
+        description: The method's resolved nuclei from RESOLVE
+        pattern: "*_nuclei.parquet"
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  linked:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - method:
+          type: string
+          description: Segmentation method, passed through
+      - linked/*.parquet:
+          type: file
+          description: |
+            {method}_nuclei (with linked_cell_id), {method}_nucleus_compartment,
+            {method}_cytoplasm and {method}_links, all indexed by cell id
+          pattern: "linked/*.parquet"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

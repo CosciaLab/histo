@@ -1,5 +1,5 @@
 """Tests for bin/project_channels.py: marker selection, the projection maths, and the
-add-then-drop round trip on a real SpatialData store built in tmp_path."""
+projection written into a real SpatialData store built in tmp_path."""
 
 import json
 from pathlib import Path
@@ -224,9 +224,10 @@ def markers(tmp_path, cell="CD45,ECAD,FLAT"):
 
 
 class TestStoreRoundTrip:
-    def test_project_then_drop(self, store, tmp_path, monkeypatch):
+    def test_project_adds_the_element_and_leaves_the_attribute(self, store, tmp_path, monkeypatch):
+        """SEGMENT_PATCH names the projection itself; the attribute stays on the full image."""
         import spatialdata as sd
-        from project_channels import drop, project
+        from project_channels import project
 
         monkeypatch.chdir(tmp_path)
         summary = project(
@@ -234,8 +235,9 @@ class TestStoreRoundTrip:
         )
 
         s = sd.read_zarr(store)
-        assert s.attrs["cell_segmentation_image"] == "sample_projected"
-        assert s.attrs["histo_projection_source"] == "sample"
+        assert sorted(s.images) == ["sample", "sample_projected"]
+        assert s.attrs["cell_segmentation_image"] == "sample"
+        assert "histo_projection_source" not in s.attrs
         level0 = next(iter(s["sample_projected"]["scale0"].values()))
         assert list(level0.c.values) == ["nuclear", "cell"]
         assert level0.dtype == np.uint16
@@ -249,26 +251,6 @@ class TestStoreRoundTrip:
         assert json.loads((tmp_path / "sample_projection.json").read_text()) == summary
         assert (tmp_path / "sample_projection.png").stat().st_size > 0
 
-        drop(store)
-        s = sd.read_zarr(store)
-        assert list(s.images) == ["sample"]
-        assert s.attrs["cell_segmentation_image"] == "sample"
-        assert "histo_projection_source" not in s.attrs
-
-    def test_drop_keep_leaves_the_projection_beside_the_source(self, store, tmp_path, monkeypatch):
-        """keep_projection: AGGREGATE and QC follow the attribute back to the full image."""
-        import spatialdata as sd
-        from project_channels import drop, project
-
-        monkeypatch.chdir(tmp_path)
-        project(store, markers(tmp_path), method="max", low=1, high=99.9, sigma=0, prefix="sample")
-        drop(store, keep=True)
-
-        s = sd.read_zarr(store)
-        assert sorted(s.images) == ["sample", "sample_projected"]
-        assert s.attrs["cell_segmentation_image"] == "sample"
-        assert "histo_projection_source" not in s.attrs
-
     def test_project_is_rerunnable(self, store, tmp_path, monkeypatch):
         """A retried task meets the store it already mutated; it must not stack projections."""
         import spatialdata as sd
@@ -281,7 +263,7 @@ class TestStoreRoundTrip:
 
         s = sd.read_zarr(store)
         assert sorted(s.images) == ["sample", "sample_projected"]
-        assert s.attrs["histo_projection_source"] == "sample"
+        assert s.attrs["cell_segmentation_image"] == "sample"
         # Unsmoothed, the high percentile saturates: the full uint16 range is used.
         level0 = next(iter(s["sample_projected"]["scale0"].values()))
         assert int(level0.data.max().compute()) == 65535
@@ -298,11 +280,28 @@ class TestStoreRoundTrip:
         with pytest.raises(ValueError, match="CD3"):
             project(store, p, method="max", low=1, high=99.9, sigma=0, prefix="sample")
 
-    def test_drop_without_projection_refused(self, store):
-        from project_channels import drop
+    def test_rerun_without_the_attribute_ignores_the_projection(self, tmp_path, monkeypatch):
+        """With no attribute the source is the one image; a retry must not take the projection for it."""
+        import spatialdata as sd
+        from project_channels import project
+        from spatialdata.models import Image2DModel
 
-        with pytest.raises(ValueError, match="no projection"):
-            drop(store)
+        data = np.arange(2 * 32 * 32, dtype=np.uint16).reshape(2, 32, 32)
+        image = Image2DModel.parse(data, dims=("c", "y", "x"), c_coords=["DNA_1", "CD45"])
+        path = tmp_path / "bare.zarr"
+        sd.SpatialData(images={"sample": image}).write(path)
+        sheet = tmp_path / "m.csv"
+        sheet.write_text(
+            "channel_number,cycle_number,marker_name,channel_role,segmentation\n"
+            "1,1,DNA_1,dna,nuclear\n2,1,CD45,marker,cell\n"
+        )
+
+        monkeypatch.chdir(tmp_path)
+        project(path, sheet, method="max", low=1, high=99.9, sigma=0, prefix="bare")
+        summary = project(path, sheet, method="max", low=1, high=99.9, sigma=0, prefix="bare")
+
+        assert summary["source_element"] == "sample"
+        assert sorted(sd.read_zarr(path).images) == ["sample", "sample_projected"]
 
     def test_percentiles_come_from_tissue_only(self, tmp_path, monkeypatch):
         """With tissue segmentation, glass outside the ROI must not set the bounds."""

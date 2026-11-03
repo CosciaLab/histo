@@ -63,6 +63,49 @@ class TestRetargetTable:
             retarget_table(t, {"b": "c1__b"}, "c1")
 
 
+class TestMergeTwoTablesInOneCore:
+    def test_both_tables_survive_retargeted(self, tmp_path):
+        sd = pytest.importorskip("spatialdata", reason="merge() needs spatialdata")
+        import anndata as ad
+        import geopandas as gpd
+        import numpy as np
+        from merge_spatialdata import merge
+        from shapely.geometry import Point
+        from spatialdata.models import Image2DModel, ShapesModel, TableModel
+
+        core = "slide_c1"
+        n = 3
+        sdata = sd.SpatialData()
+        sdata[core] = Image2DModel.parse(np.zeros((1, 8, 8), dtype="uint16"), dims=("c", "y", "x"))
+        tables = {}
+        for method in ("cellpose", "instanseg"):
+            gdf = gpd.GeoDataFrame(geometry=[Point(i, i) for i in range(n)])
+            gdf["radius"] = 1.0
+            sdata[f"{method}_cells"] = ShapesModel.parse(gdf)
+            adata = ad.AnnData(np.ones((n, 2), dtype="float32"))
+            adata.obs["region"] = f"{method}_cells"
+            adata.obs["cell_id"] = np.arange(n)
+            tables[f"{method}_table"] = TableModel.parse(
+                adata, region=f"{method}_cells", region_key="region", instance_key="cell_id"
+            )
+        for name, tbl in tables.items():
+            sdata[name] = tbl
+        core_dir = tmp_path / f"{core}.zarr"
+        sdata.write(core_dir)
+
+        out = tmp_path / "merged.zarr"
+        merge(out, [core_dir])
+        merged = sd.read_zarr(out)
+
+        assert sorted(merged.tables) == [f"{core}{SEP}cellpose_table", f"{core}{SEP}instanseg_table"]
+        for method in ("cellpose", "instanseg"):
+            t = merged.tables[f"{core}{SEP}{method}_table"]
+            want = f"{core}{SEP}{method}_cells"
+            assert want in merged.shapes
+            assert t.uns["spatialdata_attrs"]["region"] == want
+            assert set(t.obs["region"]) == {want}
+
+
 class TestElementNaming:
     """The rule that keeps core identity visible without doubling it."""
 

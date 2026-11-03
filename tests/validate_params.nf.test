@@ -12,7 +12,7 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: true, use_projection: true, cellpose_channels: null ]
+                input[0] = [ use_cellpose: true, use_preprocessing: true, use_projection: true, cellpose_channels: null ]
                 """
             }
         }
@@ -21,25 +21,11 @@ nextflow_function {
         }
     }
 
-    test("projection with StarDist is rejected") {
-        when {
-            function {
-                """
-                input[0] = [ use_cellpose: false, use_stardist: true, use_preprocessing: true, use_projection: true ]
-                """
-            }
-        }
-        then {
-            assert function.failed
-            assert function.stdout.any { it.contains("use_projection requires use_cellpose") }
-        }
-    }
-
     test("projection on pre-stitched input is rejected") {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: false, use_projection: true ]
+                input[0] = [ use_cellpose: true, use_preprocessing: false, use_projection: true ]
                 """
             }
         }
@@ -53,7 +39,7 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: true, use_projection: true, cellpose_channels: 'DAPI' ]
+                input[0] = [ use_cellpose: true, use_preprocessing: true, use_projection: true, cellpose_channels: 'DAPI' ]
                 """
             }
         }
@@ -63,31 +49,31 @@ nextflow_function {
         }
     }
 
-    test("use_gpu with StarDist is rejected") {
+    test("neither method is rejected, naming both") {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: false, use_stardist: true, use_preprocessing: true, use_gpu: true ]
+                input[0] = [ use_cellpose: false, use_instanseg: false ]
                 """
             }
         }
         then {
             assert function.failed
-            assert function.stdout.any { it.contains("use_gpu does not support StarDist") }
+            assert function.stdout.any { it.contains("use_cellpose") && it.contains("use_instanseg") }
         }
     }
 
-    test("use_gpu with InstanSeg is rejected") {
+    test("both methods with use_gpu are accepted") {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: false, use_instanseg: true, instanseg_pixel_size: 0.65, use_preprocessing: true, use_gpu: true ]
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true, instanseg_pixel_size: 0.65,
+                             instanseg_channels: 'DAPI', use_gpu: true ]
                 """
             }
         }
         then {
-            assert function.failed
-            assert function.stdout.any { it.contains("use_gpu does not support InstanSeg") }
+            assert function.success
         }
     }
 
@@ -95,13 +81,80 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: true, use_stardist: false, use_preprocessing: true, use_projection: false, keep_projection: true ]
+                input[0] = [ use_cellpose: true, use_preprocessing: true, use_projection: false, keep_projection: true ]
                 """
             }
         }
         then {
             assert function.failed
             assert function.stdout.any { it.contains("keep_projection requires use_projection") }
+        }
+    }
+
+    test("with both targets off there is nothing to segment") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: false ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("At least one of segment_cells and segment_nuclei") }
+        }
+    }
+
+    test("segment_nuclei with cells is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("segment_nuclei as the text 'true' counts as a target") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("with segment_cells false and segment_nuclei unset there is nothing to segment") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("At least one of segment_cells and segment_nuclei") }
+        }
+    }
+
+    test("segment_nuclei alone is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
         }
     }
 }

@@ -73,11 +73,15 @@ def clustering_exclusions(nuclear: list[str], marker_rows: list[dict[str, Any]] 
     return excluded
 
 
-def boundaries_name(regions: Any) -> str:
-    """The shapes element the table annotates: cellpose_, stardist_ or instanseg_boundaries."""
+def boundaries_name(regions: Any, table: str, shapes: Any) -> str:
+    """The shapes element the table annotates (its region), which must exist in the store."""
     names = sorted({str(r) for r in regions})
     if len(names) != 1:
-        raise ValueError(f"expected the table to annotate one shapes element, found {names}")
+        raise ValueError(f"expected table '{table}' to annotate one shapes element, found {names}")
+    if names[0] not in set(shapes):
+        raise ValueError(
+            f"table '{table}' annotates '{names[0]}', which is not in the store's shapes: {sorted(shapes)}"
+        )
     return names[0]
 
 
@@ -303,6 +307,19 @@ def cluster_tree(labels_by_resolution: list[Any], resolutions: list[float]) -> d
     return {"levels": levels, "edges": edges}
 
 
+def measured_sample(values: Any, max_cells: int, seed: int = 0) -> Any:
+    """Sorted row indices to cluster: rows finite in every channel, subsampled to `max_cells` (0 keeps all).
+
+    A cell covering no pixel centre has NaN means, which scaling and the neighbour graph cannot take.
+    """
+    import numpy as np
+
+    measured = np.nonzero(np.isfinite(np.asarray(values, dtype=np.float64)).all(axis=1))[0]
+    if 0 < max_cells < len(measured):
+        return np.sort(np.random.default_rng(seed).choice(measured, size=max_cells, replace=False))
+    return measured
+
+
 def cluster_cells(
     x: Any,
     channel_names: list[str],
@@ -340,12 +357,14 @@ def cluster_cells(
             positive = values[:, j][values[:, j] > 0]
             cofactors.append(float(max(1.0, np.median(positive))) if positive.size else 1.0)
 
-    rng = np.random.default_rng(seed)
     n_total = values.shape[0]
-    if 0 < max_cells < n_total:
-        sample = np.sort(rng.choice(n_total, size=max_cells, replace=False))
-    else:
-        sample = np.arange(n_total)
+    sample = measured_sample(values, max_cells, seed)
+    n_unmeasured = int((~np.isfinite(values).all(axis=1)).sum())
+    if len(sample) == 0:
+        raise ValueError(
+            f"no cell has a mean intensity in every channel ({n_unmeasured} of {n_total} cover no "
+            "pixel centre), so there is nothing to cluster. Pass --skip-clustering to render crops only."
+        )
     values = values[sample]
 
     import anndata as ad
@@ -455,7 +474,8 @@ def cluster_cells(
         "arcsinh_cofactors": dict(zip(use_channels, [round(c, 1) for c in cofactors], strict=True)),
         "n_cells_clustered": int(len(sample)),
         "n_cells_total": int(n_total),
-        "subsampled": bool(len(sample) < n_total),
+        "n_cells_unmeasured": n_unmeasured,
+        "subsampled": bool(len(sample) < n_total - n_unmeasured),
         "channels_used": list(use_channels),
         "clusters": order,
         "cluster_sizes": sizes,
@@ -598,6 +618,7 @@ def main() -> int:
         "channel_role == 'dna' from the marker sheet. Needed only for a sheet with no "
         "channel_role column, or to override a wrong one.",
     )
+    ap.add_argument("--table", required=True, help="name of the table under tables/, e.g. cellpose_table")
     ap.add_argument("--window", type=int, default=1000, help="crop size in pixels (default: 1000)")
     ap.add_argument("--n-windows", type=int, default=6, help="how many crops (default: 6)")
     ap.add_argument("--cells-per-cluster", type=int, default=5, help="snapshots per cluster (default: 5)")
@@ -638,9 +659,9 @@ def main() -> int:
 
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import numpy as np
-    import zarr
     from qc_metrics import (
         compartments_by_channel,
+        open_table,
         read_column,
         read_marker_cycles,
         segmentation_image_element,
@@ -648,10 +669,13 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     element = segmentation_image_element(args.sdata)
-    table = zarr.open_group(str(args.sdata / "tables" / "table"), mode="r")
+    table = open_table(args.sdata, args.table)
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     centroids = np.asarray(table["obsm"]["spatial"][:])
-    boundaries = read_boundaries(args.sdata, boundaries_name(read_column(table["obs"]["region"])))
+    shapes_dir = args.sdata / "shapes"
+    shapes = [p.name for p in shapes_dir.glob("*")] if shapes_dir.is_dir() else []
+    region = boundaries_name(read_column(table["obs"]["region"]), args.table, shapes)
+    boundaries = read_boundaries(args.sdata, region)
 
     marker_rows = read_marker_cycles(args.markers) if args.markers else None
     nuclear, nuclear_how = select_nuclear_channels(channel_names, marker_rows, args.nuclear_pattern)

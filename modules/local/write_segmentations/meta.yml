@@ -1,0 +1,56 @@
+name: "write_segmentations"
+description: Write the resolved shapes and aggregated tables of one sample into its SpatialData store, in place. The only task that writes them.
+keywords:
+  - spatialdata
+  - zarr
+  - segmentation
+  - write
+tools:
+  - "sopa":
+      description: "Technology-invariant pipeline for image-based spatial omics."
+      homepage: "https://prism-oncology.github.io/sopa"
+      documentation: "https://prism-oncology.github.io/sopa"
+      tool_dev_url: "https://github.com/prism-oncology/sopa"
+      doi: 10.1038/s41467-024-48981-z
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store, modified in place
+        pattern: "*.zarr"
+    - shapes:
+        type: file
+        description: Shapes to write; the element name is the file stem (e.g. cellpose_cells)
+        pattern: "*.parquet"
+    - tables:
+        type: file
+        description: Tables to write; the element name is the file stem (e.g. cellpose_table)
+        pattern: "*_table.h5ad"
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  sdata:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - sdata_path:
+          type: directory
+          description: The same store, with the shapes and tables written
+          pattern: "*.zarr"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Project many mIF channels into a nuclear and a cell channel for 2-channel segmentation.
 
-`project` adds an image element `<source>_projected` with channels `nuclear` and `cell`
-and points sopa's `cell_segmentation_image` at it, so patchify, segmentation and resolve
-use it. `drop` points the attribute back, so AGGREGATE and QC read the full image, and
-deletes the element unless `--keep` (keep_projection) leaves it in the published store.
+Adds an image element `<source>_projected` with channels `nuclear` and `cell`. sopa's
+`cell_segmentation_image` stays on the source: SEGMENT_PATCH names the projection itself,
+and WRITE_SEGMENTATIONS deletes it unless keep_projection.
 
 Each channel is rescaled to [0, 1] by its own percentiles, optionally smoothed, then the
 group is combined by max or mean. Written as uint16: sopa refuses float images. The summary
@@ -24,7 +23,6 @@ from qc_metrics import read_marker_cycles
 
 OUTPUT_CHANNELS = ("nuclear", "cell")
 METHODS = ("max", "mean")
-SOURCE_ATTR = "histo_projection_source"
 SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTATION
 TISSUE_KEY = "region_of_interest"  # written by sopa's tissue segmentation
 # Percentiles are taken on the coarsest pyramid level at least this long, so the cost is
@@ -188,7 +186,7 @@ def project(
     sigma: float,
     prefix: str,
 ) -> dict[str, Any]:
-    """Write the projected element, point segmentation at it, and return the summary."""
+    """Write the projected element and return the summary."""
     import dask.array as da
     import numpy as np
     import spatialdata as sd
@@ -202,12 +200,13 @@ def project(
     groups, how = resolve_groups(read_marker_cycles(markers))
 
     sdata = sd.read_zarr(sdata_path)
-    # A retried task meets the store it already mutated, so the source is read back.
-    source = sdata.attrs.get(SOURCE_ATTR) or sdata.attrs.get(SEGMENTATION_ATTR)
+    # A retried task meets the store it already mutated, so an earlier projection is not a source.
+    source = sdata.attrs.get(SEGMENTATION_ATTR)
     if source is None:
-        if len(sdata.images) != 1:
+        candidates = [name for name in sdata.images if not name.endswith("_projected")]
+        if len(candidates) != 1:
             raise ValueError(f"cannot tell the source image apart: {sorted(sdata.images)}")
-        source = next(iter(sdata.images))
+        source = candidates[0]
     target = f"{source}_projected"
 
     levels = _levels(sdata[source])
@@ -281,9 +280,6 @@ def project(
         sdata.delete_element_from_disk(target)
     sdata[target] = element
     sdata.write_element(target)
-    sdata.attrs[SOURCE_ATTR] = source
-    sdata.attrs[SEGMENTATION_ATTR] = target
-    sdata.write_attrs()
 
     step = max(1, math.ceil(max(shapes[k]) / PREVIEW_MAX_SIDE))
     rgb = preview_rgb(*(p[::step, ::step] for p in preview_planes))
@@ -303,27 +299,6 @@ def project(
     return summary
 
 
-def drop(sdata_path: Path, keep: bool = False) -> None:
-    """Point segmentation back at the source image and, unless `keep`, delete the projected element."""
-    import spatialdata as sd
-
-    sdata = sd.read_zarr(sdata_path)
-    source = sdata.attrs.get(SOURCE_ATTR)
-    if source is None:
-        raise ValueError(f"{sdata_path} has no projection to drop (no '{SOURCE_ATTR}' attribute)")
-    target = f"{source}_projected"
-
-    # The in-memory element must go first: spatialdata refuses to delete backing files.
-    if target in sdata.images and not keep:
-        del sdata[target]
-        sdata.delete_element_from_disk(target)
-    sdata.attrs[SEGMENTATION_ATTR] = source
-    del sdata.attrs[SOURCE_ATTR]
-    sdata.write_attrs()
-    done = "kept" if keep else "dropped"
-    print(f"[project_channels] {sdata_path} :: {done} {target}; segmentation image is {source} again")
-
-
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="command", required=True)
@@ -339,25 +314,18 @@ def main() -> int:
         "--sigma", type=float, default=1.0, help="Gaussian sigma in pixels, 0 for none (default: 1)"
     )
 
-    d = sub.add_parser("drop", help="point segmentation back at the source; delete the projected element")
-    d.add_argument("--sdata", required=True, type=Path, help="SpatialData .zarr store")
-    d.add_argument("--keep", action="store_true", help="leave the projected element in the store")
-
     args = ap.parse_args()
-    if args.command == "project":
-        if not 0 <= args.low_percentile < args.high_percentile <= 100:
-            ap.error("need 0 <= --low-percentile < --high-percentile <= 100")
-        project(
-            args.sdata,
-            args.markers,
-            method=args.method,
-            low=args.low_percentile,
-            high=args.high_percentile,
-            sigma=args.sigma,
-            prefix=args.prefix,
-        )
-    else:
-        drop(args.sdata, keep=args.keep)
+    if not 0 <= args.low_percentile < args.high_percentile <= 100:
+        ap.error("need 0 <= --low-percentile < --high-percentile <= 100")
+    project(
+        args.sdata,
+        args.markers,
+        method=args.method,
+        low=args.low_percentile,
+        high=args.high_percentile,
+        sigma=args.sigma,
+        prefix=args.prefix,
+    )
     return 0
 
 

@@ -12,7 +12,7 @@ process PROJECT_CHANNELS {
     tuple val(meta), path(sdata_path), path(markers)
 
     output:
-    // Mutates the store in place: adds <image>_projected and points segmentation at it.
+    // Mutates the store in place: adds <image>_projected; the segmentation attribute is unchanged.
     tuple val(meta), path(sdata_path)                 , emit: sdata
     tuple val(meta), path("*_projection.{png,json}")  , emit: preview
     path "versions.yml"                               , emit: versions

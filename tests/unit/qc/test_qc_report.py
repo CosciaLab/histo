@@ -226,6 +226,16 @@ class TestBuild:
         assert page.startswith("<!DOCTYPE html>")
         assert page.rstrip().endswith("</html>")
 
+    def test_heading_names_the_method(self):
+        """Two methods give two reports per sample; the heading tells them apart."""
+        m = minimal_metrics()
+        m["table"] = "instanseg_table"
+        assert "<h1>QC report &middot; s &middot; instanseg</h1>" in build(m)
+
+    def test_heading_without_a_table_is_unchanged(self):
+        """Metrics from before the table was recorded still render."""
+        assert "<h1>QC report &middot; s</h1>" in build(minimal_metrics())
+
     def test_entities_are_not_double_escaped(self):
         """The bug a rendered page showed immediately.
 
@@ -307,6 +317,22 @@ class TestBuild:
     def test_json_round_trip(self):
         """The renderer's only input is the file on disk, so it must survive it."""
         assert build(json.loads(json.dumps(minimal_metrics()))).startswith("<!DOCTYPE")
+
+    def test_linking_is_shown_with_nuclei(self):
+        m = minimal_metrics()
+        m["linking"] = {
+            "cells_by_n_nuclei": {"0": 1, "1": 2, "2+": 1},
+            "unlinked_nuclei": 7,
+            "empty_cytoplasm": 3,
+        }
+        page = build(m)
+        assert "<h2>Nuclei per cell</h2>" in page
+        assert "<td>Nuclei linked to no cell</td><td>7</td>" in page
+        assert "<td>Cells whose nuclei fill them (no cytoplasm)</td><td>3</td>" in page
+        assert "<td>2+</td><td>1</td>" in page
+
+    def test_no_linking_section_without_nuclei(self):
+        assert "Nuclei per cell" not in build(minimal_metrics())
 
     def test_hero_number_is_present_unabbreviated(self):
         """The one number the page leads with is exact, not compacted."""
@@ -450,3 +476,24 @@ class TestExclusionReasons:
     def test_nothing_excluded_says_nothing(self, tmp_path):
         page = build(minimal_metrics(), images=self.clustering(excluded_channels=[]), asset_dir=tmp_path)
         assert "Excluded from clustering" not in page
+
+
+class TestUnmeasuredCells:
+    """Cells covering no pixel centre have no mean intensity and are not clustered."""
+
+    clustering = TestExclusionReasons.clustering
+
+    def test_unmeasured_cells_are_counted(self, tmp_path):
+        page = build(minimal_metrics(), images=self.clustering(n_cells_unmeasured=3), asset_dir=tmp_path)
+        assert "3 cells cover no pixel centre, so have no intensities, and are not clustered." in page
+
+    def test_none_unmeasured_says_nothing(self, tmp_path):
+        page = build(minimal_metrics(), images=self.clustering(n_cells_unmeasured=0), asset_dir=tmp_path)
+        assert "cover no pixel centre" not in page
+
+    def test_subsample_is_drawn_from_measured_cells(self, tmp_path):
+        images = self.clustering(
+            n_cells_clustered=5, n_cells_total=100, n_cells_unmeasured=20, subsampled=True
+        )
+        page = build(minimal_metrics(), images=images, asset_dir=tmp_path)
+        assert "random 5-cell subsample of the 80 measured cells" in page

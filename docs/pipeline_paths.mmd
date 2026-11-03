@@ -1,8 +1,8 @@
 %%metro title: CosciaLab/histo: three paths through the pipeline
 %%metro style: light
-%%metro line: mif | mIF slide | #2a78d6
-%%metro line: backsub | WSI, background subtracted | #eb6834
-%%metro line: tma | TMA, dearrayed | #1baf7a
+%%metro line: mif | mIF slide, both methods, cells and nuclei | #2a78d6
+%%metro line: backsub | WSI, background subtracted, Cellpose cells | #eb6834
+%%metro line: tma | TMA, dearrayed, InstanSeg cells and nuclei | #1baf7a
 
 graph LR
     subgraph preprocessing [Preprocessing]
@@ -19,19 +19,26 @@ graph LR
     subgraph store [SpatialData store]
         TO_SPATIALDATA([TO_SPATIALDATA])
         SET_CHANNEL_NAMES([SET_CHANNEL_NAMES])
+        MAKE_IMAGE_PATCHES([MAKE_IMAGE_PATCHES])
 
         TO_SPATIALDATA -->|mif, backsub, tma| SET_CHANNEL_NAMES
+        SET_CHANNEL_NAMES -->|mif, backsub, tma| MAKE_IMAGE_PATCHES
     end
 
     subgraph segmentation [Segmentation]
-        MAKE_IMAGE_PATCHES([MAKE_IMAGE_PATCHES])
-        PATCH_SEGMENTATION_CELLPOSE([PATCH_SEGMENTATION_CELLPOSE])
-        RESOLVE_CELLPOSE([RESOLVE_CELLPOSE])
+        SEGMENT_PATCH_CELLPOSE([SEGMENT_PATCH_CELLPOSE])
+        SEGMENT_PATCH_INSTANSEG([SEGMENT_PATCH_INSTANSEG])
+        RESOLVE([RESOLVE])
+        LINK_COMPARTMENTS([LINK_COMPARTMENTS])
         AGGREGATE([AGGREGATE])
+        WRITE_SEGMENTATIONS([WRITE_SEGMENTATIONS])
 
-        MAKE_IMAGE_PATCHES -->|mif, backsub, tma| PATCH_SEGMENTATION_CELLPOSE
-        PATCH_SEGMENTATION_CELLPOSE -->|mif, backsub, tma| RESOLVE_CELLPOSE
-        RESOLVE_CELLPOSE -->|mif, backsub, tma| AGGREGATE
+        SEGMENT_PATCH_CELLPOSE -->|mif, backsub| RESOLVE
+        SEGMENT_PATCH_INSTANSEG -->|mif, tma| RESOLVE
+        RESOLVE -->|mif, tma| LINK_COMPARTMENTS
+        RESOLVE -->|backsub| AGGREGATE
+        LINK_COMPARTMENTS -->|mif, tma| AGGREGATE
+        AGGREGATE -->|mif, backsub, tma| WRITE_SEGMENTATIONS
     end
 
     subgraph output [Output]
@@ -46,6 +53,7 @@ graph LR
         QC_IMAGES([QC_IMAGES])
         QC_REPORT([QC_REPORT])
         MERGE_REPORT([MERGE_REPORT])
+        COMPARE_SEGMENTATIONS([COMPARE_SEGMENTATIONS])
 
         QC_METRICS -->|mif, backsub, tma| QC_REPORT
         QC_IMAGES -->|mif, backsub, tma| QC_REPORT
@@ -56,11 +64,13 @@ graph LR
     ASHLAR -->|mif| TO_SPATIALDATA
     BACKSUB -->|backsub| TO_SPATIALDATA
     COREOGRAPH -->|tma| TO_SPATIALDATA
-    SET_CHANNEL_NAMES -->|mif, backsub, tma| MAKE_IMAGE_PATCHES
-    AGGREGATE -->|mif, backsub| PUBLISH_SPATIALDATA
-    AGGREGATE -->|tma| MERGE_SPATIALDATA
-    AGGREGATE -->|mif, backsub, tma| QC_METRICS
-    AGGREGATE -->|mif, backsub, tma| QC_IMAGES
+    MAKE_IMAGE_PATCHES -->|mif, backsub| SEGMENT_PATCH_CELLPOSE
+    MAKE_IMAGE_PATCHES -->|mif, tma| SEGMENT_PATCH_INSTANSEG
+    WRITE_SEGMENTATIONS -->|mif, backsub| PUBLISH_SPATIALDATA
+    WRITE_SEGMENTATIONS -->|tma| MERGE_SPATIALDATA
+    WRITE_SEGMENTATIONS -->|mif, backsub, tma| QC_METRICS
+    WRITE_SEGMENTATIONS -->|mif, backsub, tma| QC_IMAGES
+    WRITE_SEGMENTATIONS -->|mif| COMPARE_SEGMENTATIONS
 
     %% One edge is missing on purpose. Wherever backsub runs, the pre-subtraction
     %% image also reaches QC_METRICS, so the comparison before and after
@@ -69,8 +79,8 @@ graph LR
     %% open space", so it is described in docs/CONTRIBUTING.md instead. The same
     %% holds for ASHLAR's QC directory, which reaches QC_REPORT and MERGE_REPORT.
     %%
-    %% The three lines drawn here are mIF, WSI-with-backsub and TMA. A TMA run with
-    %% backsub is a fourth combination and is not one of them: it would run
+    %% The segmentation on each line is an example: any methods and targets fit any line.
+    %% A TMA run with backsub is a fourth combination and is not drawn: it would run
     %% COREOGRAPH then BACKSUB, per core. COREOGRAPH precedes BACKSUB in the
     %% subworkflow so that each core is subtracted on its own and keeps an
     %% unsubtracted twin of matching shape for QC to compare against.

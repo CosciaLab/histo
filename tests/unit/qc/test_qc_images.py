@@ -11,6 +11,7 @@ from qc_images import (
     boundaries_name,
     clustering_exclusions,
     composite,
+    measured_sample,
     pick_windows,
     select_nuclear_channels,
     stretch,
@@ -269,11 +270,45 @@ class TestClusteringExclusions:
 
 
 class TestBoundariesName:
-    @pytest.mark.parametrize("key", ["cellpose_boundaries", "stardist_boundaries", "instanseg_boundaries"])
-    def test_follows_the_backend(self, key):
-        """QC_IMAGES must draw whichever backend ran, not assume Cellpose."""
-        assert boundaries_name([key, key]) == key
+    @pytest.mark.parametrize("region", ["instanseg_cells", "cellpose_nuclei", "cellpose_boundaries"])
+    def test_is_the_tables_region(self, region):
+        assert boundaries_name([region, region], "t", [region, "other"]) == region
 
     def test_more_than_one_region_is_an_error(self):
-        with pytest.raises(ValueError, match="one shapes element"):
-            boundaries_name(["cellpose_boundaries", "instanseg_boundaries"])
+        with pytest.raises(ValueError, match="'t'.*one shapes element"):
+            boundaries_name(["a", "b"], "t", ["a", "b"])
+
+    def test_no_region_is_an_error(self):
+        with pytest.raises(ValueError, match="'t'.*one shapes element"):
+            boundaries_name([], "t", ["a"])
+
+    def test_region_absent_from_store_is_an_error(self):
+        with pytest.raises(ValueError, match="'t'.*gone_cells"):
+            boundaries_name(["gone_cells"], "t", ["a"])
+
+
+class TestMeasuredSample:
+    def test_unmeasured_rows_are_left_out(self):
+        """A cell covering no pixel centre has NaN means, which clustering cannot take."""
+        x = np.array([[1.0, 2.0], [np.nan, np.nan], [3.0, 4.0]])
+        assert measured_sample(x, max_cells=0).tolist() == [0, 2]
+
+    def test_subsample_draws_from_measured_rows_only(self):
+        x = np.ones((10, 2))
+        x[::2] = np.nan
+        sample = measured_sample(x, max_cells=3)
+        assert len(sample) == 3 and all(i % 2 == 1 for i in sample)
+        assert sample.tolist() == sorted(sample.tolist())
+
+    def test_no_measured_row_is_a_named_error(self):
+        """Raised before scanpy is imported, so this runs without it."""
+        from qc_images import cluster_cells
+
+        x = np.full((4, 2), np.nan)
+        with pytest.raises(ValueError, match="no cell has a mean intensity in every channel"):
+            cluster_cells(x, ["a", "b"], ["a", "b"], cofactor=1.0, resolutions=[0.5], max_cells=0)
+
+    def test_same_draw_as_before_when_every_row_is_measured(self):
+        """Index order of the old draw, so pinned resolutions on existing runs still apply."""
+        want = np.sort(np.random.default_rng(0).choice(100, size=10, replace=False))
+        assert measured_sample(np.ones((100, 2)), max_cells=10).tolist() == want.tolist()
