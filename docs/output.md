@@ -131,6 +131,10 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 
 The `{sample}.zarr` directory contains a [SpatialData](https://spatialdata.scverse.org/en/stable/) object, where the `sample` name is either (i) specified by the samplesheet, or (ii) based on the name of the corresponding input directory.
 
+Shapes and tables named `{cellpose,instanseg}_{cells,nuclei,cytoplasm,table}` belong to the
+pipeline: each run replaces those it writes and removes the rest, logging each. Do not give your
+own elements these names.
+
 Cell ids are `{image}_{m}_cells_{n}` (`{image}_{m}_nuclei_{n}` for nuclei), unique within a
 store: the shapes' index and the table's `obs_names` and `obs['cell_id']` are the same ids.
 `{m}_table` holds:
@@ -145,7 +149,8 @@ store: the shapes' index and the table's `obs_names` and `obs['cell_id']` are th
 - `obsm['spatial']`: centroids of the unexpanded cells.
 - `uns['segmentation']`: the settings each segmentation was requested with, keyed by name
   (`{m}_cells`, `{m}_nuclei`). Unset options are absent; sopa's defaults applied.
-  `{m}_kwargs` is kept as given, as text, in `method_kwargs_extra`.
+  `{m}_kwargs` is kept as given, as text, in `method_kwargs_extra`. Lists such as `channels`
+  read back as numpy arrays of `StringDType`, not Python lists.
 
 NaN means "not measured", 0 means "measured, nothing there":
 

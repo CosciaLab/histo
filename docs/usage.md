@@ -261,6 +261,14 @@ All three temp variables are needed for different consumers: `TMPDIR` for tools 
 containers, `NXF_TEMP` for Nextflow's own scratch, and `java.io.tmpdir` for the JVM,
 which is the one that fails first and least helpfully.
 
+### `-resume` and the store
+
+Tasks that write a sample's store in place (e.g. `WRITE_SEGMENTATIONS`) are cached like any
+other. After a later run has changed the store, `-resume` back to earlier parameters reuses those
+tasks and does not restore the earlier store; nor does a Cellpose patch task find the projection
+a later run deleted ("projection removed by an earlier run"). Rerun those samples without
+`-resume`.
+
 ### GPU segmentation
 
 `use_gpu: true` gives each Cellpose patch task one GPU. It applies to Cellpose only: sopa's
