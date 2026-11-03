@@ -8,7 +8,7 @@ method at IoU >= MIN_IOU; pairs are taken greedily, highest IoU first, so each c
 even where cells of one method overlap.
 
 JSON keys:
-  sample      the prefix (meta.id)
+  sample      the prefix (meta.sample)
   image       image element the crops are drawn from
   channel     channel shown in grey in the crops
   min_iou     IoU a pair needs to match
@@ -45,28 +45,37 @@ def grey_channel(names: list[str]) -> tuple[int, str]:
     return 0, names[0]
 
 
-def _geoms(frame: Any) -> Any:
-    """Geometries as an array, invalid ones made valid (polygonal parts only); None where empty."""
+def repaired(frame: Any) -> Any:
+    """A copy of `frame` with invalid polygons made valid (polygonal parts only), None where empty."""
     import numpy as np
     import shapely
     from link_compartments import polygonal
 
-    geoms = np.asarray(frame.geometry.array, dtype=object)
+    geoms = _array(frame)
     # An invalid polygon (e.g. self-intersecting) makes GEOS overlays raise.
     invalid = ~shapely.is_valid(geoms) & ~shapely.is_missing(geoms)
     geoms[invalid] = [polygonal(g) for g in shapely.make_valid(geoms[invalid])]
     geoms[np.array([g is None or g.is_empty for g in geoms], dtype=bool)] = None
-    return geoms
+    out = frame.copy()
+    out[frame.geometry.name] = geoms
+    return out
+
+
+def _array(frame: Any) -> Any:
+    """The geometries as a new object array; np.asarray would share the frame's own buffer."""
+    import numpy as np
+
+    return np.array(frame.geometry.array, dtype=object, copy=True)
 
 
 def n_matched(a: Any, b: Any, min_iou: float = MIN_IOU) -> int:
-    """Pairs of a and b matched one-to-one at IoU >= min_iou, highest IoU first."""
+    """Pairs of a and b matched one-to-one at IoU >= min_iou, highest IoU first; frames from repaired()."""
     import numpy as np
     import shapely
 
     if len(a) == 0 or len(b) == 0:
         return 0
-    ga, gb = _geoms(a), _geoms(b)
+    ga, gb = _array(a), _array(b)
     # STRtree: only touching pairs, never all pairs (whole slides have ~1e6 cells).
     ia, ib = shapely.STRtree(gb).query(ga, predicate="intersects")
     inter = shapely.area(shapely.intersection(ga[ia], gb[ib]))
@@ -85,11 +94,11 @@ def n_matched(a: Any, b: Any, min_iou: float = MIN_IOU) -> int:
 
 def match_share(a: Any, b: Any, min_iou: float = MIN_IOU) -> float:
     """Share of a's cells with a one-to-one match in b at IoU >= min_iou; NaN when a is empty."""
-    return n_matched(a, b, min_iou) / len(a) if len(a) else math.nan
+    return n_matched(repaired(a), repaired(b), min_iou) / len(a) if len(a) else math.nan
 
 
 def summarise(frames: dict[str, Any], min_iou: float = MIN_IOU) -> dict[str, Any]:
-    """Counts, median areas and both match shares; JSON-ready, with null for undefined values."""
+    """Counts, median areas and both match shares of frames from repaired(); null where undefined."""
     import numpy as np
     import shapely
 
@@ -100,7 +109,7 @@ def summarise(frames: dict[str, Any], min_iou: float = MIN_IOU) -> dict[str, Any
     methods = {}
     for name, frame in ((ma, a), (mb, b)):
         n = len(frame)
-        areas = shapely.area(_geoms(frame)).astype(float)
+        areas = shapely.area(_array(frame)).astype(float)
         areas = areas[~np.isnan(areas)]  # empty geometries have no area
         methods[name] = {
             "n_cells": n,
@@ -111,11 +120,11 @@ def summarise(frames: dict[str, Any], min_iou: float = MIN_IOU) -> dict[str, Any
 
 
 def centroids(frame: Any) -> Any:
-    """(n, 2) x, y centroids of the non-empty geometries."""
+    """(n, 2) x, y centroids of the non-empty geometries of a frame from repaired()."""
     import numpy as np
     import shapely
 
-    geoms = _geoms(frame)
+    geoms = _array(frame)
     geoms = geoms[[g is not None for g in geoms]]
     return shapely.get_coordinates(shapely.centroid(geoms)) if len(geoms) else np.zeros((0, 2))
 
@@ -289,7 +298,8 @@ def main() -> int:
 
     element = segmentation_image_element(args.sdata)
     channel_index, channel = grey_channel(image_channel_labels(args.sdata, element))
-    frames = {m: read_boundaries(args.sdata, f"{m}_cells") for m in METHODS}
+    # Repaired once here; summarise, centroids and the crops all read the repaired copies.
+    frames = {m: repaired(read_boundaries(args.sdata, f"{m}_cells")) for m in METHODS}
 
     summary = {"sample": args.prefix, "image": element, "channel": channel, **summarise(frames)}
     with tempfile.TemporaryDirectory() as tmp:

@@ -55,4 +55,30 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("use_qc false: no comparison either") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+                use_qc = false
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            // qc/ may not exist at all; null means nothing was published there.
+            def published = (new File("$outputDir/qc").list() ?: []) as List
+
+            assertAll(
+                { assert workflow.success },
+                { assert ran.count { it.contains("WRITE_SEGMENTATIONS") } == 1 },
+                { assert !ran.any { it.contains("COMPARE_SEGMENTATIONS") } },
+                { assert !published.any { it.contains('_comparison.') } }
+            )
+        }
+    }
 }

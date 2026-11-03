@@ -72,6 +72,29 @@ def test_invalid_polygon_is_repaired_not_raised():
     assert match_share(frame([bowtie]), frame([box(0, 0, 10, 10)])) == 1.0
 
 
+def test_input_frames_are_left_unchanged():
+    from shapely.geometry import Polygon
+
+    bowtie = Polygon([(0, 0), (10, 10), (10, 0), (0, 10)])
+    a, b = frame([bowtie]), frame([box(0, 0, 10, 10)])
+    match_share(a, b)
+    assert a.geometry.iloc[0] is bowtie
+    assert not a.geometry.iloc[0].is_valid
+
+
+def test_repaired_is_a_valid_copy():
+    from compare_segmentations import repaired
+    from shapely.geometry import Polygon
+
+    bowtie = Polygon([(0, 0), (10, 10), (10, 0), (0, 10)])
+    a = frame([bowtie, box(0, 0, 1, 1)])
+    out = repaired(a)
+    assert out.geometry.is_valid.all()
+    assert out.geometry.iloc[0].area == pytest.approx(50.0)
+    assert list(out.index) == list(a.index)
+    assert a.geometry.iloc[0] is bowtie
+
+
 class TestGreyChannel:
     def test_first_nuclear_looking_name(self):
         assert grey_channel(["CD3", "Hoechst", "DAPI_2"]) == (1, "Hoechst")
