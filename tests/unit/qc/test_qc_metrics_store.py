@@ -314,3 +314,11 @@ class TestLinking:
         (store / "tables" / "table").rename(store / "tables" / "m_table")
         with pytest.raises(FileNotFoundError, match="m_nuclei"):
             collect(store, table="m_table", min_cell_area=10.0, markers=None)
+
+    def test_no_nucleus_anywhere_and_no_element_is_zero_unlinked(self, store):
+        """An empty nuclei frame writes no element; with no linked nucleus none is expected."""
+        add_links(store, "table", [0, 0, 0, 0], [np.nan] * 4, "other_nuclei", [])
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        m = collect(store, table="m_table", min_cell_area=10.0, markers=None)
+        assert m["linking"]["unlinked_nuclei"] == 0
+        assert m["linking"]["cells_by_n_nuclei"] == {"0": 4, "1": 0, "2+": 0}

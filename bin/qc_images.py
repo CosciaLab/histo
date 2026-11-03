@@ -360,6 +360,11 @@ def cluster_cells(
     n_total = values.shape[0]
     sample = measured_sample(values, max_cells, seed)
     n_unmeasured = int((~np.isfinite(values).all(axis=1)).sum())
+    if len(sample) == 0:
+        raise ValueError(
+            f"no cell has a mean intensity in every channel ({n_unmeasured} of {n_total} cover no "
+            "pixel centre), so there is nothing to cluster. Pass --skip-clustering to render crops only."
+        )
     values = values[sample]
 
     import anndata as ad

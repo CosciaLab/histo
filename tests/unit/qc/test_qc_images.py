@@ -300,6 +300,14 @@ class TestMeasuredSample:
         assert len(sample) == 3 and all(i % 2 == 1 for i in sample)
         assert sample.tolist() == sorted(sample.tolist())
 
+    def test_no_measured_row_is_a_named_error(self):
+        """Raised before scanpy is imported, so this runs without it."""
+        from qc_images import cluster_cells
+
+        x = np.full((4, 2), np.nan)
+        with pytest.raises(ValueError, match="no cell has a mean intensity in every channel"):
+            cluster_cells(x, ["a", "b"], ["a", "b"], cofactor=1.0, resolutions=[0.5], max_cells=0)
+
     def test_same_draw_as_before_when_every_row_is_measured(self):
         """Index order of the old draw, so pinned resolutions on existing runs still apply."""
         want = np.sort(np.random.default_rng(0).choice(100, size=10, replace=False))

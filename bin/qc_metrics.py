@@ -610,14 +610,19 @@ def collect(
     if "n_nuclei" in table["obs"]:
         nuclei_name = f"{table_name.removesuffix('_table')}_nuclei"
         nuclei_file = sdata_path / "shapes" / nuclei_name / "shapes.parquet"
-        if not nuclei_file.exists():
-            raise FileNotFoundError(f"table '{table_name}' has n_nuclei but {nuclei_file} does not exist")
-        links = pq.read_table(nuclei_file, columns=["linked_cell_id"]).column("linked_cell_id")
-        out["linking"] = linking_metrics(
-            read_column(table["obs"]["n_nuclei"]),
-            read_column(table["obs"]["cytoplasm_area"]),
-            links.null_count,
-        )
+        n_nuclei = read_column(table["obs"]["n_nuclei"])
+        if nuclei_file.exists():
+            unlinked = (
+                pq.read_table(nuclei_file, columns=["linked_cell_id"]).column("linked_cell_id").null_count
+            )
+        elif (np.asarray(n_nuclei) == 0).all():
+            # The writer stores no element for an empty nuclei frame, so there is nothing unlinked.
+            unlinked = 0
+        else:
+            raise FileNotFoundError(
+                f"table '{table_name}' has linked nuclei but {nuclei_file} does not exist"
+            )
+        out["linking"] = linking_metrics(n_nuclei, read_column(table["obs"]["cytoplasm_area"]), unlinked)
 
     patches_file = sdata_path / "shapes" / "image_patches" / "shapes.parquet"
     if patches_file.exists():

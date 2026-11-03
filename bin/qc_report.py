@@ -1454,13 +1454,16 @@ def clustering_section(images: dict[str, Any], asset_dir: Path) -> str:
         ]
         for i, c in enumerate(clustering["clusters"])
     ]
+    unmeasured = clustering.get("n_cells_unmeasured", 0)
     subsample_note = (
-        f" Clustered on a random {thousands(clustering['n_cells_clustered'])}-cell subsample of "
-        f"{thousands(clustering['n_cells_total'])}, because the neighbour graph costs minutes at "
-        f"full size and cluster structure does not sharpen past a few tens of thousands."
+        f" Clustered on a random {thousands(clustering['n_cells_clustered'])}-cell subsample of the "
+        f"{thousands(clustering['n_cells_total'] - unmeasured)} measured cells, because the neighbour graph "
+        f"costs minutes at full size and cluster structure does not sharpen past a few tens of thousands."
         if clustering.get("subsampled")
         else ""
     )
+    if unmeasured:
+        subsample_note += f" {thousands(unmeasured)} cells cover no pixel centre, so have no intensities, and are not clustered."
 
     tree_block = ""
     if clustering.get("tree") and clustering.get("sweep"):

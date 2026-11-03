@@ -476,3 +476,24 @@ class TestExclusionReasons:
     def test_nothing_excluded_says_nothing(self, tmp_path):
         page = build(minimal_metrics(), images=self.clustering(excluded_channels=[]), asset_dir=tmp_path)
         assert "Excluded from clustering" not in page
+
+
+class TestUnmeasuredCells:
+    """Cells covering no pixel centre have no mean intensity and are not clustered."""
+
+    clustering = TestExclusionReasons.clustering
+
+    def test_unmeasured_cells_are_counted(self, tmp_path):
+        page = build(minimal_metrics(), images=self.clustering(n_cells_unmeasured=3), asset_dir=tmp_path)
+        assert "3 cells cover no pixel centre, so have no intensities, and are not clustered." in page
+
+    def test_none_unmeasured_says_nothing(self, tmp_path):
+        page = build(minimal_metrics(), images=self.clustering(n_cells_unmeasured=0), asset_dir=tmp_path)
+        assert "cover no pixel centre" not in page
+
+    def test_subsample_is_drawn_from_measured_cells(self, tmp_path):
+        images = self.clustering(
+            n_cells_clustered=5, n_cells_total=100, n_cells_unmeasured=20, subsampled=True
+        )
+        page = build(minimal_metrics(), images=images, asset_dir=tmp_path)
+        assert "random 5-cell subsample of the 80 measured cells" in page

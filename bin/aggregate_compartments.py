@@ -232,7 +232,8 @@ def parse_args(argv=None):
         "--expand-radius-ratio",
         type=float,
         default=0,
-        help="expand cells for measuring (cell compartment only); obs area and obsm spatial stay unexpanded",
+        help="expand the measured objects (--shapes: cells, or nuclei in a nuclei-only run) for X only, "
+        "not the layers; obs area and obsm spatial stay unexpanded",
     )
     parser.add_argument("--output", required=True, help="h5ad file to write")
     args = parser.parse_args(argv)
