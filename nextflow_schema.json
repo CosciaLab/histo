@@ -98,7 +98,7 @@
                 "coreograph_args": {
                     "type": "string",
                     "description": "Command-line arguments for UNetCoreograph. Setting this skips the downsample sweep.",
-                    "help_text": "Leave unset to let the pipeline choose --downsampleFactor from tma_expected_cores and tma_core_diameter_mm (it then runs --channel 0 --buffer 2 --sensitivity 0.3). Set it, for example to '--downsampleFactor 4 --channel 0 --buffer 2', to run Coreograph exactly as given.",
+                    "help_text": "Leave unset to let the pipeline choose --downsampleFactor from tma_expected_cores and tma_core_diameter_mm (it then runs on the marker sheet's first dna channel with --buffer 2 --sensitivity 0.3). Set it, for example to '--downsampleFactor 4 --channel 0 --buffer 2', to run Coreograph exactly as given.",
                     "fa_icon": "fas fa-terminal"
                 }
             }

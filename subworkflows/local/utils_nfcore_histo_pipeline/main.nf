@@ -431,6 +431,12 @@ def flagValue(args, flags) {
     }
 }
 
+// Image index of the first dna channel by channel_number; the Coreograph sweep dearrays on it.
+// Rows may come from splitCsv, so channel_number can be text.
+def dearrayChannel(rows) {
+    return rows.sort(false) { it.channel_number as Integer }.findIndexOf { it.channel_role == 'dna' }
+}
+
 // Ashlar and Coreograph take the nuclear channel by index from *_args, not from the sheet.
 // A non-dna channel there registers or dearrays on a marker without any error, so stop.
 def checkReferenceChannels(rows, sample = null) {
@@ -452,7 +458,8 @@ def checkReferenceChannels(rows, sample = null) {
     }
 
     // Coreograph reads one index (default 0, -1 for the last) of the stitched image, all channels.
-    if (params.use_tma_dearray) {
+    // Only with coreograph_args: without them the sweep dearrays on the first dna channel itself.
+    if (params.use_tma_dearray && params.coreograph_args) {
         def index = flagValue(params.coreograph_args, ['--channel']) ?: 0
         def ch = atIndex(rows.sort(false) { it.channel_number }, index)
         if (ch?.channel_role != 'dna') {

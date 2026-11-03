@@ -7,6 +7,7 @@ include { BACKSUB    } from '../../../modules/nf-core/backsub/main'
 include { COREOGRAPH } from '../../../modules/nf-core/coreograph/main'
 include { COREOGRAPH_DETECT } from '../../../modules/local/coreograph_detect/main'
 include { COREOGRAPH_SELECT } from '../../../modules/local/coreograph_select/main'
+include { dearrayChannel    } from '../utils_nfcore_histo_pipeline'
 
 workflow PREPROCESS_IMAGES {
     take:
@@ -58,10 +59,14 @@ workflow PREPROCESS_IMAGES {
         def sweep_factors = [3, 4, 5, 6, 7]
         ch_to_dearray = ASHLAR.out.tif
         if (!params.coreograph_args) {
-            COREOGRAPH_DETECT(ASHLAR.out.tif.combine(channel.fromList(sweep_factors)))
+            // Each slide is dearrayed on its sheet's first dna channel; conf/modules.config reads it.
+            ch_sweep = ASHLAR.out.tif
+                .join(ch_markersheet.map { meta, sheet -> [meta.subMap('id'), dearrayChannel(sheet.splitCsv(header: true))] })
+                .map { meta, image, dna -> [meta + [dearray_channel: dna], image] }
+            COREOGRAPH_DETECT(ch_sweep.combine(channel.fromList(sweep_factors)))
             // size: releases each slide as soon as its own factors finish.
             COREOGRAPH_SELECT(COREOGRAPH_DETECT.out.results.groupTuple(size: sweep_factors.size()))
-            ch_to_dearray = ASHLAR.out.tif
+            ch_to_dearray = ch_sweep
                 .join(COREOGRAPH_SELECT.out.selection)
                 .map { meta, image, selection ->
                     def choice = new groovy.json.JsonSlurper().parse(selection)

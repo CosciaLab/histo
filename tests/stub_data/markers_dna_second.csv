@@ -1,0 +1,5 @@
+channel_number,cycle_number,marker_name,channel_role,channel_compartment
+1,1,AF_bg,autofluorescence,
+2,1,DNA_6,dna,nuclear
+3,2,ELANE,marker,cytoplasm
+4,2,DNA_7,dna,nuclear

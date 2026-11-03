@@ -57,9 +57,10 @@ Startup validation, when `use_tma_dearray`:
 
 - Sweep mode (`coreograph_args` empty): both `tma_*` params required; the error names both and
   mentions `coreograph_args` as the manual alternative.
-- The sweep runs Coreograph's defaults: `--channel 0 --buffer 2 --sensitivity 0.3`. The
-  existing reference-DNA check already defaults to index 0, so it still applies. A user whose
-  nuclear stain is not channel 0 uses manual mode.
+- The sweep runs `--buffer 2 --sensitivity 0.3` on each slide's first `dna` channel by
+  `channel_number` (`meta.dearray_channel`). mDVP17 has four background channels before DAPI,
+  so a fixed channel 0 would dearray on autofluorescence. The reference-DNA check covers
+  Coreograph only with `coreograph_args`.
 
 ## Scripts
 
@@ -113,7 +114,7 @@ ASHLAR.out.tif ─join─────────────────┘
 ```
 
 - k reaches Coreograph through meta. `conf/modules.config` builds args per task:
-  sweep mode `"--channel 0 --buffer 2 --downsampleFactor ${meta.downsample_factor}"`,
+  sweep mode `"--channel ${meta.dearray_channel} --buffer 2 ..."`,
   manual mode `params.coreograph_args`.
 - Cores inherit `downsample_factor` in their meta, so each records the k that produced it.
 - Manual mode: the graph is today's, unchanged.
@@ -154,5 +155,4 @@ and `CONTRIBUTING` say so, and hooks lint the schema after each agent edit
 
 - The core segmentation as GeoJSON shapes in the SpatialData.
 - The overlay panel in the QC report.
-- Choosing the sweep channel from the marker sheet's `dna` role instead of index 0.
 - Sweeping `--sensitivity` or `--buffer`.

@@ -73,9 +73,10 @@ warning. Keep at least one `dna` channel, and do not name a removed channel in `
 or `instanseg_channels`; both are rejected at startup.
 
 Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_args`, default
-0), and Coreograph dearrays on one channel of the stitched image (channel 0, or `--channel` in
-`coreograph_args`). Both may be `-1` for the last channel. The run stops at startup when either
-index lands on a channel that is not `dna`; set `skip_reference_dna_check: true` to run anyway.
+0), and Coreograph dearrays on one channel of the stitched image: the marker sheet's first `dna`
+channel, or `--channel` in `coreograph_args`. Both indices may be `-1` for the last channel. The
+run stops at startup when either index lands on a channel that is not `dna`; set
+`skip_reference_dna_check: true` to run anyway.
 
 ### TMA dearray
 

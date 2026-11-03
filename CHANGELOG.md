@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TMA dearray chooses Coreograph's `--downsampleFactor` per slide. Cores are detected at
   factors 3 to 7 without writing tiles, scored against `tma_expected_cores` and
-  `tma_core_diameter_mm`, and Coreograph runs once with the best. The comparison is in
-  `preprocessing/dearray/sweep/`.
+  `tma_core_diameter_mm`, and Coreograph runs once with the best, on the marker sheet's first
+  `dna` channel. The comparison is in `preprocessing/dearray/sweep/`.
 - `use_cellpose` and `use_instanseg` together, each with its own table.
 - `segment_cells` (default true) and `segment_nuclei`. With both, `LINK_COMPARTMENTS` links each
   nucleus to the cell holding at least half of it and derives the cytoplasm: shapes

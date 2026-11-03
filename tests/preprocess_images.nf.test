@@ -99,6 +99,8 @@ nextflow_workflow {
                 { assert workflow.trace.succeeded().count { it.name.contains('COREOGRAPH_SELECT') } == 1 },
                 // Every core records the factor that produced it (the select stub picks 5).
                 { assert metas.every { it.downsample_factor == 5 } },
+                // And the channel it was dearrayed on: the sheet's first dna channel.
+                { assert metas.every { it.dearray_channel == 0 } },
                 // The Coreograph stub emits two cores, so one slide becomes two samples.
                 { assert workflow.out.images.size() == 2 },
                 // No file extension in core IDs: they become zarr names and merged element prefixes.
@@ -361,7 +363,51 @@ nextflow_workflow {
                 { assert workflow.success },
                 { assert !ran.any { it.contains('COREOGRAPH_DETECT') || it.contains('COREOGRAPH_SELECT') } },
                 { assert workflow.out.images.size() == 2 },
-                { assert workflow.out.images.every { !it[0].containsKey('downsample_factor') } }
+                { assert workflow.out.images.every { !it[0].containsKey('downsample_factor') } },
+                { assert workflow.out.images.every { !it[0].containsKey('dearray_channel') } }
+            )
+        }
+    }
+
+    test("the sweep dearrays on the sheet's first dna channel, wherever it is") {
+
+        when {
+            params {
+                use_backsub = false
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+            }
+            workflow {
+                """
+                input[0] = Channel.of(
+                    [
+                        [ id: 'testslide', cycle_number: 1 ],
+                        file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'testslide', cycle_number: 2 ],
+                        file("\${projectDir}/tests/stub_data/cycle02.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ]
+                )
+                input[1] = Channel.of([
+                    [ id: 'testslide' ],
+                    file("\${projectDir}/tests/stub_data/markers_dna_second.csv", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                // A background channel comes first, as in mDVP17; DNA_6 is image channel 1.
+                { assert workflow.out.images.size() == 2 },
+                { assert workflow.out.images.every { it[0].dearray_channel == 1 } }
             )
         }
     }
