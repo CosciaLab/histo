@@ -1,7 +1,7 @@
 process QC_REPORT {
     // bin/qc_report.py uses only the standard library.
     label "process_single"
-    tag "${meta.sample}"
+    tag "${meta.sample}:${meta.method}"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -13,8 +13,8 @@ process QC_REPORT {
     tuple val(meta), path(metrics), path(image_dir), path(registration_dir)
 
     output:
-    tuple val(meta), path("${meta.sample}_qc_report.html"), emit: report
-    path "versions.yml"                                   , emit: versions
+    tuple val(meta), path("${meta.sample}_${meta.method}_qc_report.html"), emit: report
+    path "versions.yml"                                                  , emit: versions
 
     script:
     def args = task.ext.args ?: ""
@@ -23,7 +23,7 @@ process QC_REPORT {
     """
     qc_report.py \\
         --metrics ${metrics} \\
-        --out ${meta.sample}_qc_report.html \\
+        --out ${meta.sample}_${meta.method}_qc_report.html \\
         ${images} \\
         ${registration} \\
         ${args}
@@ -36,7 +36,7 @@ process QC_REPORT {
 
     stub:
     """
-    touch ${meta.sample}_qc_report.html
+    touch ${meta.sample}_${meta.method}_qc_report.html
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

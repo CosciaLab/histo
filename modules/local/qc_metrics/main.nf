@@ -1,6 +1,6 @@
 process QC_METRICS {
     label "process_low"
-    tag "${meta.sample}"
+    tag "${meta.sample}:${meta.method}"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -12,8 +12,8 @@ process QC_METRICS {
     tuple val(meta), path(sdata_path), path(unsubtracted), path(markers)
 
     output:
-    tuple val(meta), path("${meta.sample}_qc.json"), emit: metrics
-    path "versions.yml"                            , emit: versions
+    tuple val(meta), path("${meta.sample}_${meta.method}_qc.json"), emit: metrics
+    path "versions.yml"                                           , emit: versions
 
     script:
     // meta.table is the method's table, set per method in subworkflows/local/qc.
@@ -24,7 +24,7 @@ process QC_METRICS {
     qc_metrics.py \\
         --sdata ${sdata_path} \\
         --table ${meta.table} \\
-        --out ${meta.sample}_qc.json \\
+        --out ${meta.sample}_${meta.method}_qc.json \\
         ${sheet} \\
         ${before} \\
         ${args}
@@ -39,7 +39,7 @@ process QC_METRICS {
 
     stub:
     """
-    echo '{"sample": "${meta.sample}", "stub": true}' > ${meta.sample}_qc.json
+    echo '{"sample": "${meta.sample}", "table": "${meta.table}", "stub": true}' > ${meta.sample}_${meta.method}_qc.json
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

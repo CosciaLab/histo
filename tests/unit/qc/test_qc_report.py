@@ -226,6 +226,16 @@ class TestBuild:
         assert page.startswith("<!DOCTYPE html>")
         assert page.rstrip().endswith("</html>")
 
+    def test_heading_names_the_table(self):
+        """Two methods give two reports per sample; the heading tells them apart."""
+        m = minimal_metrics()
+        m["table"] = "instanseg_table"
+        assert "<h1>QC report &middot; s &middot; instanseg_table</h1>" in build(m)
+
+    def test_heading_without_a_table_is_unchanged(self):
+        """Metrics from before the table was recorded still render."""
+        assert "<h1>QC report &middot; s</h1>" in build(minimal_metrics())
+
     def test_entities_are_not_double_escaped(self):
         """The bug a rendered page showed immediately.
 

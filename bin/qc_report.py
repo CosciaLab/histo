@@ -1577,6 +1577,8 @@ def build(
     channels = metrics["channels"]
     patches = metrics.get("patches")
     c, h, w = img["shape_cyx"]
+    # The table tells apart the reports of two methods; metrics from before 2.0 have none.
+    heading = " &middot; ".join(esc(part) for part in (metrics["sample"], metrics.get("table")) if part)
 
     integrity = [
         status_row(
@@ -1719,7 +1721,7 @@ def build(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QC report &middot; {esc(metrics["sample"])}</title>
+<title>QC report &middot; {heading}</title>
 <style>{css()}</style>
 </head>
 <body>
@@ -1731,7 +1733,7 @@ def build(
 <div class="wrap">
 <header>
   <div>
-    <h1>QC report &middot; {esc(metrics["sample"])}</h1>
+    <h1>QC report &middot; {heading}</h1>
     <div class="sub">Image element <strong>{esc(metrics["image_element"])}</strong>,
       {c} channels, {w:,} &times; {h:,} px<br>
       <code>{esc(metrics["store"])}</code></div>

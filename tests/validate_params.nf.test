@@ -49,17 +49,31 @@ nextflow_function {
         }
     }
 
-    test("use_gpu with InstanSeg is rejected") {
+    test("neither method is rejected, naming both") {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: false, use_instanseg: true, instanseg_pixel_size: 0.65, use_preprocessing: true, use_gpu: true ]
+                input[0] = [ use_cellpose: false, use_instanseg: false ]
                 """
             }
         }
         then {
             assert function.failed
-            assert function.stdout.any { it.contains("use_gpu does not support InstanSeg") }
+            assert function.stdout.any { it.contains("use_cellpose") && it.contains("use_instanseg") }
+        }
+    }
+
+    test("both methods with use_gpu are accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true, instanseg_pixel_size: 0.65,
+                             instanseg_channels: 'DAPI', use_gpu: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
         }
     }
 

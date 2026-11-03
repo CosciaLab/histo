@@ -136,17 +136,24 @@ workflow HISTO {
             // Only the merged store is published; it already contains every core's elements.
             ch_publish = MERGE_SPATIALDATA.out.merged
 
-            // One slide-level QC page from the per-core metrics, grouped on the same key as the merge.
+            // One slide-level QC page per method from the per-core metrics, grouped by slide as the merge is.
             if (params.use_qc) {
-                // The slide's Ashlar QC joins on the same id; [] when Ashlar QC is absent.
+                // Grouped per slide first, so the slide's Ashlar QC joins once ([] when absent); join
+                // pairs only the first item per key. Then one row per slide and method.
                 ch_slide_metrics = QC.out.metrics
-                    .map { meta, metrics -> [[id: meta.slide, sample: meta.slide], metrics] }
+                    .map { meta, metrics -> [meta.slide, meta.method, metrics] }
                     .groupTuple()
-                    .map { meta, metrics -> [meta.id, meta, metrics] }
                     .join(ch_registration_qc.map { meta, dir -> [meta.id, dir] }, remainder: true)
-                    // Indexed, not destructured: remainder rows with no metrics side are only [id, null, dir].
+                    // Indexed, not destructured: remainder rows with no metrics side are only [slide, null, dir].
                     .filter { row -> row[1] != null }
-                    .map { row -> [row[1], row[2], row.size() > 3 && row[3] ? row[3] : []] }
+                    .flatMap { row ->
+                        def (slide, methods, metrics) = [row[0], row[1], row[2]]
+                        def dir = row.size() > 3 && row[3] ? row[3] : []
+                        [methods, metrics].transpose()
+                            .groupBy { pair -> pair[0] }
+                            // Sorted by name, so -resume does not depend on the order cores finished.
+                            .collect { method, pairs -> [[id: slide, sample: slide, method: method], pairs*.get(1).sort(false) { m -> m.name }, dir] }
+                    }
 
                 MERGE_REPORT(ch_slide_metrics)
                 ch_versions = ch_versions.mix(MERGE_REPORT.out.versions)

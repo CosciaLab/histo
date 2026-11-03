@@ -55,7 +55,7 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
    `obs`. Per compartment where a method gives nuclei and cells. Risk: memory on the WSI.
    Reuse the `python_sopa` image if it has scikit-image. 3–4 days.
 2. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
-   `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_qc.json` and the report;
+   `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_{method}_qc.json` and the report;
    check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
 
 ### 1.7 onward: learned features

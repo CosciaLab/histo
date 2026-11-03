@@ -619,9 +619,6 @@ def validateParams(params) {
     def STAINING_BASED_METHODS = ['use_cellpose', 'use_instanseg']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
 
-    // One method per run until both can run side by side.
-    assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
-
     // Nuclei need linking to cells before they can be quantified; not wired yet.
     assert !params.segment_nuclei : "segment_nuclei is not supported yet: this release segments " +
         "cells only. Remove segment_nuclei, or set it to false."
@@ -643,8 +640,8 @@ def validateParams(params) {
         log.info("preprocessing_only: stopping after preprocessing; no segmentation, quantification or sample QC (Ashlar's QC stays with use_qc).")
     }
     else {
-        assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
-            "or use a profile that does (for example -profile test)"
+        assert enabled >= 1 : "A segmentation method is required: set at least one of use_cellpose and use_instanseg " +
+            "to true, or use a profile that does (for example -profile test)"
         // segment_cells null counts as on, as in segmentationTargets (modules/local/utils.nf).
         assert params.segment_cells != false || params.segment_nuclei :
             "At least one of segment_cells and segment_nuclei must be true: otherwise there is nothing to segment."
@@ -658,10 +655,11 @@ def validateParams(params) {
         assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
             "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
-    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails. ROADMAP: lift when fixed.
-    assert !(params.use_gpu && params.use_instanseg) :
-        "use_gpu does not support InstanSeg yet: sopa's InstanSeg wrapper fails on CUDA. Run InstanSeg " +
-        "on CPU (drop use_gpu), or use Cellpose on GPU."
+    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails, so conf/gpu.config
+    // gives the GPU to Cellpose only. ROADMAP: lift when fixed.
+    if (params.use_gpu && params.use_instanseg) {
+        log.warn("use_gpu applies to Cellpose; InstanSeg runs on CPU (sopa cannot run it on CUDA yet)")
+    }
     assert !(params.keep_projection && !params.use_projection) :
         "keep_projection requires use_projection: without it there is no projected image to keep."
 

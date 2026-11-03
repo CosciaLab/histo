@@ -1,0 +1,54 @@
+// Cellpose and InstanSeg in one run under -stub: a table, QC and report per method, one store write.
+// -profile laptop puts tests/stub_bin on PATH for ashlar.
+
+nextflow_pipeline {
+
+    name "Two methods"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    test("both methods segment every patch and get their own QC") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def published = new File("$outputDir/qc").list() as List
+            def count = { suffix -> published.count { it.endsWith(suffix) } }
+
+            assertAll(
+                { assert workflow.success },
+                // Two patches at 5000 px, per method.
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() == 2 },
+                { assert names("RESOLVE").size() == 2 },
+                { assert names("AGGREGATE").size() == 2 },
+                // Both tables go into the store in one write.
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
+                { assert names("QC_REPORT").size() == 2 },
+
+                // Named per method, so the two do not overwrite each other in qc/.
+                { assert count('_cellpose_qc.json') == 1 },
+                { assert count('_instanseg_qc.json') == 1 },
+                { assert count('_cellpose_qc_images') == 1 },
+                { assert count('_instanseg_qc_images') == 1 },
+                { assert count('_cellpose_qc_report.html') == 1 },
+                { assert count('_instanseg_qc_report.html') == 1 },
+
+                // A missing entry means a module lost its version capture.
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_INSTANSEG') }
+            )
+        }
+    }
+}

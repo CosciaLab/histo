@@ -458,6 +458,7 @@ def collect(
     import zarr
 
     element = segmentation_image_element(sdata_path)
+    table_name = table
     table = open_table(sdata_path, table)
 
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
@@ -471,6 +472,8 @@ def collect(
 
     out: dict[str, Any] = {
         "sample": sdata_path.stem,
+        # With two methods a sample has two of these; this says which table was measured.
+        "table": table_name,
         "store": str(sdata_path),
         "image_element": element,
         "image": {

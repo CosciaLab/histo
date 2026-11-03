@@ -221,6 +221,10 @@ class TestCollect:
             collect(store, table="instanseg_table", min_cell_area=10.0, markers=None)["cells"]["n_cells"] == 2
         )
 
+    def test_records_the_table_it_read(self, store):
+        """With two methods a sample has two JSONs; each says which table it measured."""
+        assert collect(store, table="table", min_cell_area=10.0, markers=None)["table"] == "table"
+
     def test_missing_table_names_it(self, store):
         with pytest.raises(FileNotFoundError, match="nope"):
             collect(store, table="nope", min_cell_area=10.0, markers=None)

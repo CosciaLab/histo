@@ -33,4 +33,31 @@ nextflow_pipeline {
             )
         }
     }
+
+    test("use_gpu with InstanSeg runs it on CPU and says so") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_gpu = true
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            // log.warn reaches .nextflow.log, not the stdout nf-test captures.
+            def log = new File("$metaDir/nextflow.log").text
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() == 2 },
+                { assert log.contains("use_gpu applies to Cellpose; InstanSeg runs on CPU (sopa cannot run it on CUDA yet)") }
+            )
+        }
+    }
 }

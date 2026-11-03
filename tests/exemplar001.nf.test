@@ -38,7 +38,7 @@ nextflow_pipeline {
             def ran = workflow.trace.succeeded().collect { it.name }
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
-            def metrics = slurp.parse(file("$outputDir/qc/exemplar-001_qc.json"))
+            def metrics = slurp.parse(file("$outputDir/qc/exemplar-001_cellpose_qc.json"))
             def ashlarQc = slurp.parse(file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/qc.json"))
 
             assertAll(
@@ -75,7 +75,7 @@ nextflow_pipeline {
                 { assert ashlarQc.stitching.n_tiles > 1 },
                 { assert ashlarQc.registration.size() == 2 },
                 { assert file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/exemplar-001_ashlar_report.pdf").exists() },
-                { assert path("$outputDir/qc/exemplar-001_qc_report.html").text.contains('Stitching and registration') },
+                { assert path("$outputDir/qc/exemplar-001_cellpose_qc_report.html").text.contains('Stitching and registration') },
 
                 // DNA_6/7/8 contain no "DAPI", so these prove QC read roles from the sheet, not names.
                 { assert metrics.channels.roles.dna == ['DNA_6', 'DNA_7', 'DNA_8'] },
@@ -85,7 +85,7 @@ nextflow_pipeline {
                 { assert metrics.cycle_ratio.last_channel == 'DNA_8' },
                 // No subtraction ran, so the block must be absent rather than empty.
                 { assert !metrics.containsKey('before') },
-                { assert file("$outputDir/qc/exemplar-001_qc_report.html").exists() },
+                { assert file("$outputDir/qc/exemplar-001_cellpose_qc_report.html").exists() },
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('ASHLAR') },
