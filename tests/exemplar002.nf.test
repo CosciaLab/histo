@@ -6,7 +6,7 @@
 //         --profile test_exemplar002,singularity,size_small,slurm
 // Repeat test_exemplar002 in --profile: nf-test's --profile replaces the directive.
 // Cycle 1 (autofluorescence) is subtracted from cycles 2 and 3, then dropped by remove: 12 channels become 9.
-// Baselines: cluster run of 3717ea0, 2026-10-06. Identical with 2 and 10 cycles: segmentation reads DNA_1 only.
+// InstanSeg only, cells and nuclei. 1.x Cellpose baselines (DNA_1): 7472, 4779, 7604, 9678 cells (3717ea0).
 
 nextflow_pipeline {
 
@@ -31,11 +31,12 @@ nextflow_pipeline {
             def manifest = slurp.parse(file("$outputDir/exemplar-002_merge_manifest.json"))
             def cores = manifest.keySet().sort()
             def coreMetrics = cores.collect {
-                slurp.parse(file("$outputDir/qc/${it}_cellpose_qc.json"))
+                slurp.parse(file("$outputDir/qc/${it}_instanseg_qc.json"))
             }
+            // PLACEHOLDER: InstanSeg cells per core, set from the 2.0 cluster run; null skips the count check.
             def baseline = [
-                'exemplar-002_core001': 7472, 'exemplar-002_core002': 4779,
-                'exemplar-002_core003': 7604, 'exemplar-002_core004': 9678,
+                'exemplar-002_core001': null, 'exemplar-002_core002': null,
+                'exemplar-002_core003': null, 'exemplar-002_core004': null,
             ]
             def counts = cores.indices.collectEntries { i -> [(cores[i]): coreMetrics[i].cells.n_cells] }
 
@@ -55,6 +56,10 @@ nextflow_pipeline {
                 { assert names("TO_SPATIALDATA").size() == 4 },
                 { assert names("AGGREGATE").size() == 4 },
                 { assert names("QC_METRICS").size() == 4 },
+                { assert names("LINK_COMPARTMENTS").size() == 4 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").isEmpty() },
+                // One method: nothing to compare.
+                { assert names("COMPARE_SEGMENTATIONS").isEmpty() },
 
                 // And these run once per slide.
                 { assert names("MERGE_SPATIALDATA").size() == 1 },
@@ -93,16 +98,26 @@ nextflow_pipeline {
                 } },
 
                 // Per-core reports and the slide report beside them.
-                { assert cores.every { file("$outputDir/qc/${it}_cellpose_qc_report.html").exists() } },
-                { assert file("$outputDir/qc/exemplar-002_cellpose_slide_report.html").exists() },
+                { assert cores.every { file("$outputDir/qc/${it}_instanseg_qc_report.html").exists() } },
+                { assert file("$outputDir/qc/exemplar-002_instanseg_slide_report.html").exists() },
                 // Ashlar runs once per slide, so its QC lands on the slide report, not per core.
                 { assert file("$outputDir/preprocessing/registration/exemplar-002_ashlar_qc/qc.json").exists() },
-                { assert path("$outputDir/qc/exemplar-002_cellpose_slide_report.html").text.contains('Stitching and registration') },
+                { assert path("$outputDir/qc/exemplar-002_instanseg_slide_report.html").text.contains('Stitching and registration') },
 
                 // One table per core in the merged store; per-core stores are not published.
                 { assert file("$outputDir/exemplar-002_merged.zarr").exists() },
                 { assert cores.every {
-                    file("$outputDir/exemplar-002_merged.zarr/tables/${it}__cellpose_table").exists()
+                    file("$outputDir/exemplar-002_merged.zarr/tables/${it}__instanseg_table").exists()
+                } },
+                { assert cores.every { core ->
+                    ['cells', 'nuclei', 'cytoplasm'].every {
+                        file("$outputDir/exemplar-002_merged.zarr/shapes/${core}__instanseg_${it}").exists()
+                    }
+                } },
+
+                // Both targets: each core's QC counts its links.
+                { assert coreMetrics.every {
+                    it.linking?.keySet() == ['cells_by_n_nuclei', 'unlinked_nuclei', 'empty_cytoplasm'] as Set
                 } },
                 { assert !file("$outputDir/exemplar-002_core001.zarr").exists() },
 
@@ -111,8 +126,10 @@ nextflow_pipeline {
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('BACKSUB') },
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('MERGE_SPATIALDATA') },
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('MERGE_REPORT') },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_INSTANSEG') },
 
-                { assert counts.every { core, n -> n > baseline[core] * 0.98 && n < baseline[core] * 1.02 } },
+                { assert counts.every { _core, n -> n > 0 } },
+                { assert counts.every { core, n -> baseline[core] == null || (n > baseline[core] * 0.98 && n < baseline[core] * 1.02) } },
             )
         }
     }
