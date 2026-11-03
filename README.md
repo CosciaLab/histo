@@ -30,7 +30,7 @@ nf-core. It follows nf-core conventions for reproducibility and to keep upstream
 
 ## Steps
 
-![Metro map of the three verified pipeline paths](docs/images/pipeline_paths.svg)
+![Metro map of three paths through the pipeline](docs/images/pipeline_paths.svg)
 
 Preprocessing (from mcmicro):
 
@@ -42,9 +42,11 @@ Preprocessing (from mcmicro):
 Downstream (from sopa):
 
 5. SpatialData Zarr conversion and channel naming from the marker sheet
-6. Tiled cell segmentation with Cellpose or InstanSeg, optionally skipping empty tiles
-7. Aggregation of mean channel intensity per cell
-8. QC report per sample, and for a TMA a merged object per slide
+6. Tiled segmentation of cells, nuclei or both, with Cellpose, InstanSeg or both, optionally
+   skipping empty tiles; nuclei are linked to their cells and the cytoplasm derived
+7. Aggregation of mean channel intensity per cell, and per nucleus and cytoplasm
+8. QC report per sample and method, a comparison when both methods ran, and for a TMA a merged
+   object per slide
 
 `use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops
 after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna` in

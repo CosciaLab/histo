@@ -6,30 +6,35 @@ This document describes the output produced by the pipeline.
 
 ## What runs
 
-The three routes that have been run on real data, drawn as the metro map in the
-[README](../README.md#steps). Everything else is off by default.
+The three routes drawn as the metro map in the [README](../README.md#steps). Everything else is
+off by default. Each column's segmentation is an example: any methods and targets fit any route.
 
-Read down a column to get one run's process list, in order. The three QC steps read the store
-without writing to it, so they run alongside publishing rather than after it.
+Read down a column to get one run's process list, in order. The QC steps and
+`COMPARE_SEGMENTATIONS` read the store without writing to it, so they run alongside publishing.
 
-| Station                       |  mIF slide   | WSI, background subtracted | TMA, dearrayed |
-| ----------------------------- | :----------: | :------------------------: | :------------: |
-| `BASICPY`                     |      x       |             x              |       x        |
-| `ASHLAR`                      |      x       |             x              |       x        |
-| `COREOGRAPH`                  |              |                            |       x        |
-| `BACKSUB`                     |              |             x              |    optional    |
-| `TO_SPATIALDATA`              |      x       |             x              |       x        |
-| `SET_CHANNEL_NAMES`           |      x       |             x              |       x        |
-| `MAKE_IMAGE_PATCHES`          |      x       |             x              |       x        |
-| `PATCH_SEGMENTATION_CELLPOSE` | x, per patch |        x, per patch        |  x, per patch  |
-| `RESOLVE_CELLPOSE`            |      x       |             x              |       x        |
-| `AGGREGATE`                   |      x       |             x              |       x        |
-| `MERGE_SPATIALDATA`           |              |                            |       x        |
-| `PUBLISH_SPATIALDATA`         |      x       |             x              |  x, per slide  |
-| `QC_METRICS`                  |      x       |             x              |       x        |
-| `QC_IMAGES`                   |      x       |             x              |       x        |
-| `QC_REPORT`                   |      x       |             x              |       x        |
-| `MERGE_REPORT`                |              |                            |       x        |
+| Station                   |              mIF slide               | WSI, background subtracted |      TMA, dearrayed       |
+| ------------------------- | :----------------------------------: | :------------------------: | :-----------------------: |
+| Segmentation              | Cellpose + InstanSeg, cells + nuclei |      Cellpose, cells       | InstanSeg, cells + nuclei |
+| `BASICPY`                 |                  x                   |             x              |             x             |
+| `ASHLAR`                  |                  x                   |             x              |             x             |
+| `COREOGRAPH`              |                                      |                            |             x             |
+| `BACKSUB`                 |                                      |             x              |         optional          |
+| `TO_SPATIALDATA`          |                  x                   |             x              |             x             |
+| `SET_CHANNEL_NAMES`       |                  x                   |             x              |             x             |
+| `MAKE_IMAGE_PATCHES`      |                  x                   |             x              |             x             |
+| `SEGMENT_PATCH_CELLPOSE`  |          per patch × target          |         per patch          |                           |
+| `SEGMENT_PATCH_INSTANSEG` |          per patch × target          |                            |    per patch × target     |
+| `RESOLVE`                 |         per method × target          |             x              |        per target         |
+| `LINK_COMPARTMENTS`       |              per method              |                            |             x             |
+| `AGGREGATE`               |              per method              |             x              |             x             |
+| `WRITE_SEGMENTATIONS`     |                  x                   |             x              |             x             |
+| `MERGE_SPATIALDATA`       |                                      |                            |             x             |
+| `PUBLISH_SPATIALDATA`     |                  x                   |             x              |       x, per slide        |
+| `QC_METRICS`              |              per method              |             x              |             x             |
+| `QC_IMAGES`               |              per method              |             x              |             x             |
+| `QC_REPORT`               |              per method              |             x              |             x             |
+| `COMPARE_SEGMENTATIONS`   |                  x                   |                            |                           |
+| `MERGE_REPORT`            |                                      |                            |             x             |
 
 Everything after `COREOGRAPH`, `BACKSUB` included, runs once per core on the TMA path.
 `MERGE_SPATIALDATA` then puts one slide's cores back together, and `PUBLISH_SPATIALDATA`
@@ -39,16 +44,16 @@ out of them, prefixed by core, so publishing both would write the slide out twic
 
 Variations not in the table:
 
+- `LINK_COMPARTMENTS` runs for a method with both targets (`segment_cells`, `segment_nuclei`).
+  `COMPARE_SEGMENTATIONS` runs when both methods segment cells and `use_qc` is true.
 - `TISSUE_SEGMENTATION` is off in all three runs. It sits before `MAKE_IMAGE_PATCHES`.
 - `use_preprocessing = false` is a fourth entry point, for images arriving pre-stitched. It
   starts at `TO_SPATIALDATA` and skips `SET_CHANNEL_NAMES`, because such an image is assumed to
   carry its own channel names.
 - Supplying illumination profiles in the samplesheet bypasses `BASICPY`.
 - `preprocessing_only` ends every path at the preprocessing outputs.
-- InstanSeg substitutes `PATCH_SEGMENTATION_INSTANSEG` and `RESOLVE_INSTANSEG` for the two
-  Cellpose stations.
-- `use_projection` adds `PROJECT_CHANNELS` before `MAKE_IMAGE_PATCHES` and `DROP_PROJECTION`
-  before `AGGREGATE` (Cellpose only).
+- `use_projection` adds `PROJECT_CHANNELS` before `MAKE_IMAGE_PATCHES`; Cellpose segments the
+  projection, and `WRITE_SEGMENTATIONS` removes it unless `keep_projection`.
 
 ## Pipeline overview
 
@@ -109,13 +114,15 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 <details markdown="1">
 <summary>Output files</summary>
 
-- `{sample}.zarr/`
-  - Spatial elements: `images/`, `shapes/`, `tables/`, `points/`, ...
-  - With `keep_projection`, `images/` also holds `<image>_projected`: the `nuclear` and `cell`
-    channels Cellpose segmented, at full resolution.
-- `{sample}.zarr/.sopa_cache/`
-  - What segmentation left behind: the patch definitions, and one parquet of cell boundaries
-    per patch. Reproducible from the store, and about 4% of its size.
+- `{sample}.zarr/`, per method `{m}` (`cellpose`, `instanseg`):
+  - `images/`: the image. With `keep_projection`, also `<image>_projected`: the `nuclear` and
+    `cell` channels Cellpose segmented, at full resolution.
+  - `shapes/{m}_cells` (`segment_cells`): cell polygons, indexed by cell id.
+  - `shapes/{m}_nuclei` (`segment_nuclei`): nucleus polygons. With both targets, its
+    `linked_cell_id` names the cell holding at least half of the nucleus; empty if none.
+  - `shapes/{m}_cytoplasm` (both targets): each cell minus its linked nuclei, for cells with
+    non-empty cytoplasm only, indexed by their cell ids.
+  - `tables/{m}_table`: one row per cell, or per nucleus in a nuclei-only run. Below.
 - `{slide}_merged.zarr/` and `{slide}_merge_manifest.json`
   - **Dearrayed slides only**, instead of per-core stores: every core's elements in one store,
     and the manifest of what was merged.
@@ -124,14 +131,55 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
 
 The `{sample}.zarr` directory contains a [SpatialData](https://spatialdata.scverse.org/en/stable/) object, where the `sample` name is either (i) specified by the samplesheet, or (ii) based on the name of the corresponding input directory.
 
-Each cell table's `obs` says where its cells came from, so tables can be concatenated safely:
-`slide` is the sample name from the samplesheet, and on a dearrayed TMA `core_id` is the core
-(e.g. `TMA01_core001`). Runs without dearraying have no `core_id` column.
+Cell ids are `{image}_cells_{n}` (`{image}_nuclei_{n}` for nuclei): the shapes' index and the
+table's `obs_names` and `obs['cell_id']` are the same ids. `{m}_table` holds:
+
+- `X`: mean intensity per marker over the whole cell (the nucleus in a nuclei-only run), after
+  `expand_radius_ratio` if set.
+- `layers['nucleus']`, `layers['cytoplasm']` (both targets): the mean over the cell's nucleus
+  compartment (its linked nuclei, clipped to the cell) and over its cytoplasm.
+- `obs`: `region` (`{m}_cells`, or `{m}_nuclei`), `cell_id`, `area` (px², unexpanded),
+  `slide`, and `core_id` on a dearrayed TMA. With both targets also `n_nuclei` (linked nuclei),
+  `nucleus_id` (the largest), `nucleus_area` and `cytoplasm_area` (px²).
+- `obsm['spatial']`: centroids of the unexpanded cells.
+- `uns['segmentation']`: the settings each segmentation was requested with, keyed by name
+  (`{m}_cells`, `{m}_nuclei`). Unset options are absent; sopa's defaults applied.
+
+NaN means "not measured", 0 means "measured, nothing there":
+
+| Cell                   | `layers`                   | `nucleus_area` | `cytoplasm_area` |
+| ---------------------- | -------------------------- | -------------- | ---------------- |
+| No linked nucleus      | `nucleus`, `cytoplasm` NaN | 0              | NaN              |
+| Nuclei fill the cell   | `cytoplasm` NaN            | > 0            | 0                |
+| Covers no pixel centre | `X` and both layers NaN    |                |                  |
+
+Cells are never dropped. A cell covering no pixel centre is left out of the QC clustering.
+
+`slide` and `core_id` say where cells came from, so tables can be concatenated safely: `slide`
+is the sample name from the samplesheet, `core_id` the core (e.g. `TMA01_core001`). Runs
+without dearraying have no `core_id` column.
 
 Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for usage details, or to the [documentation of `sopa` as a Python package](https://prism-oncology.github.io/sopa/).
 
 `PUBLISH_SPATIALDATA` copies the store here, and exists only for that: it runs after the last
 step that writes to the store.
+
+#### From 1.x
+
+| 1.x                                         | 2.0                                          |
+| ------------------------------------------- | -------------------------------------------- |
+| `tables/table`                              | `tables/{m}_table`                           |
+| `shapes/cellpose_boundaries`, `instanseg_…` | `shapes/{m}_cells`                           |
+| `qc/{sample}_qc.json`, `_qc_report.html`    | `qc/{sample}_{m}_qc.json`, `_qc_report.html` |
+| `qc/{sample}_qc_images/`                    | `qc/{sample}_{m}_qc_images/`                 |
+| `qc/{slide}_slide_report.html`              | `qc/{slide}_{m}_slide_report.html`           |
+| `obs_names` renumbered by sopa              | the cell ids of the shapes                   |
+| a cell covering no pixel centre: `X` 0      | NaN                                          |
+
+Removed parameters stop the run at startup: `use_stardist` and every StarDist option,
+`instanseg_target` (use `segment_cells`, `segment_nuclei`), `min_intensity_ratio`,
+`technology` and `aggregate_channels`. Cells crossing an image chunk edge were measured with a
+shifted mask in 1.x, so their intensities change ([CHANGELOG](../CHANGELOG.md)).
 
 ### QC report
 
@@ -146,8 +194,10 @@ step that writes to the store.
     and — when background subtraction ran — the same channel statistics from before
     subtraction, so the two can be compared. That comparison is available on dearrayed slides
     too: `COREOGRAPH` runs before `BACKSUB`, so every core is subtracted on its own and keeps
-    an unsubtracted twin of matching shape. It sets no thresholds and returns no
-    exit code: the numbers that would justify a threshold need more than one dataset behind them.
+    an unsubtracted twin of matching shape. With both targets, `linking`: cells by number of
+    nuclei (0, 1, 2+), unlinked nuclei and cells without cytoplasm. It sets no thresholds and
+    returns no exit code: the numbers that would justify a threshold need more than one dataset
+    behind them.
 - `qc/{sample}_{method}_qc_report.html`
   - The same metrics rendered for a person, plus the images. Self-contained: no external
     scripts, fonts or network access, so it can be copied anywhere and opened offline.
@@ -167,8 +217,7 @@ step that writes to the store.
     magenta and cell in green; and the markers in each, their rescaling bounds, the share of
     pixels in which each is the brightest (`win_share`), and the method. `dominant` lists any
     marker brightest in over half of a channel, which then decides that channel alone; the task
-    log warns about it too. The projection is removed from the store before quantification
-    unless `keep_projection`.
+    log warns about it too. The projection is removed from the store unless `keep_projection`.
 - `qc/{sample}_{method}_qc_images/`
   - The PNGs the report embeds, kept as files so they can be used on their own. Absent when
     `use_qc_images: false`.
@@ -182,6 +231,10 @@ step that writes to the store.
     same signal as the rest of the slide. Core
     detail that is only actionable on one core, the crops, the clusters, the per-channel
     histograms and the patch layout, stays in that core's report rather than being repeated.
+- `qc/{sample}_comparison.json` and `qc/{sample}_comparison.html`
+  - **When both methods segment cells.** Cell counts, median areas (px²), the share of each
+    method's cells matched one-to-one at IoU ≥ 0.5, and both outlines on the same three crops
+    across the density range. Keys are listed in `bin/compare_segmentations.py`.
 
 </details>
 
@@ -202,7 +255,7 @@ in `conf/modules.config` rather than through pipeline parameters.
 
 Upstream nf-core/sopa also produced a `{sample}.explorer/` directory holding a Xenium Explorer
 bundle and a standalone `adata.h5ad`. **This pipeline does not export to Xenium Explorer.** The
-cell table is still available inside `{sample}.zarr` under `tables/`, and can be pulled out with
+cell tables are inside `{sample}.zarr` under `tables/`, and can be pulled out with
 `spatialdata.read_zarr(...).tables`.
 
 ### Pipeline information
