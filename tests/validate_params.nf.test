@@ -76,4 +76,32 @@ nextflow_function {
             assert function.stdout.any { it.contains("keep_projection requires use_projection") }
         }
     }
+
+    test("with both targets off there is nothing to segment") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: false ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("At least one of segment_cells and segment_nuclei") }
+        }
+    }
+
+    test("segment_nuclei is not wired yet and is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("segment_nuclei is not supported yet") }
+        }
+    }
 }

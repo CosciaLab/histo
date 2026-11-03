@@ -102,7 +102,7 @@ nextflow_pipeline {
                 // One table per core in the merged store; per-core stores are not published.
                 { assert file("$outputDir/exemplar-002_merged.zarr").exists() },
                 { assert cores.every {
-                    file("$outputDir/exemplar-002_merged.zarr/tables/${it}__table").exists()
+                    file("$outputDir/exemplar-002_merged.zarr/tables/${it}__cellpose_table").exists()
                 } },
                 { assert !file("$outputDir/exemplar-002_core001.zarr").exists() },
 

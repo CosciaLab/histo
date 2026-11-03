@@ -1,31 +1,37 @@
 process AGGREGATE {
     label "process_medium"
-    tag "${meta.sample}"
+    tag "${meta.sample}:${method}"
 
     conda "${moduleDir}/environment.yml"
-    container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
-?         'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/70/707825bb6afa202806406063665a361b2a4a2fc6d6f802132359407408826ffe/data'
-:         'community.wave.seqera.io/library/python_sopa:54a97bc5a187152d' }"
+    container "docker.io/josenimo/sopa:2.2.12"
 
     input:
-    tuple val(meta), path(sdata_path)
-    val cli_arguments
+    // sdata_path is only read; specs are this method's spec maps, shapes its resolved parquets
+    tuple val(meta), path(sdata_path), val(method), val(specs), path(shapes)
 
     output:
-    tuple val(meta), path(sdata_path)
+    tuple val(meta), val(method), path("${method}_table.h5ad")
     path "versions.yml"
 
     script:
-    // Not from sopa: replaces sopa's obs/slide (image element name) with the samplesheet slide;
+    def args = task.ext.args ?: ""
+    def specs_json = groovy.json.JsonOutput.toJson(specs)
     // meta.slide is set only on dearrayed TMAs, where meta.id is the core.
     def core_id_arg = meta.slide ? "--core-id ${meta.id}" : ""
     """
-    sopa aggregate ${sdata_path} ${cli_arguments}
+    cat <<'END_SPECS' > specs.json
+    ${specs_json}
+    END_SPECS
 
-    set_cell_metadata.py \\
+    aggregate_compartments.py \\
         --sdata ${sdata_path} \\
+        --method ${method} \\
+        --cells ${method}_cells.parquet \\
+        --specs specs.json \\
         --slide ${meta.slide ?: meta.sample} \\
-        ${core_id_arg}
+        ${core_id_arg} \\
+        ${args} \\
+        --output ${method}_table.h5ad
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
@@ -35,6 +41,8 @@ process AGGREGATE {
 
     stub:
     """
+    touch ${method}_table.h5ad
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         sopa: stub

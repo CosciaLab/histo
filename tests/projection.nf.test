@@ -1,5 +1,5 @@
 // Channel projection end to end under -stub: the projection is added before patching and
-// dropped before AGGREGATE. -profile laptop puts tests/stub_bin on PATH for ashlar.
+// dropped by WRITE_SEGMENTATIONS. -profile laptop puts tests/stub_bin on PATH for ashlar.
 
 nextflow_pipeline {
 
@@ -10,7 +10,7 @@ nextflow_pipeline {
     tag "stub"
     tag "pipeline"
 
-    test("projection runs between tissue segmentation and AGGREGATE, once per sample") {
+    test("projection runs between tissue segmentation and patching, once per sample") {
 
         when {
             // Absolute paths, since nf-test launches from its own directory.
@@ -38,9 +38,9 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.success },
                 { assert names("PROJECT_CHANNELS").size() == 1 },
-                { assert names("DROP_PROJECTION").size() == 1 },
-                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() == 2 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
                 { assert names("AGGREGATE").size() == 1 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
                 { assert names("QC_REPORT").size() == 1 },
                 { assert path("$outputDir/qc/testsample_projection.png").exists() },
                 { assert path("$outputDir/qc/testsample_projection.json").exists() },
@@ -49,7 +49,7 @@ nextflow_pipeline {
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('PROJECT_CHANNELS') },
-                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('DROP_PROJECTION') }
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('WRITE_SEGMENTATIONS') }
             )
         }
     }

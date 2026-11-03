@@ -10,19 +10,16 @@ include { PREPROCESS_IMAGES       } from '../subworkflows/local/preprocess_image
 include { TO_SPATIALDATA          } from '../modules/local/to_spatialdata'
 include { MAKE_IMAGE_PATCHES      } from '../modules/local/make_image_patches'
 include { TISSUE_SEGMENTATION     } from '../modules/local/tissue_segmentation'
-include { AGGREGATE               } from '../modules/local/aggregate'
 include { MERGE_SPATIALDATA       } from '../modules/local/merge_spatialdata'
 include { MERGE_REPORT       } from '../modules/local/merge_report'
 include { SET_CHANNEL_NAMES       } from '../modules/local/set_channel_names'
 include { PROJECT_CHANNELS        } from '../modules/local/project_channels'
-include { DROP_PROJECTION         } from '../modules/local/drop_projection'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
-include { CELLPOSE                } from '../subworkflows/local/cellpose'
-include { INSTANSEG               } from '../subworkflows/local/instanseg'
+include { SEGMENTATION            } from '../subworkflows/local/segmentation'
 include { QC                      } from '../subworkflows/local/qc'
 
 
-include { argsCLI        } from '../modules/local/utils'
+include { argsCLI; segmentationSpecs } from '../modules/local/utils'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -89,62 +86,47 @@ workflow HISTO {
             ch_tissue_seg = ch_named
         }
 
-        if (params.use_cellpose) {
-            // Projection runs after tissue segmentation, which must see a single image element.
-            if (params.use_projection) {
-                PROJECT_CHANNELS(ch_tissue_seg.join(ch_markers))
-                ch_to_segment = PROJECT_CHANNELS.out.sdata
-                ch_versions = ch_versions.mix(PROJECT_CHANNELS.out.versions)
-            }
-            else {
-                ch_to_segment = ch_tissue_seg
-            }
-
-            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_to_segment, argsCLI("image_patches"))
-            ch_versions = ch_versions.mix(versions)
-
-            (ch_resolved, versions) = CELLPOSE(ch_image_patches)
-            ch_versions = ch_versions.mix(versions)
-
-            // AGGREGATE must quantify the full marker image; keep_projection leaves the projection beside it.
-            if (params.use_projection) {
-                DROP_PROJECTION(ch_resolved)
-                ch_resolved = DROP_PROJECTION.out.sdata
-                ch_versions = ch_versions.mix(DROP_PROJECTION.out.versions)
-            }
+        // Projection runs after tissue segmentation, which must see a single image element.
+        // It adds <image>_projected beside the full image; only Cellpose specs read it.
+        if (params.use_projection) {
+            PROJECT_CHANNELS(ch_tissue_seg.join(ch_markers))
+            ch_to_patch = PROJECT_CHANNELS.out.sdata
+            ch_versions = ch_versions.mix(PROJECT_CHANNELS.out.versions)
+        }
+        else {
+            ch_to_patch = ch_tissue_seg
         }
 
-        if (params.use_instanseg) {
-            (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_tissue_seg, argsCLI("image_patches"))
-            ch_versions = ch_versions.mix(versions)
-
-            (ch_resolved, versions) = INSTANSEG(ch_image_patches, ch_markers)
-            ch_versions = ch_versions.mix(versions)
-        }
-
-        (ch_aggregated, versions) = AGGREGATE(ch_resolved, argsCLI("aggregate"))
+        // One patch grid per sample, shared by every segmentation.
+        (ch_image_patches, versions) = MAKE_IMAGE_PATCHES(ch_to_patch, argsCLI("image_patches"))
         ch_versions = ch_versions.mix(versions)
+
+        // One spec per method x target, built once from params (modules/local/utils.nf).
+        def specs = segmentationSpecs(params)
+        SEGMENTATION(ch_image_patches, ch_markers, specs)
+        ch_segmented = SEGMENTATION.out.sdata
+        ch_versions = ch_versions.mix(SEGMENTATION.out.versions)
 
         // Ashlar's QC directory, keyed by its own meta.id (sample, or slide on a TMA).
         def ch_registration_qc = params.use_preprocessing
             ? PREPROCESS_IMAGES.out.registration_qc
             : channel.empty()
 
-        // QC needs the aggregated intensity matrix. Nothing writes to the store after this point,
+        // QC needs the aggregated tables. Nothing writes to the store after WRITE_SEGMENTATIONS,
         // so QC and the merge can read it concurrently.
         if (params.use_qc) {
             def ch_unsubtracted = params.use_preprocessing
                 ? PREPROCESS_IMAGES.out.unsubtracted
                 : channel.empty()
 
-            QC(ch_aggregated, ch_markers, ch_unsubtracted, ch_registration_qc)
+            QC(ch_segmented, ch_markers, ch_unsubtracted, ch_registration_qc, specs*.method.unique())
             ch_versions = ch_versions.mix(QC.out.versions)
         }
 
         // TMA cores are merged last so each core is segmented and QCed on its own.
         // `sample` is set because downstream processes tag on meta.sample.
         if (params.use_tma_dearray) {
-            ch_cores_by_slide = ch_aggregated
+            ch_cores_by_slide = ch_segmented
                 .map { meta, sdata -> [[id: meta.slide, sample: meta.slide], sdata] }
                 .groupTuple()
 
@@ -171,7 +153,7 @@ workflow HISTO {
             }
         }
         else {
-            ch_publish = ch_aggregated
+            ch_publish = ch_segmented
         }
 
         PUBLISH_SPATIALDATA(ch_publish)

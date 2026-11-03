@@ -25,11 +25,11 @@ nextflow_pipeline {
 
             assertAll(
                 { assert workflow.success },
-                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() == 2 },
-                { assert names("RESOLVE_CELLPOSE").size() == 1 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
+                { assert names("RESOLVE").size() == 1 },
 
                 // A missing entry means the module lost its version capture.
-                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('PATCH_SEGMENTATION_CELLPOSE') }
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_CELLPOSE') }
             )
         }
     }

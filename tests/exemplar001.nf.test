@@ -32,7 +32,7 @@ nextflow_pipeline {
                 .attributes.ome.omero.channels
                 .collect { it.label }
 
-            def cells = slurp.parse(file("${zarr}/tables/table/X/zarr.json")).shape[0]
+            def cells = slurp.parse(file("${zarr}/tables/cellpose_table/X/zarr.json")).shape[0]
             def imageShape = slurp.parse(file("${zarr}/images/exemplar-001/s0/zarr.json")).shape
 
             def ran = workflow.trace.succeeded().collect { it.name }
@@ -57,7 +57,7 @@ nextflow_pipeline {
                 { assert names("BASICPY").size() == 3 },
 
                 // More than one patch, so boundary resolution is exercised.
-                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() > 1 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() > 1 },
 
                 // The plain path: neither of these may run under this profile.
                 { assert names("BACKSUB").isEmpty() },
@@ -67,9 +67,9 @@ nextflow_pipeline {
 
                 // The elements downstream analysis expects.
                 { assert file("${zarr}/images/exemplar-001").exists() },
-                { assert file("${zarr}/shapes/cellpose_boundaries").exists() },
+                { assert file("${zarr}/shapes/cellpose_cells").exists() },
                 { assert file("${zarr}/shapes/image_patches").exists() },
-                { assert file("${zarr}/tables/table").exists() },
+                { assert file("${zarr}/tables/cellpose_table").exists() },
                 { assert file("$outputDir/preprocessing/registration/exemplar-001.ome.tif").exists() },
                 // Ashlar QC: machine-readable summary, the PDF, and the report section reading them.
                 { assert ashlarQc.stitching.n_tiles > 1 },

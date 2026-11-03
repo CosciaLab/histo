@@ -39,6 +39,7 @@ nextflow_pipeline {
                 { assert workflow.success },
                 // The Coreograph stub emits two cores.
                 { assert names("AGGREGATE").size() == 2 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 2 },
                 { assert names("QC_REPORT").size() == 2 },
                 { assert names("MERGE_SPATIALDATA").size() == 1 },
                 { assert names("MERGE_REPORT").size() == 1 },

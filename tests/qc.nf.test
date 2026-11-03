@@ -36,6 +36,8 @@ nextflow_workflow {
                     [ id: 'testsample' ],
                     file("\${projectDir}/tests/stub_data", checkIfExists: true)
                 ])
+                // QC runs once per sample and method, on that method's table.
+                input[4] = ['cellpose']
                 """
             }
         }
@@ -46,6 +48,9 @@ nextflow_workflow {
             assert workflow.out.report.size() == 1
             // The metrics JSON name is a contract for downstream gates.
             assert workflow.out.metrics.get(0).get(1).endsWith('testsample_qc.json')
+            // The QC scripts read the table named in meta.
+            assert workflow.out.metrics.get(0).get(0).table == 'cellpose_table'
+            assert workflow.out.metrics.get(0).get(0).method == 'cellpose'
             assert workflow.out.report.get(0).get(1).endsWith('testsample_qc_report.html')
         }
     }
@@ -68,6 +73,8 @@ nextflow_workflow {
                 ])
                 input[2] = Channel.empty()
                 input[3] = Channel.empty()
+                // QC runs once per sample and method, on that method's table.
+                input[4] = ['cellpose']
                 """
             }
         }
@@ -94,6 +101,8 @@ nextflow_workflow {
                 input[1] = Channel.empty()
                 input[2] = Channel.empty()
                 input[3] = Channel.empty()
+                // QC runs once per sample and method, on that method's table.
+                input[4] = ['cellpose']
                 """
             }
         }
@@ -128,6 +137,8 @@ nextflow_workflow {
                 )
                 input[2] = Channel.empty()
                 input[3] = Channel.empty()
+                // QC runs once per sample and method, on that method's table.
+                input[4] = ['cellpose']
                 """
             }
         }
@@ -173,6 +184,8 @@ nextflow_workflow {
                     [ id: 'slide' ],
                     file("\${projectDir}/tests/stub_data", checkIfExists: true)
                 ])
+                // QC runs once per sample and method, on that method's table.
+                input[4] = ['cellpose']
                 """
             }
         }

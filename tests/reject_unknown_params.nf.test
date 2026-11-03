@@ -66,6 +66,25 @@ nextflow_function {
         }
     }
 
+    test("instanseg_target and min_intensity_ratio were removed in 2.0 and stop the run") {
+        when {
+            function {
+                """
+                input[0] = [
+                    outdir: 'results',
+                    instanseg_target: 'nuclei',
+                    min_intensity_ratio: 0.1
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("instanseg_target was removed in 2.0 (use segment_cells and segment_nuclei)") }
+            assert function.stdout.any { it.contains("min_intensity_ratio was removed in 2.0") }
+        }
+    }
+
     test("other removed parameters are still rejected") {
         when {
             function {

@@ -35,9 +35,11 @@ nextflow_pipeline {
                 { assert names("SET_CHANNEL_NAMES").isEmpty() },
 
                 // Two patches at 5000 px; one would mean tiling silently collapsed.
-                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() == 2 },
-                { assert names("RESOLVE_CELLPOSE").size() == 1 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").isEmpty() },
+                { assert names("RESOLVE").size() == 1 },
                 { assert names("AGGREGATE").size() == 1 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
 
                 // Not a TMA, so no slide-level steps.
                 { assert names("MERGE_SPATIALDATA").isEmpty() },
@@ -50,7 +52,8 @@ nextflow_pipeline {
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").exists() },
-                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('AGGREGATE') }
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('AGGREGATE') },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('WRITE_SEGMENTATIONS') }
             )
         }
     }

@@ -17,13 +17,13 @@ process QC_IMAGES {
     path "versions.yml"                              , emit: versions
 
     script:
-    // The fallback keeps 1.x stores (table `table`) working until meta.table is set everywhere.
+    // meta.table is the method's table, set per method in subworkflows/local/qc.
     def args = task.ext.args ?: ""
     def sheet = markers ? "--markers ${markers}" : ""
     """
     qc_images.py \\
         --sdata ${sdata_path} \\
-        --table ${meta.table ?: 'table'} \\
+        --table ${meta.table} \\
         --out-dir ${meta.sample}_qc_images \\
         ${sheet} \\
         ${args}

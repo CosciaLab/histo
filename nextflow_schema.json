@@ -274,10 +274,6 @@
                 "min_area_pixels2": {
                     "type": "number",
                     "description": "Cells with an area less than this value will be filtered. The unit is in pixels^2, and used by Stardist/Cellpose."
-                },
-                "min_intensity_ratio": {
-                    "type": "number",
-                    "description": "Cells whose mean channel intensity is less than `min_intensity_ratio * quantile_90` will be filtered."
                 }
             },
             "fa_icon": "fas fa-filter"
@@ -359,6 +355,23 @@
             },
             "fa_icon": "fas fa-layer-group"
         },
+        "segmentation_targets": {
+            "title": "Segmentation targets",
+            "type": "object",
+            "description": "What each enabled method segments: whole cells, nuclei, or both.",
+            "properties": {
+                "segment_cells": {
+                    "type": "boolean",
+                    "description": "Segment whole cells with each enabled method. Shapes `{method}_cells`, table `{method}_table`",
+                    "default": true
+                },
+                "segment_nuclei": {
+                    "type": "boolean",
+                    "description": "Segment nuclei with each enabled method. Not available yet: this release segments cells only"
+                }
+            },
+            "fa_icon": "fas fa-bullseye"
+        },
         "cellpose": {
             "title": "Cellpose",
             "type": "object",
@@ -409,10 +422,6 @@
                 "instanseg_pixel_size": {
                     "type": "number",
                     "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells"
-                },
-                "instanseg_target": {
-                    "type": "string",
-                    "description": "Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`. Also sets the default `instanseg_channels`: `dna` and `marker` channels for `cells`, `dna` only for `nuclei`"
                 },
                 "instanseg_channels": {
                     "type": ["string", "integer"],
@@ -477,6 +486,9 @@
         },
         {
             "$ref": "#/$defs/projection"
+        },
+        {
+            "$ref": "#/$defs/segmentation_targets"
         },
         {
             "$ref": "#/$defs/cellpose"

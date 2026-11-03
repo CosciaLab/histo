@@ -1,4 +1,4 @@
-// Function library vendored from nf-core/sopa at c2b4e5f. New sopa params must also be added to extractSubArgs().
+// Function library vendored from nf-core/sopa at c2b4e5f. New sopa params go in extractSubArgs() or segmentationSpecs().
 // Kept flat despite lint (local_component_structure): as utils/main.nf it fails the stub/versions hooks.
 
 def stringifyItem(String key, value) {
@@ -38,43 +38,7 @@ def stringifyValueForCli(value) {
 }
 
 def extractSubArgs(Map args, String group) {
-    if (group == "cellpose") {
-        return [
-            // sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
-            diameter: 30,
-            // sopa reads two channels as cytoplasm, then nucleus.
-            channels: args.use_projection ? ['cell', 'nuclear'] : getChannels(args.cellpose_channels, false),
-            flow_threshold: args.flow_threshold,
-            cellprob_threshold: args.cellprob_threshold,
-            pretrained_model: args.pretrained_model,
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.cellpose_kwargs,
-        ]
-    } else if (group == "instanseg") {
-        return [
-            model_type: args.instanseg_model_type,
-            pixel_size: args.instanseg_pixel_size,
-            target: args.instanseg_target,
-            channels: getChannels(args.instanseg_channels, true),
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.instanseg_kwargs,
-        ]
-    } else if (group == "aggregate") {
-        return [
-            // Always on: sopa defaults to off, which leaves no intensities to quantify.
-            aggregate_channels: true,
-            // sopa's shapes_key. Named, because sopa 2.2.9's lookup does not know instanseg_boundaries.
-            method_name: boundariesKey(args),
-            expand_radius_ratio: args.expand_radius_ratio,
-            min_intensity_ratio: args.min_intensity_ratio,
-        ]
-    } else if (group == "tissue_segmentation") {
+    if (group == "tissue_segmentation") {
         return [
             level: args.level,
             mode: args.mode,
@@ -90,7 +54,7 @@ def extractSubArgs(Map args, String group) {
     }
 }
 
-// Targets to segment; cells unless segment_cells is false (param added later), nuclei opt-in.
+// Targets to segment; cells unless segment_cells is false (null counts as on, as for a partial map), nuclei opt-in.
 def segmentationTargets(Map args) {
     def targets = []
     if (args.segment_cells != false) {
@@ -176,12 +140,6 @@ def mergeMethodKwargs(String method, Map explicit, Map extra) {
         }
     }
     return merged
-}
-
-// Shapes element the resolve step of the enabled backend writes; null without a backend.
-def boundariesKey(Map args) {
-    def backend = ['cellpose', 'instanseg'].find { args['use_' + it] }
-    return backend ? backend + '_boundaries' : null
 }
 
 // Channels may be a string or a number (schema type ["string", "integer"]); left untyped so

@@ -583,6 +583,8 @@ def rejectUnknownParams(params) {
         nms_thresh: gone,
         stardist_channels: gone,
         stardist_kwargs: gone,
+        instanseg_target: 'use segment_cells and segment_nuclei',
+        min_intensity_ratio: 'cells are never dropped at aggregation; filtering comes in a later release',
     ]
     def stale = removed.findAll { name, _now -> params.containsKey(name) }
     if (stale) {
@@ -617,8 +619,12 @@ def validateParams(params) {
     def STAINING_BASED_METHODS = ['use_cellpose', 'use_instanseg']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
 
-    // Exactly one backend: with none, ch_resolved is unassigned and AGGREGATE fails obscurely.
+    // One method per run until both can run side by side.
     assert enabled <= 1 : "Only one of ${STAINING_BASED_METHODS} may be used, but ${enabled} are enabled"
+
+    // Nuclei need linking to cells before they can be quantified; not wired yet.
+    assert !params.segment_nuclei : "segment_nuclei is not supported yet: this release segments " +
+        "cells only. Remove segment_nuclei, or set it to false."
 
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
@@ -639,6 +645,9 @@ def validateParams(params) {
     else {
         assert enabled >= 1 : "A segmentation backend is required: set one of ${STAINING_BASED_METHODS} to true, " +
             "or use a profile that does (for example -profile test)"
+        // segment_cells null counts as on, as in segmentationTargets (modules/local/utils.nf).
+        assert params.segment_cells != false || params.segment_nuclei :
+            "At least one of segment_cells and segment_nuclei must be true: otherwise there is nothing to segment."
     }
 
     if (params.use_projection) {
