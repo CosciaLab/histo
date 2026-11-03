@@ -120,8 +120,8 @@ and core labels.
   blob; zero cores; the tie-break; the warning thresholds.
 - Stub nf-test: sweep mode gives 5 detect, 1 select, 1 `COREOGRAPH` per slide; manual mode
   gives no detect or select; missing `tma_*` params fail at startup.
-- `test_exemplar002` on the cluster, its `coreograph_args` removed: N = 4, D pending (measured independently, not from
-  Coreograph). Assert the selected k and that the k = 4 labels equal `COREOGRAPH`'s `coremask`.
+- `test_exemplar002` on the cluster, its `coreograph_args` removed: N = 4, D = 1.5 mm
+  (measured by the user, not from Coreograph). Assert the selected k and that the k = 4 labels equal `COREOGRAPH`'s `coremask`.
 - Later: the user's larger TMA subsets, which also exercise `size_cv` and `crop_ratio`.
 
 ## Housekeeping
@@ -129,10 +129,6 @@ and core labels.
 `sizes.config` entries for both processes (detect starts at `COREOGRAPH`'s size, refit after
 the cluster run); `usage.md`; `CHANGELOG` (breaking: TMA runs now need `tma_*` params or
 `coreograph_args`); `CITATIONS` unchanged; re-render the metro map for a human to check.
-
-## Open
-
-- D for exemplar-002, from the user.
 
 ## Not now
 
