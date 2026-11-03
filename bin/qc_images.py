@@ -307,6 +307,19 @@ def cluster_tree(labels_by_resolution: list[Any], resolutions: list[float]) -> d
     return {"levels": levels, "edges": edges}
 
 
+def measured_sample(values: Any, max_cells: int, seed: int = 0) -> Any:
+    """Sorted row indices to cluster: rows finite in every channel, subsampled to `max_cells` (0 keeps all).
+
+    A cell covering no pixel centre has NaN means, which scaling and the neighbour graph cannot take.
+    """
+    import numpy as np
+
+    measured = np.nonzero(np.isfinite(np.asarray(values, dtype=np.float64)).all(axis=1))[0]
+    if 0 < max_cells < len(measured):
+        return np.sort(np.random.default_rng(seed).choice(measured, size=max_cells, replace=False))
+    return measured
+
+
 def cluster_cells(
     x: Any,
     channel_names: list[str],
@@ -344,12 +357,9 @@ def cluster_cells(
             positive = values[:, j][values[:, j] > 0]
             cofactors.append(float(max(1.0, np.median(positive))) if positive.size else 1.0)
 
-    rng = np.random.default_rng(seed)
     n_total = values.shape[0]
-    if 0 < max_cells < n_total:
-        sample = np.sort(rng.choice(n_total, size=max_cells, replace=False))
-    else:
-        sample = np.arange(n_total)
+    sample = measured_sample(values, max_cells, seed)
+    n_unmeasured = int((~np.isfinite(values).all(axis=1)).sum())
     values = values[sample]
 
     import anndata as ad
@@ -459,7 +469,8 @@ def cluster_cells(
         "arcsinh_cofactors": dict(zip(use_channels, [round(c, 1) for c in cofactors], strict=True)),
         "n_cells_clustered": int(len(sample)),
         "n_cells_total": int(n_total),
-        "subsampled": bool(len(sample) < n_total),
+        "n_cells_unmeasured": n_unmeasured,
+        "subsampled": bool(len(sample) < n_total - n_unmeasured),
         "channels_used": list(use_channels),
         "clusters": order,
         "cluster_sizes": sizes,
