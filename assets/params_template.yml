@@ -124,12 +124,31 @@
 # use_tma_dearray: null
 
 ## -----------------------------------------------------------------------------
+## tma_expected_cores
+## -----------------------------------------------------------------------------
+##     Total number of cores expected on the slide. Required with
+##     use_tma_dearray unless coreograph_args is set.
+##     Type: integer
+## -----------------------------------------------------------------------------
+# tma_expected_cores: null
+
+## -----------------------------------------------------------------------------
+## tma_core_diameter_mm
+## -----------------------------------------------------------------------------
+##     Expected core diameter in mm. Required with use_tma_dearray unless
+##     coreograph_args is set.
+##     Type: number
+## -----------------------------------------------------------------------------
+# tma_core_diameter_mm: null
+
+## -----------------------------------------------------------------------------
 ## coreograph_args
 ## -----------------------------------------------------------------------------
-##     Extra command-line arguments passed through to UNetCoreograph.
+##     Command-line arguments for UNetCoreograph. Setting this skips the
+##     downsample sweep.
 ##     Type: string
 ## -----------------------------------------------------------------------------
-# coreograph_args: "--downsampleFactor 5 --channel 0 --buffer 2"
+# coreograph_args: null
 
 
 ## =============================================================================

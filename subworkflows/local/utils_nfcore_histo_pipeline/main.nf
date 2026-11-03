@@ -667,5 +667,17 @@ def validateParams(params) {
         "half; to re-enter already-dearrayed cores, list them in the samplesheet with " +
         "use_preprocessing = false and use_tma_dearray = false."
 
+    // Without coreograph_args the downsample factor is chosen by a sweep scored against these.
+    if (params.use_tma_dearray && !params.coreograph_args) {
+        assert params.tma_expected_cores != null && params.tma_core_diameter_mm != null :
+            "use_tma_dearray needs tma_expected_cores (total cores on the slide) and " +
+            "tma_core_diameter_mm (core diameter in mm) to choose Coreograph's downsample factor. " +
+            "To set Coreograph's arguments yourself instead, set coreograph_args."
+        assert params.tma_expected_cores > 0 :
+            "tma_expected_cores must be greater than 0. Got: ${params.tma_expected_cores}"
+        assert params.tma_core_diameter_mm > 0 :
+            "tma_core_diameter_mm must be greater than 0. Got: ${params.tma_core_diameter_mm}"
+    }
+
     return params
 }

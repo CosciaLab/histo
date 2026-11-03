@@ -20,7 +20,9 @@
 # use_backsub: null                  # Subtract background channels after stitching.
 # backsub_args: null                 # Extra command-line arguments passed through to backsub.
 # use_tma_dearray: null              # Split a tissue microarray into individual cores with UNetCoreograph.
-# coreograph_args: "--downsampleFactor 5 --channel 0 --buffer 2"  # Extra command-line arguments passed through to UNetCoreograph.
+# tma_expected_cores: null           # Total number of cores expected on the slide.
+# tma_core_diameter_mm: null         # Expected core diameter in mm.
+# coreograph_args: null              # Command-line arguments for UNetCoreograph.
 
 ## Institutional config options
 # custom_config_version: "master"   # Git commit id for Institutional configs.
