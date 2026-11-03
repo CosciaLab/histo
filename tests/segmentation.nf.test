@@ -1,0 +1,39 @@
+// SEGMENTATION's input checks under -stub; the pipeline tests cover its wiring.
+
+nextflow_workflow {
+
+    name "SEGMENTATION"
+    script "../subworkflows/local/segmentation/main.nf"
+    workflow "SEGMENTATION"
+    profile "laptop"
+    options "-stub"
+    tag "stub"
+    tag "segmentation"
+
+    test("a store with 0 patches fails instead of vanishing from the outputs") {
+
+        when {
+            // A patches file as MAKE_IMAGE_PATCHES writes it, with no patches.
+            def patches = new File("$outputDir", "patches_file_image")
+            patches.parentFile.mkdirs()
+            patches.text = "0\n"
+
+            workflow {
+                """
+                input[0] = Channel.of([
+                    [ id: 'testsample', sample: 'testsample', sdata_dir: 'testsample.zarr' ],
+                    file("\${projectDir}/tests/stub_data", checkIfExists: true),
+                    file("${patches.path}", checkIfExists: true)
+                ])
+                input[1] = Channel.empty()
+                input[2] = [[ name: 'cellpose_cells', method: 'cellpose', target: 'cells', image: 'full', channels: ['DAPI'] ]]
+                """
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample 'testsample': 0 image patches, nothing to segment") }
+        }
+    }
+}

@@ -32,6 +32,11 @@ workflow SEGMENTATION {
     // One row per sample and spec. Specs are shared objects: build new maps, never mutate one.
     def ch_sample_specs = ch_sample_rows.flatMap { meta, sdata, patches_file, rows ->
         def n_patches = patches_file.text.trim().toInteger()
+        // 0 patches would create no task, and the sample would vanish from the outputs silently.
+        if (n_patches == 0) {
+            error("Sample '${meta.sample}': 0 image patches, nothing to segment. Tissue segmentation may have found no tissue " +
+                "(check the image, or set use_tissue_segmentation to false), or patch_width_pixel is larger than the image.")
+        }
         specs.collect { spec ->
             if (spec.method != 'instanseg') {
                 return [meta, sdata, spec, n_patches]

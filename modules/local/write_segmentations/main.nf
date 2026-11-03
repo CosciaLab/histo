@@ -1,5 +1,5 @@
 process WRITE_SEGMENTATIONS {
-    label "process_single"
+    label "process_low"
     tag "${meta.sample}"
 
     conda "${moduleDir}/environment.yml"

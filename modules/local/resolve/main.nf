@@ -1,5 +1,5 @@
 process RESOLVE {
-    label "process_single"
+    label "process_low"
     tag "${meta.sample}:${spec.name}"
 
     conda "${moduleDir}/environment.yml"
