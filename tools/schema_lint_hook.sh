@@ -10,7 +10,7 @@
 
 set -uo pipefail
 
-root="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
+root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ $# -eq 0 ]; then
     edited=$(python3 -c 'import json, sys; print(json.load(sys.stdin).get("tool_input", {}).get("file_path", ""))')
@@ -18,6 +18,13 @@ if [ $# -eq 0 ]; then
         */nextflow_schema.json | */nextflow.config) ;;
         *) exit 0 ;;
     esac
+    # Lint the checkout that holds the edited file: a session may edit a worktree under it.
+    root=$(dirname "$edited")
+fi
+
+if ! command -v nf-core > /dev/null; then
+    echo "nf-core not found; nextflow_schema.json was not linted." >&2
+    exit 0
 fi
 
 if ! out=$(nf-core pipelines lint --dir "$root" -k schema_lint -k schema_params 2>&1); then
