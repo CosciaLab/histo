@@ -1,0 +1,63 @@
+name: "aggregate"
+description: Mean marker intensity per cell (or per nucleus in a nuclei-only run) for one method, as one AnnData table, with nucleus and cytoplasm layers when both targets ran. Script adapted from sopa 2.2.12.
+keywords:
+  - aggregation
+  - quantification
+  - anndata
+  - spatialdata
+tools:
+  - "sopa":
+      description: "Technology-invariant pipeline for image-based spatial omics."
+      homepage: "https://prism-oncology.github.io/sopa"
+      documentation: "https://prism-oncology.github.io/sopa"
+      tool_dev_url: "https://github.com/prism-oncology/sopa"
+      doi: 10.1038/s41467-024-48981-z
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information; slide is set on dearrayed TMA cores
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store; only read, for the image
+        pattern: "*.zarr"
+    - method:
+        type: string
+        description: Segmentation method, cellpose or instanseg
+    - specs:
+        type: list
+        description: This method's segmentation specs (maps)
+    - shapes:
+        type: file
+        description: |
+          {method}_cells.parquet, plus LINK_COMPARTMENTS' parquets when both targets ran;
+          {method}_nuclei.parquet in a nuclei-only run
+        pattern: "*.parquet"
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  table:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - method:
+          type: string
+          description: Segmentation method, passed through
+      - ${method}_table.h5ad:
+          type: file
+          description: AnnData table, one row per cell (or nucleus)
+          pattern: "*_table.h5ad"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

@@ -1,0 +1,83 @@
+name: "segment_patch"
+description: Segment one image patch of a SpatialData store with one segmentation spec (Cellpose or InstanSeg), through sopa's Python API.
+keywords:
+  - segmentation
+  - cellpose
+  - instanseg
+  - spatialdata
+  - imaging
+tools:
+  - "sopa":
+      description: "Technology-invariant pipeline for image-based spatial omics."
+      homepage: "https://prism-oncology.github.io/sopa"
+      documentation: "https://prism-oncology.github.io/sopa"
+      tool_dev_url: "https://github.com/prism-oncology/sopa"
+      doi: 10.1038/s41467-024-48981-z
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+  - "cellpose":
+      description: "Generalist deep-learning cell segmentation."
+      homepage: "https://github.com/MouseLand/cellpose"
+      documentation: "https://cellpose.readthedocs.io"
+      tool_dev_url: "https://github.com/MouseLand/cellpose"
+      doi: 10.1038/s41592-020-01018-x
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+  - "instanseg":
+      description: "Embedding-based instance segmentation of cells and nuclei."
+      homepage: "https://github.com/instanseg/instanseg"
+      documentation: "https://github.com/instanseg/instanseg/blob/main/README.md"
+      tool_dev_url: "https://github.com/instanseg/instanseg"
+      licence:
+        - "Apache-2.0"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store with image patches; only read
+        pattern: "*.zarr"
+    - spec:
+        type: map
+        description: |
+          One segmentation spec from segmentationSpecs (modules/local/utils.nf)
+          e.g. [ name:'cellpose_cells', method:'cellpose', target:'cells', image:'full', channels:[...] ]
+    - index:
+        type: integer
+        description: Index of the patch to segment
+    - n_patches:
+        type: integer
+        description: Number of patches in the store, passed through for grouping
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  parquet:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - spec:
+          type: map
+          description: The segmentation spec, passed through
+      - ${index}.parquet:
+          type: file
+          description: Polygons found in this patch, in image pixel coordinates
+          pattern: "*.parquet"
+      - n_patches:
+          type: integer
+          description: Number of patches in the store, passed through
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions (sopa, cellpose, instanseg)
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"
