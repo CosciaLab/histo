@@ -157,4 +157,72 @@ nextflow_function {
             assert function.success
         }
     }
+
+    test("TMA sweep without expected cores or diameter is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, use_preprocessing: true, use_tma_dearray: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("tma_expected_cores") && it.contains("tma_core_diameter_mm") && it.contains("coreograph_args") }
+        }
+    }
+
+    test("TMA sweep with zero expected cores is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, use_preprocessing: true, use_tma_dearray: true, tma_expected_cores: 0, tma_core_diameter_mm: 1.5 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("tma_expected_cores must be greater than 0") }
+        }
+    }
+
+    test("TMA sweep with a negative diameter is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, use_preprocessing: true, use_tma_dearray: true, tma_expected_cores: 4, tma_core_diameter_mm: -1 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("tma_core_diameter_mm must be greater than 0") }
+        }
+    }
+
+    test("TMA sweep with both values is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, use_preprocessing: true, use_tma_dearray: true, tma_expected_cores: 4, tma_core_diameter_mm: 1.5 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("manual coreograph_args needs no tma params") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: true, use_preprocessing: true, use_tma_dearray: true, coreograph_args: '--downsampleFactor 4' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
 }

@@ -36,7 +36,8 @@ Preprocessing (from mcmicro):
 
 1. Illumination correction (BaSiCPy)
 2. Stitching and registration (Ashlar)
-3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`; the downsample factor is chosen
+   from the expected core count and diameter
 4. Background subtraction (backsub), optional: `--use_backsub`; per core on a TMA
 
 Downstream (from sopa):

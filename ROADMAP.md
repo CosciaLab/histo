@@ -197,3 +197,5 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   more contributors.
 - **Template 4.0.3 → 4.1.0.** `TEMPLATE` was merged into `dev` with `-s ours`, so
   `nf-core pipelines sync` will not bring it; port about 10 small hunks by hand. 1–2 h.
+  `nf_core_version` in `.nf-core.yml` says 4.2.0 so CI lints with the tools we use locally;
+  the template files are still 4.0.3's.

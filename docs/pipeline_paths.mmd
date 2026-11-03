@@ -9,11 +9,15 @@ graph LR
         BASICPY([BASICPY])
         ASHLAR([ASHLAR])
         BACKSUB([BACKSUB])
+        COREOGRAPH_DETECT([COREOGRAPH_DETECT])
+        COREOGRAPH_SELECT([COREOGRAPH_SELECT])
         COREOGRAPH([COREOGRAPH])
 
         BASICPY -->|mif, backsub, tma| ASHLAR
         ASHLAR -->|backsub| BACKSUB
-        ASHLAR -->|tma| COREOGRAPH
+        ASHLAR -->|tma| COREOGRAPH_DETECT
+        COREOGRAPH_DETECT -->|tma| COREOGRAPH_SELECT
+        COREOGRAPH_SELECT -->|tma| COREOGRAPH
     end
 
     subgraph store [SpatialData store]

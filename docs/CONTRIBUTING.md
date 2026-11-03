@@ -33,8 +33,9 @@ On an Apple Silicon laptop, `-stub` is the everyday loop; real runs work only fo
 pipeline (see [On the Mac](#on-the-mac)). Update a module's `stub:` block in the same commit as its outputs; the `stub-drift` hook
 checks this.
 
-Do not hand-edit `nextflow_schema.json` (use `nf-core pipelines schema build`) or nf-test
-snapshots (regenerate them).
+`nextflow_schema.json` may be edited directly or with `nf-core pipelines schema build`; the
+`schema-lint` hook checks it against `nextflow.config`. Do not hand-edit nf-test snapshots
+(regenerate them).
 
 ### Unit tests (seconds)
 
@@ -196,7 +197,7 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 ```bash
 pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
 nf-metro validate docs/pipeline_paths.mmd
-nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves

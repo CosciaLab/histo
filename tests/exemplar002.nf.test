@@ -29,6 +29,7 @@ nextflow_pipeline {
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
             def manifest = slurp.parse(file("$outputDir/exemplar-002_merge_manifest.json"))
+            def selection = slurp.parse(file("$outputDir/preprocessing/dearray/sweep/exemplar-002_selection.json"))
             def cores = manifest.keySet().sort()
             def coreMetrics = cores.collect {
                 slurp.parse(file("$outputDir/qc/${it}_instanseg_qc.json"))
@@ -45,6 +46,16 @@ nextflow_pipeline {
 
                 // Core count is a property of the array, so it is asserted exactly.
                 { assert names("COREOGRAPH").size() == 1 },
+
+                // The sweep: five factors, one choice. Natively, k=5 scored 0.145 and k=4 0.160,
+                // both finding the 4 cores; either is a correct pick, k=3 (a split core) is not.
+                { assert names("COREOGRAPH_DETECT").size() == 5 },
+                { assert names("COREOGRAPH_SELECT").size() == 1 },
+                { assert selection.downsample_factor in [4, 5] },
+                { assert selection.warning == null },
+                // The copied detection code matches Coreograph's own at the chosen factor.
+                { assert path("$outputDir/preprocessing/dearray/sweep/exemplar-002_k${selection.downsample_factor}_centroids.txt").text ==
+                    path("$outputDir/preprocessing/dearray/exemplar-002_centroids.txt").text },
                 { assert cores.size() == 4 },
                 { assert cores == [
                     'exemplar-002_core001', 'exemplar-002_core002',

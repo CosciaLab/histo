@@ -81,10 +81,24 @@
                     "description": "Split a tissue microarray into individual cores with UNetCoreograph. Each core then runs the downstream half as an independent sample, and the results are merged per slide at the end. Requires use_preprocessing.",
                     "fa_icon": "fas fa-th"
                 },
+                "tma_expected_cores": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Total number of cores expected on the slide. Required with use_tma_dearray unless coreograph_args is set.",
+                    "help_text": "Count the cores you expect to find, not rows times columns: arrays have empty or lost positions. The pipeline tries several Coreograph downsample factors and keeps the one whose cores best match this count and tma_core_diameter_mm. Every slide in the run is scored against the same values, so run arrays of different layouts separately.",
+                    "fa_icon": "fas fa-hashtag"
+                },
+                "tma_core_diameter_mm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Expected core diameter in mm. Required with use_tma_dearray unless coreograph_args is set.",
+                    "help_text": "Used with tma_expected_cores to choose Coreograph's downsample factor. The pixel size is read from the image's OME-XML.",
+                    "fa_icon": "fas fa-ruler"
+                },
                 "coreograph_args": {
                     "type": "string",
-                    "default": "--downsampleFactor 5 --channel 0 --buffer 2",
-                    "description": "Extra command-line arguments passed through to UNetCoreograph.",
+                    "description": "Command-line arguments for UNetCoreograph. Setting this skips the downsample sweep.",
+                    "help_text": "Leave unset to let the pipeline choose --downsampleFactor from tma_expected_cores and tma_core_diameter_mm (it then runs on the marker sheet's first dna channel with --buffer 2 --sensitivity 0.3). Set it, for example to '--downsampleFactor 4 --channel 0 --buffer 2', to run Coreograph exactly as given.",
                     "fa_icon": "fas fa-terminal"
                 }
             }

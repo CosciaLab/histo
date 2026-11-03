@@ -99,6 +99,12 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
     `{slide}_coremask.tif`, `{slide}_tma_map.tif` and `{slide}_centroids.txt`. Only when
     `use_tma_dearray` is true. The TMA map and centroids are what to check when a core is missing
     or two cores were merged into one.
+- `preprocessing/dearray/sweep/`
+  - `{slide}_sweep.tsv`: one row per downsample factor, best first, with its core count,
+    median diameter, size spread, score and any warning. `{slide}_sweep_overlays.png` shows
+    the detected cores at every factor side by side. Only without `coreograph_args`.
+  - `{slide}_selection.json` (the chosen factor), and per factor `{slide}_k{k}_metrics.json`,
+    `_coremask.tif`, `_centroids.txt` and `_overlay.png`.
 
 </details>
 

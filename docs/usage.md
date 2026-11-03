@@ -73,9 +73,23 @@ warning. Keep at least one `dna` channel, and do not name a removed channel in `
 or `instanseg_channels`; both are rejected at startup.
 
 Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_args`, default
-0), and Coreograph dearrays on one channel of the stitched image (`--channel` in
-`coreograph_args`). Both may be `-1` for the last channel. The run stops at startup when either
-index lands on a channel that is not `dna`; set `skip_reference_dna_check: true` to run anyway.
+0), and Coreograph dearrays on one channel of the stitched image: the marker sheet's first `dna`
+channel, or `--channel` in `coreograph_args`. Both indices may be `-1` for the last channel. The
+run stops at startup when either index lands on a channel that is not `dna`; set
+`skip_reference_dna_check: true` to run anyway.
+
+### TMA dearray
+
+Coreograph finds cores reliably only at the right `--downsampleFactor`, and a wrong one fails
+silently: cores split along tissue bands, or neighbours merge. So the pipeline asks how many
+cores to expect (`tma_expected_cores`, a count, not rows × columns) and how large
+(`tma_core_diameter_mm`). It detects cores at factors 3 to 7, keeps the one whose cores best
+match, and dearrays once with it. Both values apply to every slide in the run, so run arrays
+with different layouts separately. Check `preprocessing/dearray/sweep/{slide}_sweep_overlays.png`;
+the log warns when even the best factor is off by more than 10 % in count or 25 % in diameter.
+
+To run Coreograph exactly as you say instead, set `coreograph_args`, for example
+`'--downsampleFactor 4 --channel 0 --buffer 2'`. The sweep is then skipped.
 
 ### When stitching or registration looks wrong
 
@@ -115,6 +129,8 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
 | `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
+| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                 |
+| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                       |
 | `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                    |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                      |
 | `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                  |
