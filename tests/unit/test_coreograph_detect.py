@@ -2,6 +2,7 @@
 
 import itertools
 import json
+import sys
 
 import coreograph_detect
 import numpy as np
@@ -181,3 +182,31 @@ class TestMain:
         monkeypatch.chdir(tmp_path)
         with pytest.raises(SystemExit, match="pixel size"):
             main(argv(img))
+
+
+class TestDetectLabels:
+    """The copied Coreograph block, with a fake UNet whose probability map is the foreground."""
+
+    @pytest.fixture
+    def fake_unet(self, tmp_path, monkeypatch):
+        app = tmp_path / "app"
+        app.mkdir()
+        (app / "UNetCoreograph.py").write_text(
+            "import numpy as np\ndef getProbMaps(I, dsFactor, modelPath):\n    return (I > 0).astype(float)\n"
+        )
+        monkeypatch.setattr(coreograph_detect, "COREOGRAPH_APP", str(app))
+        monkeypatch.delitem(sys.modules, "UNetCoreograph", raising=False)
+
+    @pytest.mark.usefixtures("fake_unet")
+    def test_finds_four_cores(self):
+        img = discs(CENTRES, 10, (64, 64)).astype(np.uint16)
+        labels, est_core_diam_px = coreograph_detect.detect_labels(img, 0.3, 2.0)
+        assert labels.max() == 4
+        assert est_core_diam_px > 0
+
+    @pytest.mark.usefixtures("fake_unet")
+    def test_nothing_detected_gives_empty_labels(self):
+        """A blank channel, or a k too coarse for the cores, must not crash the sweep."""
+        labels, est_core_diam_px = coreograph_detect.detect_labels(np.zeros((64, 64), np.uint16), 0.3, 2.0)
+        assert labels.shape == (64, 64) and labels.max() == 0
+        assert est_core_diam_px == 0

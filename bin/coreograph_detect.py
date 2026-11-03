@@ -119,8 +119,11 @@ def detect_labels(img: np.ndarray, sensitivity: float, buffer: float) -> tuple[n
     classProbs = getProbMaps(img, 0, str(Path(COREOGRAPH_APP) / "model"))
 
     # Copied from HMS-IDAC/UNetCoreograph 2.4.6, UNetCoreograph.py L1006-1039 (MIT). Keep in sync on bumps.
-    # Only args.buffer became buffer, and a noqa was added.
+    # Changes: args.buffer became buffer, a noqa, and the empty-mask return below.
     preMask = gaussian(np.uint8(classProbs * 255), 1) > 0.8
+    # Coreograph crashes on np.percentile([]) here; the sweep must survive a k that finds nothing.
+    if not preMask.any():
+        return np.zeros(preMask.shape, np.int32), 0.0
 
     P = regionprops(label(preMask), cache=False)
     area = [ele.area for ele in P]
