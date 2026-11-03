@@ -1,7 +1,7 @@
 """Tests for bin/segment_patch.py: the image element a spec names and sopa's CLI defaults."""
 
 import pytest
-from segment_patch import image_key_for, method_arguments, segmentation_arguments
+from segment_patch import image_key_for, method_arguments, require_image, segmentation_arguments
 
 
 def test_image_key_full_and_projected():
@@ -18,6 +18,17 @@ def test_image_key_missing_attribute_names_it():
 def test_image_key_unknown_image():
     with pytest.raises(ValueError, match="sideways"):
         image_key_for({"cell_segmentation_image": "img"}, "sideways")
+
+
+def test_missing_projection_says_how_to_recover():
+    with pytest.raises(ValueError, match="projection removed by an earlier run; rerun without -resume"):
+        require_image("img_projected", {"img": None}, "projected")
+    require_image("img_projected", {"img": None, "img_projected": None}, "projected")
+
+
+def test_missing_full_image_lists_the_images():
+    with pytest.raises(ValueError, match=r"image 'img' is not in the store; images: \['other'\]"):
+        require_image("img", {"other": None}, "full")
 
 
 def test_cellpose_defaults_are_sopa_cli_defaults():

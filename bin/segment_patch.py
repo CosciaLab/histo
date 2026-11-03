@@ -57,6 +57,19 @@ def image_key_for(attrs: dict, image: str) -> str:
     raise ValueError(f"spec image must be 'full' or 'projected', got '{image}'")
 
 
+def require_image(key: str, images, image: str) -> None:
+    """Fail naming the cause when the spec's image element is not in the store."""
+    if key in images:
+        return
+    if image == "projected":
+        # WRITE_SEGMENTATIONS drops it; a -resume that reruns only segmentation then lacks it.
+        raise ValueError(
+            f"image '{key}' is not in the store: projection removed by an earlier run; "
+            "rerun without -resume, or set keep_projection"
+        )
+    raise ValueError(f"image '{key}' is not in the store; images: {sorted(images)}")
+
+
 def _check_method(method: str) -> None:
     if method not in METHOD_BUILDERS:
         raise ValueError(f"unknown segmentation method '{method}'; expected one of {sorted(METHOD_BUILDERS)}")
@@ -118,6 +131,7 @@ def main() -> int:
     kwargs = method_arguments(spec)  # first: a bad {method}_kwargs fails before the store is read
     sdata = read_zarr_standardized(args.sdata)
     key = image_key_for(sdata.attrs, spec["image"])
+    require_image(key, sdata.images, spec["image"])
 
     if spec["method"] == "cellpose":
         kwargs["gpu"] = args.device == "cuda"
