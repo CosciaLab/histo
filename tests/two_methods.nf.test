@@ -46,6 +46,10 @@ nextflow_pipeline {
                 { assert count('_cellpose_qc_report.html') == 1 },
                 { assert count('_instanseg_qc_report.html') == 1 },
 
+                // One comparison per sample, named by meta.sample (meta.id is unset on this path).
+                { assert names("COMPARE_SEGMENTATIONS").size() == 1 },
+                { assert published.containsAll(['sample_name_comparison.json', 'sample_name_comparison.html']) },
+
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_INSTANSEG') }
             )

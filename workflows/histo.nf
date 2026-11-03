@@ -17,6 +17,7 @@ include { PROJECT_CHANNELS        } from '../modules/local/project_channels'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
 include { SEGMENTATION            } from '../subworkflows/local/segmentation'
 include { QC                      } from '../subworkflows/local/qc'
+include { COMPARE_SEGMENTATIONS   } from '../modules/local/compare_segmentations'
 
 
 include { argsCLI; segmentationSpecs } from '../modules/local/utils'
@@ -121,6 +122,14 @@ workflow HISTO {
 
             QC(ch_segmented, ch_markers, ch_unsubtracted, ch_registration_qc, specs*.method.unique())
             ch_versions = ch_versions.mix(QC.out.versions)
+        }
+
+        // A second opinion when both methods segmented cells; reads the written store beside QC.
+        // From the specs, so it follows segmentationTargets' truthiness (a bare flag is "true").
+        def cell_methods = specs.findAll { spec -> spec.target == 'cells' }*.method as Set
+        if (cell_methods == ['cellpose', 'instanseg'] as Set) {
+            COMPARE_SEGMENTATIONS(ch_segmented)
+            ch_versions = ch_versions.mix(COMPARE_SEGMENTATIONS.out.versions)
         }
 
         // TMA cores are merged last so each core is segmented and QCed on its own.

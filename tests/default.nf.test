@@ -49,6 +49,8 @@ nextflow_pipeline {
                 { assert names("QC_METRICS").size() == 1 },
                 { assert names("QC_IMAGES").size() == 1 },
                 { assert names("QC_REPORT").size() == 1 },
+                // One method, so nothing to compare.
+                { assert names("COMPARE_SEGMENTATIONS").isEmpty() },
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").exists() },
