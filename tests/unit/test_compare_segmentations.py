@@ -181,6 +181,24 @@ def test_main_writes_json_and_html(tmp_path, monkeypatch):
     assert page.count("data:image/png;base64,") == len(out["crops"])
 
 
+def test_main_skips_a_geometry_repaired_to_nothing(tmp_path, monkeypatch):
+    import compare_segmentations
+    from shapely.geometry import Polygon
+
+    store = tmp_path / "s.zarr"
+    make_store(store, np.ones((1, 64, 64), dtype=np.uint16))
+    flat = Polygon([(5, 5), (10, 10), (15, 15)])  # zero area: make_valid leaves no polygon
+    write_shapes(store, "cellpose_cells", frame([box(1, 1, 9, 9), flat]))
+    write_shapes(store, "instanseg_cells", grid(2))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "sys.argv", ["compare_segmentations.py", "--sdata", str(store), "--prefix", "s", "--window", "32"]
+    )
+    assert compare_segmentations.main() == 0
+    out = json.loads((tmp_path / "s_comparison.json").read_text())
+    assert sum(c["n_outlines"]["cellpose"] for c in out["crops"]) >= 1
+
+
 def test_main_names_a_missing_element(tmp_path, monkeypatch):
     import compare_segmentations
 
