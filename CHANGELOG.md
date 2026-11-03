@@ -3,6 +3,53 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v2.0.0 - [unreleased]
+
+### Breaking
+
+- Tables and shapes are per method `{m}`: `tables/table` is now `tables/{m}_table`, and
+  `shapes/{m}_boundaries` is `shapes/{m}_cells`. Table rows are indexed by the shapes' cell ids,
+  not renumbered. See [output.md](docs/output.md#from-1x).
+- QC files carry the method: `qc/{sample}_{m}_qc.json`, `_qc_report.html`, `_qc_images/`, and
+  `qc/{slide}_{m}_slide_report.html`.
+- Removed parameters stop the run at startup: `use_stardist`, `stardist_model_type`,
+  `stardist_channels`, `stardist_kwargs`, `prob_thresh`, `nms_thresh`, `instanseg_target`,
+  `min_intensity_ratio`, `technology` and `aggregate_channels`.
+- Segmentation processes are renamed (`SEGMENT_PATCH_CELLPOSE`, `SEGMENT_PATCH_INSTANSEG`,
+  `RESOLVE`), so custom configs selecting the 1.x names no longer apply, and `-resume` from 1.x
+  redoes segmentation.
+
+### Added
+
+- `use_cellpose` and `use_instanseg` together, each with its own table.
+- `segment_cells` (default true) and `segment_nuclei`. With both, `LINK_COMPARTMENTS` links each
+  nucleus to the cell holding at least half of it and derives the cytoplasm: shapes
+  `{m}_nuclei` (with `linked_cell_id`) and `{m}_cytoplasm`, table layers `nucleus` and
+  `cytoplasm`, and `obs` columns `n_nuclei`, `nucleus_id`, `nucleus_area`, `cytoplasm_area`.
+- `uns['segmentation']`: the settings each segmentation was requested with.
+- QC: link counts per method; `qc/{sample}_comparison.json` and `.html` when both methods
+  segment cells (counts, areas, one-to-one matches, shared crops).
+
+### Changed
+
+- One task writes the store, `WRITE_SEGMENTATIONS`; patch, resolve, link and aggregate tasks
+  write files. Aggregation is our own copy of sopa's, with polygon holes honoured.
+- `use_gpu` with `use_instanseg` runs InstanSeg on CPU and warns, instead of stopping.
+- Cells are never dropped at aggregation. A cell covering no pixel centre has NaN intensities
+  (was 0); `obs.area` and centroids are of the unexpanded cell under `expand_radius_ratio`.
+- A segmentation that resolves to no cells or nuclei fails the run, naming it.
+
+### Fixed
+
+- Cells crossing an image chunk edge were measured with a shifted mask (sopa 2.2.12), so their
+  1.x intensities were wrong. Other cells are unaffected.
+- Numeric parameters given on the command line (e.g. `--instanseg_pixel_size 0.65`) failed in
+  InstanSeg's memory request: they arrive as Strings.
+
+### Removed
+
+- StarDist, its modules and image. `DROP_PROJECTION`, folded into `WRITE_SEGMENTATIONS`.
+
 ## v1.4.2 - [2026-11-02]
 
 ### Added

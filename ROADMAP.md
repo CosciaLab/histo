@@ -9,7 +9,8 @@ time, estimated before the release; treat them as rough.
 ## Next releases
 
 Segmentation, then quantification, then learned features. Each release adds its own chapter
-to the HTML QC report; MultiQC suits tool logs, not our figures.
+to the HTML QC report; MultiQC suits tool logs, not our figures. The planned 1.5 (multiple
+segmentations, compared) shipped as 2.0; see [CHANGELOG](CHANGELOG.md).
 
 ### 1.3: segmentation input
 
@@ -26,7 +27,7 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
 
 ### 1.4: segmentation backends
 
-1. **`PATCH_SEGMENTATION_CELLPOSE` CPUs**: `process_single`, but used 133%.
+1. **`SEGMENT_PATCH_CELLPOSE` CPUs**: `process_single`, but used 133%.
 2. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
    patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
    size-profile stopgap for GPU tasks and item 1. Crops and configs are ready outside the repo.
@@ -38,27 +39,16 @@ to the HTML QC report; MultiQC suits tool logs, not our figures.
    regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
    in, select with `pretrained_model`, compare on exemplar-001 (or with 1.3 item 3). ~1 day.
 
-### 1.5: multiple segmentations, compared afterwards
+### 2.1: quantification of every cell from every method, then filtering
 
-1. **Fan out per method × patch.** Patch tasks only read the image and each writes its own
-   parquet, so they can run in parallel.
-2. **One writer per store.** One `RESOLVE` per sample writes every method in turn, then
-   `AGGREGATE` one table per method. Parallel writers would race on the root `zmetadata` and
-   `.zattrs` (sopa's active-boundaries attribute) and on `table`; last writer wins, silently.
-   Check whether `sopa resolve` clears all of `.sopa_cache`.
-3. **Comparison chapter**: counts, areas and overlays per method.
-
-### 1.6: quantification of every cell from every method, then filtering
-
-1. **Aggregation beyond the mean.** sopa writes the mean and `obs.area` only. Own step after
-   `AGGREGATE`: per-channel quantiles and SD as `layers`; perimeter, solidity, eccentricity in
-   `obs`. Per compartment where a method gives nuclei and cells. Risk: memory on the WSI.
-   Reuse the `python_sopa` image if it has scikit-image. 3–4 days.
+1. **Aggregation beyond the mean.** `AGGREGATE` writes the mean per compartment and `obs.area`
+   only. Extend `bin/aggregate_compartments.py`: per-channel quantiles and SD as `layers`;
+   perimeter, solidity, eccentricity in `obs`. Risk: memory on the WSI. 3–4 days.
 2. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
    `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_{method}_qc.json` and the report;
    check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
 
-### 1.7 onward: learned features
+### 2.2 onward: learned features
 
 Nimbus first, then KRONOS and VirTues, one per release. One interface: image and shapes in,
 `obs`/`obsm` out. Reuses 1.4's GPU and weights. None is in bioconda, so expect private images.
@@ -66,7 +56,7 @@ Check weight licences first.
 
 ### Separate track: dearray before Ashlar
 
-It changes the preprocessing outputs, so it ships in 2.0.
+It changes the preprocessing outputs, so it ships in 3.0.
 
 Most valuable and most dangerous. Today Ashlar registers about 1000 tiles × 7 cycles in one job;
 one failure ruins the slide. Per core it would be about 36 tiles × 7 cycles, giving per-core
@@ -88,11 +78,6 @@ the whole-slide result; (4) only then restructure `PREPROCESS_IMAGES`.
 
 Downstream is untouched: core identity, `meta.slide` and `MERGE_SPATIALDATA` already exist.
 
-### 2.0: breaking changes only
-
-1. **Reject `technology` and `aggregate_channels`.** Ignored with a warning since 1.2; drop the
-   `deprecated` map in `rejectUnknownParams`, so they become unknown parameters.
-
 ## Before every release
 
 Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreograph),
@@ -100,7 +85,7 @@ too large for GitHub runners.
 
 Commands and what each run covers are in [CONTRIBUTING](docs/CONTRIBUTING.md#testing). Cell counts must stay
 within ±2% of the baselines in `tests/exemplar001.nf.test` and `tests/exemplar002.nf.test`. Nothing checks `use_preprocessing = false` on real data (stub
-only) or StarDist.
+only).
 
 ## Longer term
 
@@ -155,13 +140,13 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
-- **InstanSeg does not run on GPU.** sopa calls `.numpy()` on its CUDA tensor without `.cpu()`
-  (`sopa/segmentation/methods/_instanseg.py`, 2.2.12 and main), so `use_gpu` with
-  `use_instanseg` is rejected at startup. Report upstream; lift the check once fixed. Then
-  size patches for GPU memory: an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near
-  70 GB. Measure GPU peaks and warn against those, not `instansegMemoryGB`.
+- **`use_gpu` applies to Cellpose only; InstanSeg runs on CPU.** sopa calls `.numpy()` on its
+  CUDA tensor without `.cpu()` (`sopa/segmentation/methods/_instanseg.py`, 2.2.12 and main).
+  Report upstream; once fixed, give InstanSeg the GPU (`conf/gpu.config`) and size patches for
+  GPU memory: an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near 70 GB. Measure GPU
+  peaks and warn against those, not `instansegMemoryGB`.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (1.6 item 2). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (2.1 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** apart from `size_tiny`. Rewrite from large-slide runs, read
   in Seqera Platform (`-with-tower`).
@@ -170,8 +155,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 ### Tooling
 
 - **Local Mac test profile for the partial path.** Ashlar, backsub, sopa, Cellpose and InstanSeg
-  run under `docker,emulate_amd64,laptop`; BaSiCPy, Coreograph and StarDist do not (no AVX under
-  Rosetta). A real-data test without those three would catch tool behaviour before the cluster.
+  run under `docker,emulate_amd64,laptop`; BaSiCPy and Coreograph do not (no AVX under
+  Rosetta). A real-data test without those two would catch tool behaviour before the cluster.
   Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
   55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Move it into a pure function
@@ -179,6 +164,16 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
   but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
   then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
+- **Offer upstream to sopa** (decisions.md, Segmentation): `--image-key` for staining
+  segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize; chunk-edge mask origin.
+
+### From 2.0
+
+- **Repair geometry once in `RESOLVE`** (`make_valid`, polygonal parts), so `{m}_cells` and
+  `{m}_nuclei` areas agree with the linking's; `LINK_COMPARTMENTS`' repair becomes a safety net.
+- **`uns['segmentation']` records the requested spec**, not sopa's defaults filled in later.
+- **Tests to add:** a TMA slide report gets only its own method's cores; two samples through
+  `SEGMENTATION` (store re-attached to the wrong sample); a retry after a crash mid-write.
 
 ### Resources and configuration
 
