@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cells are never dropped at aggregation. A cell covering no pixel centre has NaN intensities
   (was 0); `obs.area` and centroids are of the unexpanded cell under `expand_radius_ratio`.
 - A segmentation that resolves to no cells or nuclei fails the run, naming it.
+- A `cellpose_kwargs` or `instanseg_kwargs` key that a dedicated parameter sets (e.g.
+  `diameter`, `channels`) fails the patch task, naming it.
 
 ### Fixed
 

@@ -144,6 +144,7 @@ table's `obs_names` and `obs['cell_id']` are the same ids. `{m}_table` holds:
 - `obsm['spatial']`: centroids of the unexpanded cells.
 - `uns['segmentation']`: the settings each segmentation was requested with, keyed by name
   (`{m}_cells`, `{m}_nuclei`). Unset options are absent; sopa's defaults applied.
+  `{m}_kwargs` is kept as given, as text, in `method_kwargs_extra`.
 
 NaN means "not measured", 0 means "measured, nothing there":
 

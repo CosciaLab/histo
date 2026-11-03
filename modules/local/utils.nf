@@ -96,12 +96,14 @@ def segmentationSpecs(Map args) {
                 image: image,
                 channels: channels,
                 // diameter: sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
-                method_kwargs: mergeMethodKwargs('cellpose', [
+                method_kwargs: [
                     diameter: 30,
                     flow_threshold: toNumber('flow_threshold', args.flow_threshold),
                     cellprob_threshold: toNumber('cellprob_threshold', args.cellprob_threshold),
                     pretrained_model: args.pretrained_model,
-                ], args.cellpose_kwargs),
+                ].findAll { _k, v -> v != null },
+                // Python dict text as given; segment_patch.py parses it and merges it into method_kwargs.
+                method_kwargs_extra: args.cellpose_kwargs,
                 segmentation_kwargs: segmentation_kwargs,
                 gpu: args.use_gpu ? true : false,
             ]
@@ -116,31 +118,18 @@ def segmentationSpecs(Map args) {
                 // The projection is Cellpose's input only; its channels do not exist for InstanSeg.
                 image: 'full',
                 channels: getChannels(args.instanseg_channels, true),
-                method_kwargs: mergeMethodKwargs('instanseg', [
+                method_kwargs: [
                     model_type: args.instanseg_model_type,
                     pixel_size: toNumber('instanseg_pixel_size', args.instanseg_pixel_size),
                     target: target,
-                ], args.instanseg_kwargs),
+                ].findAll { _k, v -> v != null },
+                method_kwargs_extra: args.instanseg_kwargs,
                 segmentation_kwargs: segmentation_kwargs,
                 gpu: false,
             ]
         }
     }
     return specs
-}
-
-// Free-form kwargs sit at the same level as the explicit ones, as sopa's CLI does; a clash is an error.
-def mergeMethodKwargs(String method, Map explicit, Map extra) {
-    def merged = explicit.findAll { _k, v -> v != null }
-    (extra ?: [:]).each { k, v ->
-        if (explicit.containsKey(k)) {
-            error("${method}_kwargs key '${k}' collides with a dedicated parameter. Remove it from ${method}_kwargs.")
-        }
-        if (v != null) {
-            merged[k] = v
-        }
-    }
-    return merged
 }
 
 // Channels may be a string or a number (schema type ["string", "integer"]); left untyped so

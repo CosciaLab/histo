@@ -56,6 +56,31 @@ nextflow_pipeline {
         }
     }
 
+    // The schema types *_kwargs as strings; segmentationSpecs once crashed on them (spec content: segmentation_specs.nf.test).
+    test("*_kwargs as Python dict text pass validation") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_instanseg = true
+                instanseg_pixel_size = 0.65
+                instanseg_channels = "DAPI"
+                cellpose_kwargs = "{'niter': 10}"
+                instanseg_kwargs = "{'batch_size': 2}"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+
+            assertAll(
+                { assert workflow.success },
+                { assert ran.count { it.contains("SEGMENT_PATCH_CELLPOSE") } == 2 },
+                { assert ran.count { it.contains("SEGMENT_PATCH_INSTANSEG") } == 2 }
+            )
+        }
+    }
+
     test("use_qc false: no comparison either") {
 
         when {

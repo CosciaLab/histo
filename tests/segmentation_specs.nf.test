@@ -120,19 +120,36 @@ nextflow_function {
         }
     }
 
-    test("Cellpose method_kwargs: diameter 30, nulls dropped, free-form kwargs merged flat") {
+    // The *_kwargs text is parsed and merged by segment_patch.py, not here.
+    test("Cellpose method_kwargs: diameter 30, nulls dropped, free-form kwargs kept as text") {
         when {
             function {
                 """
                 input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: 1.5,
-                             min_area_pixels2: 20, cellpose_kwargs: [ batch_size: 4 ] ]
+                             min_area_pixels2: 20, cellpose_kwargs: "{'niter': 10}" ]
                 """
             }
         }
         then {
             assert function.success
-            assert function.result[0].method_kwargs == [ diameter: 30, flow_threshold: 1.5, batch_size: 4 ]
+            assert function.result[0].method_kwargs == [ diameter: 30, flow_threshold: 1.5 ]
+            assert function.result[0].method_kwargs_extra == "{'niter': 10}"
             assert function.result[0].segmentation_kwargs == [ min_area: 20 ]
+        }
+    }
+
+    test("instanseg_kwargs text goes into the InstanSeg specs only") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true,
+                             instanseg_kwargs: "{'batch_size': 2}" ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.method_kwargs_extra == [ null, "{'batch_size': 2}" ]
         }
     }
 
@@ -175,21 +192,6 @@ nextflow_function {
             assert function.failed
             def out = function.stdout.toString() + function.stderr.toString()
             assert out.contains("flow_threshold must be a number, got 'high'")
-        }
-    }
-
-    test("a free-form kwarg that collides with an explicit one fails naming the key") {
-        when {
-            function {
-                """
-                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', cellpose_kwargs: [ diameter: 10 ] ]
-                """
-            }
-        }
-        then {
-            assert function.failed
-            def out = function.stdout.toString() + function.stderr.toString()
-            assert out.contains("cellpose_kwargs key 'diameter' collides")
         }
     }
 

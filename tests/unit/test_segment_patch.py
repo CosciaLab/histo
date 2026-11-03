@@ -56,6 +56,40 @@ def test_method_arguments_does_not_mutate_spec():
     assert spec["method_kwargs"] == {"diameter": 30}
 
 
+def test_extra_kwargs_are_parsed_and_merged_flat():
+    spec = {
+        "method": "cellpose",
+        "channels": ["a"],
+        "method_kwargs": {"diameter": 30},
+        "method_kwargs_extra": "{'niter': 10, 'model_type': 'nuclei'}",
+    }
+    kw = method_arguments(spec)
+    assert kw["niter"] == 10 and kw["model_type"] == "nuclei" and kw["diameter"] == 30
+
+
+@pytest.mark.parametrize("extra", [None, ""])
+def test_no_extra_kwargs(extra):
+    spec = {"method": "instanseg", "method_kwargs": {"target": "cells"}, "method_kwargs_extra": extra}
+    assert method_arguments(spec)["target"] == "cells"
+
+
+@pytest.mark.parametrize(
+    "method,key",
+    [("cellpose", "diameter"), ("cellpose", "channels"), ("cellpose", "gpu"), ("instanseg", "device")],
+)
+def test_extra_kwarg_colliding_with_an_explicit_one_fails_naming_it(method, key):
+    spec = {"method": method, "method_kwargs": {"diameter": 30}, "method_kwargs_extra": f"{{'{key}': 1}}"}
+    with pytest.raises(ValueError, match=f"{method}_kwargs key '{key}' collides"):
+        method_arguments(spec)
+
+
+@pytest.mark.parametrize("text", ["[1, 2]", "niter=10", "{'a': open}"])
+def test_extra_kwargs_must_be_a_dict_literal(text):
+    spec = {"method": "instanseg", "method_kwargs": {}, "method_kwargs_extra": text}
+    with pytest.raises(ValueError, match="instanseg_kwargs"):
+        method_arguments(spec)
+
+
 def test_segmentation_defaults_per_method():
     cp = segmentation_arguments({"method": "cellpose"})
     assert cp == {"min_area": 0, "clip_limit": 0.2, "clahe_kernel_size": None, "gaussian_sigma": 1}

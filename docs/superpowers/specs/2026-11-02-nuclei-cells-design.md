@@ -53,6 +53,9 @@ At startup, methods × targets become a list of Groovy maps, one per segmentatio
   `cellpose_channels`. Cellpose nuclei: the nuclear channel only, from the same image.
 - InstanSeg: the full image; channels from `instanseg_channels`, else
   `defaultInstansegChannels(sheet, target)`. `memory_gb` per spec, as channel counts differ.
+- `cellpose_kwargs` / `instanseg_kwargs` stay text, as `method_kwargs_extra: "<string>"`;
+  `segment_patch.py` parses it with `ast.literal_eval`, merges it into `method_kwargs`, and fails
+  naming any key a dedicated parameter already sets.
 - The maps are written to each table's `uns["segmentation"]`.
 
 ## Graph

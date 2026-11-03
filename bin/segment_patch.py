@@ -9,6 +9,7 @@ The store is only read. The device comes from the process (`task.accelerator`), 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import shutil
 import sys
@@ -17,6 +18,8 @@ from pathlib import Path
 
 SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTATION
 METHOD_BUILDERS = {"cellpose": "cellpose_patch", "instanseg": "instanseg_patch"}
+# The builders name the device choice differently.
+DEVICE_ARGUMENT = {"cellpose": "gpu", "instanseg": "device"}
 # Defaults copied from sopa 2.2.12 cli/segmentation.py, so unset params segment as the CLI does.
 METHOD_DEFAULTS = {
     # cli/segmentation.py:18-27 (diameter has no default; gpu is set by --device)
@@ -59,10 +62,35 @@ def _check_method(method: str) -> None:
         raise ValueError(f"unknown segmentation method '{method}'; expected one of {sorted(METHOD_BUILDERS)}")
 
 
+def extra_kwargs(spec: dict) -> dict:
+    """`method_kwargs_extra` ({method}_kwargs): a Python dict literal, read as sopa's 1.x CLI did."""
+    text = spec.get("method_kwargs_extra")
+    if not text:
+        return {}
+    param = f"{spec['method']}_kwargs"
+    try:
+        value = ast.literal_eval(text)
+    except (ValueError, SyntaxError) as e:
+        raise ValueError(f"{param} is not a Python literal: {text!r} ({e})") from e
+    if not isinstance(value, dict):
+        raise ValueError(f"{param} must be a Python dict such as \"{{'niter': 10}}\", got {text!r}")
+    return value
+
+
 def method_arguments(spec: dict) -> dict:
-    """Keyword arguments for sopa's method builder: CLI defaults, then the spec's method_kwargs."""
+    """Keyword arguments for sopa's method builder: CLI defaults, the spec's method_kwargs, then its extras."""
     _check_method(spec["method"])
-    kwargs = {**METHOD_DEFAULTS[spec["method"]], **(spec.get("method_kwargs") or {})}
+    explicit = spec.get("method_kwargs") or {}
+    extra = extra_kwargs(spec)
+    # Set by dedicated parameters, or by --device; an extra must not silently override them.
+    taken = set(explicit) | {"channels", DEVICE_ARGUMENT[spec["method"]]}
+    clash = sorted(set(extra) & taken)
+    if clash:
+        param = f"{spec['method']}_kwargs"
+        raise ValueError(
+            f"{param} key {', '.join(map(repr, clash))} collides with a dedicated parameter. Remove it from {param}."
+        )
+    kwargs = {**METHOD_DEFAULTS[spec["method"]], **explicit, **extra}
     if spec.get("channels") is not None:
         kwargs["channels"] = spec["channels"]
     return kwargs
@@ -87,11 +115,10 @@ def main() -> int:
     from sopa.segmentation import StainingSegmentation, methods
 
     spec = json.loads(Path(args.spec).read_text())
+    kwargs = method_arguments(spec)  # first: a bad {method}_kwargs fails before the store is read
     sdata = read_zarr_standardized(args.sdata)
     key = image_key_for(sdata.attrs, spec["image"])
 
-    kwargs = method_arguments(spec)
-    # The builders name the same choice differently: Cellpose `gpu`, InstanSeg `device`.
     if spec["method"] == "cellpose":
         kwargs["gpu"] = args.device == "cuda"
     else:
