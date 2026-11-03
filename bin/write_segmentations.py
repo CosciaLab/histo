@@ -6,17 +6,24 @@ name is the file stem (instanseg_cells.parquet -> instanseg_cells). An element a
 store is deleted and rewritten, so a retry or -resume gives the same result. Shapes are
 written first, then tables; `{image}_projected` is deleted unless --keep-projection.
 An empty shapes file (e.g. no cytoplasm in a core without nuclei) writes no element.
+Names matching RESERVED are pipeline-owned: one not in this write is removed, so a run with
+fewer methods or targets leaves no leftovers.
 """
 
 from __future__ import annotations
 
 import argparse
+import re
+import shutil
 import sys
+import warnings
 from pathlib import Path
 
 # spatialdata is imported inside functions so the module imports without it.
 
 SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTATION
+RESERVED = re.compile(r"^(cellpose|instanseg)_(cells|nuclei|cytoplasm|table)$")
+ELEMENT_KINDS = ("shapes", "tables")
 
 
 def regions_of(adata) -> list[str]:
@@ -26,6 +33,38 @@ def regions_of(adata) -> list[str]:
         raise ValueError("no spatialdata_attrs/region (not TableModel-parsed)")
     region = attrs["region"]
     return [region] if isinstance(region, str) else list(region)
+
+
+def elements_on_disk(sdata_path: Path, kind: str) -> set[str]:
+    """Names of the element folders under `kind` (shapes, tables), read or not."""
+    folder = sdata_path / kind
+    return {e.name for e in folder.iterdir() if e.is_dir()} if folder.is_dir() else set()
+
+
+def remove_stale(sdata_path: Path, keep: set[str]) -> list[str]:
+    """Remove pipeline-owned shapes and tables not in `keep`, by path; returns their names."""
+    removed = []
+    for kind in ELEMENT_KINDS:
+        for name in sorted(elements_on_disk(sdata_path, kind)):
+            if RESERVED.match(name) and name not in keep:
+                shutil.rmtree(sdata_path / kind / name)
+                removed.append(name)
+                print(f"[write_segmentations] removed stale {kind} {name}: not in this write")
+    if removed:
+        reconsolidate(sdata_path)
+    return removed
+
+
+def reconsolidate(sdata_path: Path) -> None:
+    """Rewrite consolidated metadata after removals by path, if the store has it."""
+    import zarr
+
+    if not zarr.open_group(sdata_path, mode="r").metadata.consolidated_metadata:
+        return
+    with warnings.catch_warnings():
+        # Shapes are parquet, not zarr; zarr warns about them, as spatialdata also silences.
+        warnings.filterwarnings("ignore", category=zarr.errors.ZarrUserWarning)
+        zarr.consolidate_metadata(sdata_path)
 
 
 def delete_element(sdata, name: str) -> None:
@@ -62,13 +101,14 @@ def write_segmentations(
     from spatialdata.models import ShapesModel
     from spatialdata.transformations import get_transformation
 
-    sdata = sd.read_zarr(sdata_path)
-    image_key = sdata.attrs.get(SEGMENTATION_ATTR)
+    # Images only: other elements may be stale or half-written, and are dealt with below.
+    images = sd.read_zarr(sdata_path, selection=("images",))
+    image_key = images.attrs.get(SEGMENTATION_ATTR)
     if image_key is None:
         raise ValueError(f"{sdata_path} has no '{SEGMENTATION_ATTR}' attribute: no image to place shapes on")
-    if image_key not in sdata.images:
+    if image_key not in images.images:
         raise ValueError(f"'{SEGMENTATION_ATTR}' is '{image_key}' but {sdata_path} has no such image")
-    transformations = get_transformation(sdata.images[image_key], get_all=True)
+    transformations = get_transformation(images.images[image_key], get_all=True)
 
     # Read and validate everything before touching the store.
     gdfs = {p.stem: gpd.read_parquet(p) for p in shapes}
@@ -77,17 +117,24 @@ def write_segmentations(
     shape_names = [p.stem for p in shapes if p.stem not in empty]
     table_names = [p.stem for p in tables]
     adatas = {p.stem: ad.read_h5ad(p) for p in tables}
-    known = (set(shape_names) | set(sdata.shapes)) - set(empty)
+    regions = {}
     for name, adata in adatas.items():
         try:
-            missing = [r for r in regions_of(adata) if r not in known]
+            regions[name] = regions_of(adata)
         except ValueError as e:
             raise ValueError(f"table '{name}': {e}") from e
+    # A table may annotate shapes already in the store; those stay.
+    keep = set(gdfs) | set(table_names) | {r for rs in regions.values() for r in rs}
+    known = (set(shape_names) | elements_on_disk(sdata_path, "shapes")) - set(empty)
+    for name in adatas:
+        missing = [r for r in regions[name] if r not in known]
         if missing:
             raise ValueError(
                 f"table '{name}' has region {missing} but no such shapes. Known: {sorted(known)}"
             )
 
+    stale = remove_stale(sdata_path, keep)
+    sdata = sd.read_zarr(sdata_path)
     for name in empty:
         delete_element(sdata, name)
         print(f"[write_segmentations] {name} is empty: no element written")
@@ -105,9 +152,9 @@ def write_segmentations(
     ]
     if absent:
         raise RuntimeError(f"not in {sdata_path} after writing: {absent}")
-    stale = [n for n in empty if n in check.shapes]
-    if stale:
-        raise RuntimeError(f"still in {sdata_path} though empty now: {stale}")
+    left = [n for n in empty if n in check.shapes] + [n for n in stale if n in check]
+    if left:
+        raise RuntimeError(f"still in {sdata_path} though empty or stale: {left}")
     for name in table_names:
         for region in regions_of(check.tables[name]):
             if region not in check.shapes:

@@ -157,3 +157,23 @@ def test_empty_shapes_remove_a_stale_element(store, tmp_path):
     write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm")], [])
     write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm", n=0)], [])
     assert "m_cytoplasm" not in sd.read_zarr(store).shapes
+
+
+def test_elements_of_a_dropped_method_are_removed_and_logged(store, tmp_path, capsys):
+    both = [make_shapes(tmp_path, f"{m}_cells") for m in ("cellpose", "instanseg")]
+    tables = [make_table(tmp_path, f"{m}_table", f"{m}_cells") for m in ("cellpose", "instanseg")]
+    write_segmentations(store, both, tables)
+    write_segmentations(store, [both[1]], [tables[1]])
+    out = sd.read_zarr(store)
+    assert sorted(out.shapes) == ["instanseg_cells"] and sorted(out.tables) == ["instanseg_table"]
+    log = capsys.readouterr().out
+    assert "removed stale shapes cellpose_cells" in log and "removed stale tables cellpose_table" in log
+
+
+def test_unreserved_elements_and_table_regions_stay(store, tmp_path):
+    write_segmentations(
+        store, [make_shapes(tmp_path, "my_regions"), make_shapes(tmp_path, "cellpose_cells")], []
+    )
+    write_segmentations(store, [], [make_table(tmp_path, "cellpose_table", "cellpose_cells")])
+    out = sd.read_zarr(store)
+    assert {"my_regions", "cellpose_cells"} <= set(out.shapes) and "cellpose_table" in out.tables
