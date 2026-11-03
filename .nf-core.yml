@@ -85,7 +85,7 @@ lint:
 
   multiqc_config: false
 
-nf_core_version: 4.0.3
+nf_core_version: 4.2.0
 repository_type: pipeline
 template:
   author: Jose Nimo
