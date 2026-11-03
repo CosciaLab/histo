@@ -1,5 +1,7 @@
 """Tests for bin/write_segmentations.py on a real SpatialData store built in tmp_path."""
 
+import shutil
+
 import anndata as ad
 import geopandas as gpd
 import numpy as np
@@ -168,6 +170,29 @@ def test_elements_of_a_dropped_method_are_removed_and_logged(store, tmp_path, ca
     assert sorted(out.shapes) == ["instanseg_cells"] and sorted(out.tables) == ["instanseg_table"]
     log = capsys.readouterr().out
     assert "removed stale shapes cellpose_cells" in log and "removed stale tables cellpose_table" in log
+
+
+def half_write(store, kind, name):
+    """What a crash mid-write leaves: the element's group without its data."""
+    for f in (store / kind / name).iterdir():
+        if f.name != "zarr.json":
+            shutil.rmtree(f) if f.is_dir() else f.unlink()
+
+
+@pytest.mark.parametrize(
+    "kind,name",
+    [("shapes", "cellpose_cells"), ("tables", "cellpose_table"), ("shapes", "instanseg_cells")],
+    ids=["input_shapes", "input_table", "stale_leftover"],
+)
+def test_a_half_written_element_does_not_block_a_retry(store, tmp_path, kind, name):
+    shapes = [make_shapes(tmp_path, "cellpose_cells"), make_shapes(tmp_path, "instanseg_cells")]
+    write_segmentations(store, shapes, [make_table(tmp_path, "cellpose_table", "cellpose_cells")])
+    half_write(store, kind, name)
+    with pytest.raises((OSError, KeyError)):  # the failure this guards against
+        sd.read_zarr(store)
+    write_segmentations(store, *inputs(tmp_path))
+    out = sd.read_zarr(store)
+    assert sorted(out.shapes) == ["cellpose_cells"] and sorted(out.tables) == ["cellpose_table"]
 
 
 def test_unreserved_elements_and_table_regions_stay(store, tmp_path):

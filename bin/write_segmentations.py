@@ -3,7 +3,8 @@
 
 The only task that writes them: parallel writers race on the store's root metadata. Element
 name is the file stem (instanseg_cells.parquet -> instanseg_cells). An element already in the
-store is deleted and rewritten, so a retry or -resume gives the same result. Shapes are
+store is removed by path before the store is read, then rewritten, so a retry or -resume gives
+the same result, even after a crash left it half-written. Shapes are
 written first, then tables; `{image}_projected` is deleted unless --keep-projection.
 An empty shapes file (e.g. no cytoplasm in a core without nuclei) writes no element.
 Names matching RESERVED are pipeline-owned: one not in this write is removed, so a run with
@@ -41,18 +42,28 @@ def elements_on_disk(sdata_path: Path, kind: str) -> set[str]:
     return {e.name for e in folder.iterdir() if e.is_dir()} if folder.is_dir() else set()
 
 
-def remove_stale(sdata_path: Path, keep: set[str]) -> list[str]:
-    """Remove pipeline-owned shapes and tables not in `keep`, by path; returns their names."""
-    removed = []
+def clear_elements(sdata_path: Path, replaced: set[str], keep: set[str]) -> list[str]:
+    """Remove by path the shapes and tables this write replaces, and pipeline-owned ones not in `keep`.
+
+    By path, before sd.read_zarr: a half-written element would make the read fail.
+    Returns the stale names removed.
+    """
+    stale = []
+    removed = False
     for kind in ELEMENT_KINDS:
         for name in sorted(elements_on_disk(sdata_path, kind)):
-            if RESERVED.match(name) and name not in keep:
-                shutil.rmtree(sdata_path / kind / name)
-                removed.append(name)
+            if name in replaced:
+                print(f"[write_segmentations] removed {kind} {name}: replaced by this write")
+            elif RESERVED.match(name) and name not in keep:
+                stale.append(name)
                 print(f"[write_segmentations] removed stale {kind} {name}: not in this write")
+            else:
+                continue
+            shutil.rmtree(sdata_path / kind / name)
+            removed = True
     if removed:
         reconsolidate(sdata_path)
-    return removed
+    return stale
 
 
 def reconsolidate(sdata_path: Path) -> None:
@@ -67,17 +78,8 @@ def reconsolidate(sdata_path: Path) -> None:
         zarr.consolidate_metadata(sdata_path)
 
 
-def delete_element(sdata, name: str) -> None:
-    """Delete `name` if present, memory first, then disk."""
-    if name in sdata:
-        # The in-memory element must go first: spatialdata refuses to delete backing files.
-        del sdata[name]
-        sdata.delete_element_from_disk(name)
-
-
-def replace_element(sdata, name: str, element, kind: str) -> None:
-    """Delete `name` if present, then write `element` in its place."""
-    delete_element(sdata, name)
+def write_element(sdata, name: str, element, kind: str) -> None:
+    """Write `element` as `name`; clear_elements has removed any earlier one."""
     sdata[name] = element
     sdata.write_element(name)
     print(f"[write_segmentations] wrote {kind} {name}")
@@ -133,15 +135,14 @@ def write_segmentations(
                 f"table '{name}' has region {missing} but no such shapes. Known: {sorted(known)}"
             )
 
-    stale = remove_stale(sdata_path, keep)
+    stale = clear_elements(sdata_path, set(gdfs) | set(table_names), keep)
     sdata = sd.read_zarr(sdata_path)
     for name in empty:
-        delete_element(sdata, name)
         print(f"[write_segmentations] {name} is empty: no element written")
     for name in shape_names:
-        replace_element(sdata, name, ShapesModel.parse(gdfs[name], transformations=transformations), "shapes")
+        write_element(sdata, name, ShapesModel.parse(gdfs[name], transformations=transformations), "shapes")
     for name in table_names:
-        replace_element(sdata, name, adatas[name], "table")
+        write_element(sdata, name, adatas[name], "table")
     if not keep_projection:
         drop_projection(sdata, image_key)
 
