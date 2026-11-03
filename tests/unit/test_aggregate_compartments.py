@@ -250,3 +250,76 @@ class TestLabelCells:
     def test_blank_slide_refused(self):
         with pytest.raises(ValueError, match="slide"):
             label_cells(sopa_obs(), slide="")
+
+
+class TestCompartmentsFromLinks:
+    """Linking output through layers and obs, as AGGREGATE assembles them."""
+
+    def assemble(self, nuclei_geoms, tmp_path):
+        import anndata as ad
+        from link_compartments import link
+
+        cells = frame([box(0, 0, 8, 8), box(10, 10, 18, 18)], ["img_cells_0", "img_cells_1"])
+        nuclei = frame(nuclei_geoms, [f"img_nuclei_{i}" for i in range(len(nuclei_geoms))])
+        linked = link(cells, nuclei)
+        image = bright_centre_image()
+        layers = {
+            "nucleus": compartment_layer(image, linked.nucleus_compartment, cells),
+            "cytoplasm": compartment_layer(image, linked.cytoplasm, cells),
+        }
+        t = build_table(
+            cells,
+            mean_intensities(image, cells),
+            ["ch0"],
+            layers,
+            linked.links,
+            "m_cells",
+            "S1",
+            None,
+            [SPEC],
+        )
+        # The h5ad round trip is where all-NA id columns used to fail.
+        t.write_h5ad(tmp_path / "t.h5ad")
+        return ad.read_h5ad(tmp_path / "t.h5ad")
+
+    def test_cell_without_nucleus_is_nan_in_both_layers(self, tmp_path):
+        t = self.assemble([box(2, 2, 5, 5)], tmp_path)
+        assert not np.isnan(t.layers["nucleus"][0]).any()
+        assert not np.isnan(t.layers["cytoplasm"][0]).any()
+        assert np.isnan(t.layers["nucleus"][1]).all() and np.isnan(t.layers["cytoplasm"][1]).all()
+        assert list(t.obs["n_nuclei"]) == [1, 0]
+        assert t.obs["nucleus_area"].iloc[1] == 0
+        assert np.isnan(t.obs["cytoplasm_area"].iloc[1])
+        assert t.obs["nucleus_id"].iloc[0] == "img_nuclei_0"
+        assert pd.isna(t.obs["nucleus_id"].iloc[1])
+
+    def test_no_nuclei_at_all_gives_all_nan_layers(self, tmp_path):
+        """Review Focus 5: a TMA core with cells but no nuclei."""
+        t = self.assemble([], tmp_path)
+        assert np.isnan(t.layers["nucleus"]).all() and np.isnan(t.layers["cytoplasm"]).all()
+        assert list(t.obs["n_nuclei"]) == [0, 0]
+        assert not np.isnan(t.X).any()
+
+
+REQUIRED = ["--sdata", "s", "--method", "m", "--specs", "x", "--slide", "S", "--output", "o.h5ad"]
+
+
+class TestArgs:
+    def test_target_defaults_to_cells(self):
+        from aggregate_compartments import parse_args
+
+        args = parse_args([*REQUIRED, "--shapes", "m_cells.parquet"])
+        assert args.target == "cells"
+
+    def test_nuclei_target(self):
+        from aggregate_compartments import parse_args
+
+        args = parse_args([*REQUIRED, "--shapes", "m_nuclei.parquet", "--target", "nuclei"])
+        assert args.target == "nuclei"
+
+    def test_nuclei_target_takes_no_compartments(self):
+        """A nuclei-only table has no cells to hold a nucleus or cytoplasm layer."""
+        from aggregate_compartments import parse_args
+
+        with pytest.raises(SystemExit):
+            parse_args([*REQUIRED, "--shapes", "n.parquet", "--target", "nuclei", "--cytoplasm", "c.parquet"])

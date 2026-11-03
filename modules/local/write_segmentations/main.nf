@@ -29,7 +29,10 @@ process WRITE_SEGMENTATIONS {
     """
 
     stub:
+    // Lists what was staged and from where, so stub tests can pin which parquet each element comes from.
     """
+    for f in ${shapes} ${tables}; do echo "\$f \$(readlink \$f)"; done > staged_inputs.txt
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         sopa: stub

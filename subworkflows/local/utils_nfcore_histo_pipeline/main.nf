@@ -619,10 +619,6 @@ def validateParams(params) {
     def STAINING_BASED_METHODS = ['use_cellpose', 'use_instanseg']
     def enabled = STAINING_BASED_METHODS.count { params[it] }
 
-    // Nuclei need linking to cells before they can be quantified; not wired yet.
-    assert !params.segment_nuclei : "segment_nuclei is not supported yet: this release segments " +
-        "cells only. Remove segment_nuclei, or set it to false."
-
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
     assert !(params.use_instanseg && params.instanseg_pixel_size == null) :

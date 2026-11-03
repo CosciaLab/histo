@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "segmentation"
-description: Segment every spec (method x target) patch by patch, resolve across patch borders, aggregate per method and write shapes and tables into the store once per sample
+description: Segment every spec (method x target) patch by patch, resolve across patch borders, link nuclei to cells, aggregate per method and write shapes and tables into the store once per sample
 keywords:
   - segmentation
   - cellpose
@@ -10,6 +10,7 @@ keywords:
 components:
   - segment/patch
   - resolve
+  - link/compartments
   - aggregate
   - write/segmentations
   - defaultinstansegchannels
@@ -35,8 +36,8 @@ output:
   - sdata:
       type: file
       description: |
-        Channel containing the SpatialData Zarr store with shapes {method}_{target} and tables
-        {method}_table written.
+        Channel containing the SpatialData Zarr store with shapes {method}_{target} (plus
+        {method}_cytoplasm with both targets) and tables {method}_table written.
         Structure: [ val(meta), path(sdata_path) ]
   - versions:
       type: file

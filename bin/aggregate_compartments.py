@@ -207,11 +207,21 @@ def compartment_layer(image, shapes, cells):
     return out
 
 
-def main() -> int:
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sdata", required=True, help="SpatialData store; only read")
-    parser.add_argument("--method", required=True, help="method name; the table's region is {method}_cells")
-    parser.add_argument("--cells", required=True, help="cells parquet from RESOLVE")
+    parser.add_argument(
+        "--method", required=True, help="method name; the table's region is {method}_{target}"
+    )
+    parser.add_argument(
+        "--shapes", required=True, help="parquet from RESOLVE whose shapes are the table's rows"
+    )
+    parser.add_argument(
+        "--target",
+        choices=("cells", "nuclei"),
+        default="cells",
+        help="what --shapes holds; nuclei only in a nuclei-only run (default: cells)",
+    )
     parser.add_argument("--nuclei-compartment", help="nuclei parquet indexed by cell id (layer 'nucleus')")
     parser.add_argument("--cytoplasm", help="cytoplasm parquet indexed by cell id (layer 'cytoplasm')")
     parser.add_argument("--links", help="parquet of per-cell obs columns indexed by cell id")
@@ -225,7 +235,14 @@ def main() -> int:
         help="expand cells for measuring (cell compartment only); obs area and obsm spatial stay unexpanded",
     )
     parser.add_argument("--output", required=True, help="h5ad file to write")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    if args.target == "nuclei" and (args.nuclei_compartment or args.cytoplasm or args.links):
+        parser.error("--nuclei-compartment, --cytoplasm and --links need --target cells")
+    return args
+
+
+def main() -> int:
+    args = parse_args()
 
     import geopandas as gpd
     import pandas as pd
@@ -242,7 +259,7 @@ def main() -> int:
     var_names = [str(c) for c in image.coords["c"].values]
 
     # RESOLVE shapes are already in this image's pixel coordinates (identity transform).
-    cells = gpd.read_parquet(args.cells)
+    cells = gpd.read_parquet(args.shapes)
     measured = expand_radius(cells, args.expand_radius_ratio)
     x = mean_intensities(image, measured)
 
@@ -254,10 +271,20 @@ def main() -> int:
     obs_extra = pd.read_parquet(args.links).reindex(cells.index) if args.links else None
 
     table = build_table(
-        cells, x, var_names, layers, obs_extra, f"{args.method}_cells", args.slide, args.core_id, specs
+        cells,
+        x,
+        var_names,
+        layers,
+        obs_extra,
+        f"{args.method}_{args.target}",
+        args.slide,
+        args.core_id,
+        specs,
     )
     table.write_h5ad(args.output)
-    print(f"[aggregate] {args.method}: {table.n_obs} cells x {table.n_vars} markers, layers {sorted(layers)}")
+    print(
+        f"[aggregate] {args.method}: {table.n_obs} {args.target} x {table.n_vars} markers, layers {sorted(layers)}"
+    )
     return 0
 
 

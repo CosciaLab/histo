@@ -1,11 +1,12 @@
 // Segmentation for every spec (method x target), tiled: one task per patch, then resolve,
-// aggregate per method, and one write into the store per sample.
+// link nuclei to cells (methods with both targets), aggregate per method, and one write into the store per sample.
 
 // One module under two names, so config selectors, GPU and memory stay per method and the
 // trace names the method.
 include { SEGMENT_PATCH as SEGMENT_PATCH_CELLPOSE  } from '../../../modules/local/segment_patch'
 include { SEGMENT_PATCH as SEGMENT_PATCH_INSTANSEG } from '../../../modules/local/segment_patch'
 include { RESOLVE                                  } from '../../../modules/local/resolve'
+include { LINK_COMPARTMENTS                        } from '../../../modules/local/link_compartments'
 include { AGGREGATE                                } from '../../../modules/local/aggregate'
 include { WRITE_SEGMENTATIONS                      } from '../../../modules/local/write_segmentations'
 include { defaultInstansegChannels; instansegMaxPatchWidth; instansegMemoryGB } from '../../../modules/local/utils'
@@ -116,17 +117,48 @@ workflow SEGMENTATION {
             [metas[0].sdata_dir.toString(), metas[0], spec_list[0].method, pairs*.get(0), pairs*.get(1)]
         }
 
+    // A method with both targets links its nuclei to its cells first; one with one target goes straight on.
+    def ch_by_targets = ch_method_shapes.branch { _sdata_dir, _meta, _method, method_specs, _shapes ->
+        linked: method_specs*.target.containsAll(['cells', 'nuclei'])
+        single: true
+    }
+
+    def ch_to_link = ch_by_targets.linked.map { _sdata_dir, meta, method, method_specs, shapes ->
+        def by_target = [method_specs*.target, shapes].transpose().collectEntries()
+        [meta, method, by_target.cells, by_target.nuclei]
+    }
+
+    (ch_linked, versions) = LINK_COMPARTMENTS(ch_to_link)
+    ch_versions = ch_versions.mix(versions)
+
+    // Per [sample, method]: the specs, the files AGGREGATE reads and the shapes the writer stores.
+    // linked/{method}_nuclei.parquet (with links) replaces RESOLVE's, which has the same name; the
+    // nucleus compartment and links feed AGGREGATE only.
+    def ch_method_files = ch_by_targets.linked
+        .map { sdata_dir, meta, method, method_specs, shapes -> [[sdata_dir, method], meta, method_specs, shapes] }
+        .join(ch_linked.map { meta, method, linked -> [[meta.sdata_dir.toString(), method], linked] })
+        .map { key, meta, method_specs, shapes, linked ->
+            def (sdata_dir, method) = key
+            def cells = [method_specs*.target, shapes].transpose().collectEntries().cells
+            // 'instanseg_cytoplasm' - 'instanseg_' -> 'cytoplasm', a String key.
+            def by_part = linked.collectEntries { f -> [(f.baseName - "${method}_"): f] }
+            def to_aggregate = [cells, by_part.nucleus_compartment, by_part.cytoplasm, by_part.links]
+            def to_write = [cells, by_part.nuclei, by_part.cytoplasm]
+            [sdata_dir, meta, method, method_specs, to_aggregate, to_write]
+        }
+        .mix(ch_by_targets.single.map { sdata_dir, meta, method, method_specs, shapes -> [sdata_dir, meta, method, method_specs, shapes, shapes] })
+
     def ch_to_aggregate = ch_stores
-        .combine(ch_method_shapes, by: 0)
-        .map { _sdata_dir, sdata, meta, method, method_specs, shapes -> [meta, sdata, method, method_specs, shapes] }
+        .combine(ch_method_files, by: 0)
+        .map { _sdata_dir, sdata, meta, method, method_specs, to_aggregate, _to_write -> [meta, sdata, method, method_specs, to_aggregate] }
 
     (ch_tables, versions) = AGGREGATE(ch_to_aggregate)
     ch_versions = ch_versions.mix(versions)
 
-    // Each table with its method's shapes, joined on [sample, method]; both sides have one row per key.
+    // Each table with its method's shapes to store, joined on [sample, method]; both sides have one row per key.
     def ch_method_outputs = ch_tables
         .map { meta, method, table -> [[meta.sdata_dir.toString(), method], table] }
-        .join(ch_method_shapes.map { sdata_dir, _meta, method, _method_specs, shapes -> [[sdata_dir, method], shapes] })
+        .join(ch_method_files.map { sdata_dir, _meta, method, _method_specs, _to_aggregate, to_write -> [[sdata_dir, method], to_write] })
 
     // Then every method of a sample together, for its one write into the store.
     def n_methods = specs*.method.unique().size()
@@ -148,6 +180,6 @@ workflow SEGMENTATION {
     ch_versions = ch_versions.mix(versions)
 
     emit:
-    sdata    = ch_written  // channel: [ val(meta), path(sdata) ] with shapes {method}_{target} and tables {method}_table
+    sdata    = ch_written  // channel: [ val(meta), path(sdata) ] with shapes {method}_{target} (+ {method}_cytoplasm) and tables {method}_table
     versions = ch_versions // channel: [ path(versions.yml) ]
 }

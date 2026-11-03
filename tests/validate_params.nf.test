@@ -105,7 +105,7 @@ nextflow_function {
         }
     }
 
-    test("segment_nuclei is not wired yet and is rejected") {
+    test("segment_nuclei with cells is accepted") {
         when {
             function {
                 """
@@ -114,8 +114,20 @@ nextflow_function {
             }
         }
         then {
-            assert function.failed
-            assert function.stdout.any { it.contains("segment_nuclei is not supported yet") }
+            assert function.success
+        }
+    }
+
+    test("segment_nuclei alone is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
         }
     }
 }

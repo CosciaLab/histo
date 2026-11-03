@@ -6,7 +6,8 @@ process AGGREGATE {
     container "docker.io/josenimo/sopa:2.2.12"
 
     input:
-    // sdata_path is only read; specs are this method's spec maps, shapes its resolved parquets
+    // sdata_path is only read; specs are this method's spec maps. shapes: {method}_cells.parquet,
+    // plus LINK_COMPARTMENTS' parquets when both targets ran; {method}_nuclei.parquet in a nuclei-only run.
     tuple val(meta), path(sdata_path), val(method), val(specs), path(shapes)
 
     output:
@@ -18,6 +19,12 @@ process AGGREGATE {
     def specs_json = groovy.json.JsonOutput.toJson(specs)
     // meta.slide is set only on dearrayed TMAs, where meta.id is the core.
     def core_id_arg = meta.slide ? "--core-id ${meta.id}" : ""
+    // Rows are cells when cells were segmented, else nuclei; with both, the linked compartments are layers.
+    def targets = specs*.target
+    def target = 'cells' in targets ? 'cells' : 'nuclei'
+    def compartment_args = targets.containsAll(['cells', 'nuclei'])
+        ? "--nuclei-compartment ${method}_nucleus_compartment.parquet --cytoplasm ${method}_cytoplasm.parquet --links ${method}_links.parquet"
+        : ""
     """
     cat <<'END_SPECS' > specs.json
     ${specs_json}
@@ -26,7 +33,9 @@ process AGGREGATE {
     aggregate_compartments.py \\
         --sdata ${sdata_path} \\
         --method ${method} \\
-        --cells ${method}_cells.parquet \\
+        --shapes ${method}_${target}.parquet \\
+        --target ${target} \\
+        ${compartment_args} \\
         --specs specs.json \\
         --slide ${meta.slide ?: meta.sample} \\
         ${core_id_arg} \\
