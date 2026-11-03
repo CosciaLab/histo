@@ -25,6 +25,11 @@ From `UNetCoreograph.py` at 2.4.6:
 - **One merged blob inflates every crop.** Crop size is uniform, from the 99th percentile of
   core area × 1.2 × `--buffer`.
 - **`Coremask.tif` is `uint8`.** Labels wrap above 255 cores.
+- **Coreograph reads the whole channel eagerly** (`tifffile.imread`), which our
+  `no-eager-image-reads` hook forbids in `bin/`. Its k nearest-neighbour halvings map output
+  pixel i to input 2^k·i (cv2 `INTER_NEAREST` maps x to ⌊x·src/dst⌋ = 2x), so a strided zarr
+  read `[::2^k, ::2^k]`, cropped to ⌊shape/2^k⌋, gives the same image. Then `getProbMaps(I, 0)`
+  skips its own halving. The exemplar-002 equality check confirms this.
 
 ## Parameters
 
@@ -51,8 +56,9 @@ Startup validation, when `use_tma_dearray`:
 
 - Args: `--image --downsample-factor --channel --sensitivity --buffer --expected-cores
 --core-diameter-mm --prefix`.
-- Reads the channel and pixel size as Coreograph does. No pixel size in the OME-XML: fail
-  with a message, since the diameter cannot be compared without it.
+- Reads the channel lazily (`TiffFile(...).aszarr()`, strided as above) and the pixel size
+  with `ome_types`, as Coreograph does. No pixel size in the OME-XML: fail with a message,
+  since the diameter cannot be compared without it.
 - TMA-mode block copied verbatim, with an MIT and source-commit header. Stops at the labels.
 - TensorFlow is imported inside the detect function only; metrics and overlay are plain
   numpy/skimage and testable without the container.
