@@ -83,7 +83,8 @@ Coreograph finds cores reliably only at the right `--downsampleFactor`, and a wr
 silently: cores split along tissue bands, or neighbours merge. So the pipeline asks how many
 cores to expect (`tma_expected_cores`, a count, not rows × columns) and how large
 (`tma_core_diameter_mm`). It detects cores at factors 3 to 7, keeps the one whose cores best
-match, and dearrays once with it. Check `preprocessing/dearray/sweep/{slide}_sweep_overlays.png`;
+match, and dearrays once with it. Both values apply to every slide in the run, so run arrays
+with different layouts separately. Check `preprocessing/dearray/sweep/{slide}_sweep_overlays.png`;
 the log warns when even the best factor is off by more than 10 % in count or 25 % in diameter.
 
 To run Coreograph exactly as you say instead, set `coreograph_args`, for example

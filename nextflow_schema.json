@@ -85,7 +85,7 @@
                     "type": "integer",
                     "minimum": 1,
                     "description": "Total number of cores expected on the slide. Required with use_tma_dearray unless coreograph_args is set.",
-                    "help_text": "Count the cores you expect to find, not rows times columns: arrays have empty or lost positions. The pipeline tries several Coreograph downsample factors and keeps the one whose cores best match this count and tma_core_diameter_mm.",
+                    "help_text": "Count the cores you expect to find, not rows times columns: arrays have empty or lost positions. The pipeline tries several Coreograph downsample factors and keeps the one whose cores best match this count and tma_core_diameter_mm. Every slide in the run is scored against the same values, so run arrays of different layouts separately.",
                     "fa_icon": "fas fa-hashtag"
                 },
                 "tma_core_diameter_mm": {
