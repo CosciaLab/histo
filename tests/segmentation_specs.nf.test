@@ -136,6 +136,48 @@ nextflow_function {
         }
     }
 
+    // Command-line values arrive as Strings; as JSON strings they would reach sopa as str.
+    test("numeric params given as command-line Strings become numbers") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: '0.4', cellprob_threshold: '-6',
+                             min_area_pixels2: '20', clip_limit: '0.2', clahe_kernel_size: '8', gaussian_sigma: '1',
+                             use_instanseg: true, instanseg_channels: 'DAPI', instanseg_pixel_size: '0.65' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            def cellpose = function.result[0]
+            def instanseg = function.result[1]
+            def values = [
+                cellpose.method_kwargs.flow_threshold, cellpose.method_kwargs.cellprob_threshold,
+                instanseg.method_kwargs.pixel_size,
+            ] + cellpose.segmentation_kwargs.values()
+            assert values.every { it instanceof Number }
+            assert cellpose.method_kwargs.flow_threshold == 0.4
+            assert cellpose.method_kwargs.cellprob_threshold == -6
+            assert instanseg.method_kwargs.pixel_size == 0.65
+            assert cellpose.segmentation_kwargs == [ min_area: 20, clip_limit: 0.2, clahe_kernel_size: 8, gaussian_sigma: 1 ]
+        }
+    }
+
+    test("a numeric param that is not a number fails naming it") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: 'high' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            def out = function.stdout.toString() + function.stderr.toString()
+            assert out.contains("flow_threshold must be a number, got 'high'")
+        }
+    }
+
     test("a free-form kwarg that collides with an explicit one fails naming the key") {
         when {
             function {

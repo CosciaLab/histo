@@ -73,10 +73,10 @@ def segmentationSpecs(Map args) {
     def targets = segmentationTargets(args)
     def image = args.use_projection ? 'projected' : 'full'
     def segmentation_kwargs = [
-        min_area: args.min_area_pixels2,
-        clip_limit: args.clip_limit,
-        clahe_kernel_size: args.clahe_kernel_size,
-        gaussian_sigma: args.gaussian_sigma,
+        min_area: toNumber('min_area_pixels2', args.min_area_pixels2),
+        clip_limit: toNumber('clip_limit', args.clip_limit),
+        clahe_kernel_size: toNumber('clahe_kernel_size', args.clahe_kernel_size),
+        gaussian_sigma: toNumber('gaussian_sigma', args.gaussian_sigma),
     ].findAll { _k, v -> v != null }
 
     if (args.use_cellpose) {
@@ -97,8 +97,8 @@ def segmentationSpecs(Map args) {
                 // diameter: sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
                 method_kwargs: mergeMethodKwargs('cellpose', [
                     diameter: 30,
-                    flow_threshold: args.flow_threshold,
-                    cellprob_threshold: args.cellprob_threshold,
+                    flow_threshold: toNumber('flow_threshold', args.flow_threshold),
+                    cellprob_threshold: toNumber('cellprob_threshold', args.cellprob_threshold),
                     pretrained_model: args.pretrained_model,
                 ], args.cellpose_kwargs),
                 segmentation_kwargs: segmentation_kwargs,
@@ -117,7 +117,7 @@ def segmentationSpecs(Map args) {
                 channels: getChannels(args.instanseg_channels, true),
                 method_kwargs: mergeMethodKwargs('instanseg', [
                     model_type: args.instanseg_model_type,
-                    pixel_size: args.instanseg_pixel_size,
+                    pixel_size: toNumber('instanseg_pixel_size', args.instanseg_pixel_size),
                     target: target,
                 ], args.instanseg_kwargs),
                 segmentation_kwargs: segmentation_kwargs,
@@ -160,9 +160,29 @@ def getChannels(channels, Boolean allow_null = false) {
     return channels.toString().split(/[ ,|]+/).findAll { it }
 }
 
+// Command-line values arrive as Strings and params cannot be reassigned, so numbers are parsed
+// where used: in arithmetic "3000" * 0.65 is string repetition, and in kwargs JSON a str for sopa.
+def toNumber(String name, value) {
+    if (value == null || value instanceof Number) {
+        return value
+    }
+    if (value instanceof CharSequence) {
+        def text = value.toString().trim()
+        if (text.isInteger()) {
+            return text.toInteger()
+        }
+        if (text.isBigDecimal()) {
+            return text.toBigDecimal()
+        }
+    }
+    error("${name} must be a number, got '${value}'")
+}
+
 // GB one InstanSeg patch task asks for. Per megapixel at the model's 0.5 µm/px, peak_rss is flat
 // to ~4 channels, then ~0.25 GB per channel (test7, dropbox run 00009); ~1.2x headroom.
 def instansegMemoryGB(int n_channels, patch_width, pixel_size) {
+    patch_width = toNumber('patch_width_pixel', patch_width)
+    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
     def megapixels = Math.pow(patch_width * pixel_size / 0.5, 2) / 1e6
     return Math.ceil(2 + megapixels * instansegGBPerMegapixel(n_channels)) as int
 }
@@ -173,6 +193,7 @@ def instansegGBPerMegapixel(int n_channels) {
 
 // Largest patch_width_pixel, in steps of 100, whose request stays within gigabytes.
 def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
+    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
     def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
     return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
 }

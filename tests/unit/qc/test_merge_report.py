@@ -171,11 +171,11 @@ class TestBuild:
         assert page.startswith("<!DOCTYPE html>")
         assert page.rstrip().endswith("</html>")
 
-    def test_heading_names_the_table(self):
+    def test_heading_names_the_method(self):
         """Two methods give two slide reports; the heading tells them apart."""
         cores = [core(n, table="cellpose_table") for n, *_ in EXEMPLAR002]
         page = build("exemplar-002", cores)
-        assert "<h1>Slide QC &middot; exemplar-002 &middot; cellpose_table</h1>" in page
+        assert "<h1>Slide QC &middot; exemplar-002 &middot; cellpose</h1>" in page
 
     def test_reports_the_slide_total(self):
         assert "29,533" in build("exemplar-002", exemplar_cores())

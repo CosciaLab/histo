@@ -24,6 +24,7 @@ from qc_report import (  # noqa: E402
     esc,
     hbar_chart,
     load_registration,
+    method_of,
     registration_section,
     status_row,
     table,
@@ -347,9 +348,9 @@ def build(slide: str, cores: list[dict[str, Any]], registration: dict[str, Any] 
             f"{totals['n_empty_patches']} with no cells" if totals["n_patches"] else "not tiled",
         ),
     ]
-    # The table tells apart the reports of two methods; metrics from before 2.0 have none.
-    tables = sorted({str(c["table"]) for c in cores if c.get("table")})
-    heading = " &middot; ".join(esc(part) for part in [slide, *tables])
+    # The method tells apart the reports of two methods; metrics from before 2.0 have none.
+    methods = sorted({m for m in map(method_of, cores) if m})
+    heading = " &middot; ".join(esc(part) for part in [slide, *methods])
 
     return f"""<!DOCTYPE html>
 <html lang="en">

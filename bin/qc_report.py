@@ -64,6 +64,12 @@ def esc(text: Any) -> str:
     return html.escape(str(text), quote=True)
 
 
+def method_of(metrics: dict[str, Any]) -> str | None:
+    """`cellpose_table` -> `cellpose`; None for metrics from before 2.0, which record no table."""
+    table_name = metrics.get("table")
+    return str(table_name).removesuffix("_table") if table_name else None
+
+
 def compact(n: float) -> str:
     """Format a count for a stat tile: 1284 -> 1,284, 142493 -> 142.5K."""
     n = float(n)
@@ -1577,8 +1583,8 @@ def build(
     channels = metrics["channels"]
     patches = metrics.get("patches")
     c, h, w = img["shape_cyx"]
-    # The table tells apart the reports of two methods; metrics from before 2.0 have none.
-    heading = " &middot; ".join(esc(part) for part in (metrics["sample"], metrics.get("table")) if part)
+    # The method tells apart the reports of two methods.
+    heading = " &middot; ".join(esc(part) for part in (metrics["sample"], method_of(metrics)) if part)
 
     integrity = [
         status_row(
