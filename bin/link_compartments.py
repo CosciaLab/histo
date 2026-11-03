@@ -15,20 +15,25 @@ import argparse
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Heavy libraries are imported inside functions so the module imports without them.
+if TYPE_CHECKING:
+    import geopandas as gpd
+    import pandas as pd
 
 MIN_SHARE = 0.5  # a nucleus belongs to a cell only if most of it lies there
+MIN_AREA = 1e-6  # px²; a smaller cytoplasm is overlay float noise, not tissue
 # Not `cell_id`: the index is already named so, and pandas then calls groupby/reset_index ambiguous.
 LINK_COLUMN = "linked_cell_id"
 
 
 @dataclass
 class Linked:
-    nuclei: object  # GeoDataFrame: the input nuclei plus LINK_COLUMN (None when unlinked)
-    links: object  # DataFrame, one row per cell: n_nuclei, nucleus_id, nucleus_area, cytoplasm_area
-    nucleus_compartment: object  # GeoDataFrame indexed by cell
-    cytoplasm: object  # GeoDataFrame indexed by cell
+    nuclei: gpd.GeoDataFrame  # the input nuclei plus LINK_COLUMN (NA when unlinked)
+    links: pd.DataFrame  # one row per cell: n_nuclei, nucleus_id, nucleus_area, cytoplasm_area
+    nucleus_compartment: gpd.GeoDataFrame  # indexed by cell
+    cytoplasm: gpd.GeoDataFrame  # indexed by cell
 
 
 def polygonal(geom):
@@ -59,6 +64,21 @@ def check_unique(frame, name: str) -> None:
         raise ValueError(f"{name} index is not unique: {list(dup[:5])}")
 
 
+def repaired(geoms, name: str):
+    """Geometries for linking: invalid ones made valid (polygonal parts only), None where nothing is left."""
+    import numpy as np
+    import shapely
+
+    out = geoms.copy()
+    # An invalid polygon (e.g. self-intersecting) makes GEOS overlays raise.
+    invalid = ~shapely.is_valid(geoms) & ~shapely.is_missing(geoms)
+    out[invalid] = [polygonal(g) for g in shapely.make_valid(geoms[invalid])]
+    empty = np.array([g is None or g.is_empty for g in out], dtype=bool)
+    out[empty] = None
+    print(f"[link] {name}: {int(invalid.sum())} of {len(out)} repaired; {int(empty.sum())} empty, not linked")
+    return out
+
+
 def link(cells, nuclei) -> Linked:
     """Apply the linking rules; `cells` and `nuclei` are GeoDataFrames with unique indices."""
     import geopandas as gpd
@@ -68,8 +88,9 @@ def link(cells, nuclei) -> Linked:
 
     check_unique(cells, "cells")
     check_unique(nuclei, "nuclei")
-    cell_geoms = np.asarray(cells.geometry.array, dtype=object)
-    nuc_geoms = np.asarray(nuclei.geometry.array, dtype=object)
+    # Repaired copies are used for linking only; the nuclei written out keep their input geometry.
+    cell_geoms = repaired(np.asarray(cells.geometry.array, dtype=object), "cells")
+    nuc_geoms = repaired(np.asarray(nuclei.geometry.array, dtype=object), "nuclei")
     nuc_area = shapely.area(nuc_geoms)
 
     # STRtree: O((cells + nuclei) log cells) plus one intersection per touching pair, not all pairs.
@@ -81,13 +102,14 @@ def link(cells, nuclei) -> Linked:
     # Rounding keeps float noise from breaking an exact 50/50 tie or the >= MIN_SHARE bound.
     pairs = pd.DataFrame({"nuc": nuc_pos, "cell": cell_pos, "share": np.round(share, 9)})
     best = pairs.sort_values(["nuc", "share", "cell"], ascending=[True, False, True]).drop_duplicates("nuc")
-    best = best[best["share"] >= MIN_SHARE].copy()
+    best = best.loc[best["share"] >= MIN_SHARE].copy()
     best["area"] = nuc_area[best["nuc"].to_numpy()]
 
+    # Ids are pandas "string" arrays: an all-NA object column writes as parquet null, which anndata rejects.
     linked_to = np.full(len(nuclei), None, dtype=object)
-    linked_to[best["nuc"].to_numpy()] = cells.index[best["cell"].to_numpy()]
+    linked_to[best["nuc"].to_numpy()] = cells.index.astype(str)[best["cell"].to_numpy()]
     out_nuclei = nuclei.copy()
-    out_nuclei[LINK_COLUMN] = linked_to
+    out_nuclei[LINK_COLUMN] = pd.array(linked_to, dtype="string")
 
     n_nuclei = np.zeros(len(cells), dtype=int)
     nucleus_id = np.full(len(cells), None, dtype=object)
@@ -97,7 +119,7 @@ def link(cells, nuclei) -> Linked:
     counts = best.groupby("cell").size()
     n_nuclei[counts.index.to_numpy()] = counts.to_numpy()
     largest = best.sort_values(["cell", "area", "nuc"], ascending=[True, False, True]).drop_duplicates("cell")
-    nucleus_id[largest["cell"].to_numpy()] = nuclei.index[largest["nuc"].to_numpy()]
+    nucleus_id[largest["cell"].to_numpy()] = nuclei.index.astype(str)[largest["nuc"].to_numpy()]
 
     # One union per cell; sorted by cell position, so rows follow the cells frame.
     unions = gpd.GeoDataFrame(
@@ -117,6 +139,7 @@ def link(cells, nuclei) -> Linked:
     cytoplasm[present] = [
         polygonal(g) for g in shapely.difference(cell_geoms[pos[present]], compartment[present])
     ]
+    cytoplasm[np.array([g is not None and g.area < MIN_AREA for g in cytoplasm], dtype=bool)] = None
     nucleus_area[pos] = [0.0 if g is None else g.area for g in compartment]
     cytoplasm_area[pos] = [0.0 if g is None else g.area for g in cytoplasm]
 
@@ -128,7 +151,7 @@ def link(cells, nuclei) -> Linked:
     links = pd.DataFrame(
         {
             "n_nuclei": n_nuclei,
-            "nucleus_id": nucleus_id,
+            "nucleus_id": pd.array(nucleus_id, dtype="string"),
             "nucleus_area": nucleus_area,
             "cytoplasm_area": cytoplasm_area,
         },
@@ -159,12 +182,11 @@ def main() -> int:
 
     linked = link(gpd.read_parquet(args.cells), gpd.read_parquet(args.nuclei))
     write_linked(linked, args.method, args.out_dir)
-    links = linked.links
-    n_linked = int(linked.nuclei[LINK_COLUMN].notna().sum())
+    n_nuclei = linked.links["n_nuclei"].to_numpy()
+    no_cytoplasm = linked.links["cytoplasm_area"].to_numpy() == 0
     print(
-        f"[link] {args.method}: {n_linked} of {len(linked.nuclei)} nuclei linked; "
-        f"{int((links['n_nuclei'] > 0).sum())} of {len(links)} cells have a nucleus, "
-        f"{int((links['cytoplasm_area'] == 0).sum())} of them no cytoplasm"
+        f"[link] {args.method}: {n_nuclei.sum()} of {len(linked.nuclei)} nuclei linked; "
+        f"{(n_nuclei > 0).sum()} of {len(n_nuclei)} cells have a nucleus, {no_cytoplasm.sum()} of them no cytoplasm"
     )
     return 0
 

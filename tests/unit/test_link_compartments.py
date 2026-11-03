@@ -130,13 +130,79 @@ def test_overlay_returning_lines_keeps_only_the_polygon():
     assert cytoplasm.area == pytest.approx(cell.area - 26)
 
 
-def test_empty_nuclei_frame_links_nothing():
+def aggregate_links(c, out, tmp_path):
+    """Feed the written links parquet through aggregation's table assembly and h5ad writer, as AGGREGATE does."""
+    pytest.importorskip("anndata", reason="needs anndata")
+    pytest.importorskip("spatialdata", reason="needs spatialdata")
+    import anndata as ad
+    import numpy as np
+    from aggregate_compartments import build_table
+
+    write_linked(out, "m", tmp_path / "linked")
+    links = pd.read_parquet(tmp_path / "linked" / "m_links.parquet").reindex(c.index)
+    table = build_table(c, np.zeros((len(c), 1)), ["ch0"], {}, links, "m_cells", "slide", None, [])
+    table.write_h5ad(tmp_path / "table.h5ad")
+    return ad.read_h5ad(tmp_path / "table.h5ad").obs
+
+
+def test_empty_nuclei_frame_links_nothing(tmp_path):
     c = cells([box(0, 0, 10, 10), box(20, 0, 30, 10)])
     out = link(c, nuclei([]))
     assert list(out.links["n_nuclei"]) == [0, 0]
     assert len(out.nuclei) == 0
     assert len(out.nucleus_compartment) == 0
     assert len(out.cytoplasm) == 0
+    obs = aggregate_links(c, out, tmp_path)
+    assert list(obs["n_nuclei"]) == [0, 0]
+    assert obs["nucleus_id"].isna().all()
+
+
+def test_all_nuclei_unlinked_still_aggregates(tmp_path):
+    c = cells([box(0, 0, 10, 10), box(20, 0, 30, 10)])
+    out = link(c, nuclei([box(50, 50, 52, 52)]))
+    assert out.nuclei[LINK_COLUMN].isna().all()
+    write_linked(out, "m", tmp_path / "nuc")
+    back = gpd.read_parquet(tmp_path / "nuc" / "m_nuclei.parquet")
+    assert back[LINK_COLUMN].isna().all()
+    obs = aggregate_links(c, out, tmp_path)
+    assert obs["nucleus_id"].isna().all()
+    assert obs["cytoplasm_area"].isna().all()
+
+
+def test_invalid_polygons_are_repaired_and_counted(capsys):
+    bowtie_cell = Polygon([(0, 0), (10, 10), (10, 0), (0, 10)])  # two triangles meeting at (5, 5)
+    bowtie_nucleus = Polygon([(20, 0), (24, 4), (24, 0), (20, 4)])
+    c = cells([bowtie_cell, box(18, -2, 26, 6)])
+    n = nuclei([box(8, 4, 9, 6), bowtie_nucleus, Polygon([(30, 0), (31, 1), (32, 2), (30, 0)])])
+    out = link(c, n)
+    assert linked_to(out, "img_nuclei_0") == "img_cells_0"
+    assert linked_to(out, "img_nuclei_1") == "img_cells_1"
+    assert linked_to(out, "img_nuclei_2") is None
+    assert out.nuclei.geometry.loc["img_nuclei_1"].equals(bowtie_nucleus)  # output keeps input geometry
+    log = capsys.readouterr().out
+    assert "[link] cells: 1 of 2 repaired; 0 empty, not linked" in log
+    assert "[link] nuclei: 2 of 3 repaired; 1 empty, not linked" in log
+
+
+def test_cytoplasm_sliver_counts_as_none():
+    c = cells([box(0, 0, 10, 10)])
+    out = link(c, nuclei([box(0, 0, 10 - 1e-9, 10)]))
+    assert "img_cells_0" not in out.cytoplasm.index
+    assert out.links.loc["img_cells_0", "cytoplasm_area"] == 0
+
+
+def test_nucleus_across_three_cells():
+    c = cells([box(0, 0, 10, 10), box(10, 0, 20, 10), box(20, 0, 30, 10)])
+    # shares 4/15, 10/15, 1/15; then 6/22, 10/22, 6/22
+    out = link(c, nuclei([box(6, 0, 21, 1), box(4, 2, 26, 3)]))
+    assert linked_to(out, "img_nuclei_0") == "img_cells_1"
+    assert linked_to(out, "img_nuclei_1") is None
+
+
+def test_nucleus_only_touching_a_cell_is_unlinked():
+    out = link(cells([box(0, 0, 10, 10)]), nuclei([box(10, 0, 12, 2)]))
+    assert linked_to(out, "img_nuclei_0") is None
+    assert out.links.loc["img_cells_0", "n_nuclei"] == 0
 
 
 def test_every_cell_appears_once_in_links_in_cell_order():
