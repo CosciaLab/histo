@@ -128,8 +128,8 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
 | `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
 | `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
-| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                  |
-| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                        |
+| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                 |
+| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                       |
 | `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                    |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                      |
 | `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                  |
