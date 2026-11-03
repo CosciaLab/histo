@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking
 
+- `use_tma_dearray` needs `tma_expected_cores` and `tma_core_diameter_mm`, or
+  `coreograph_args` to run Coreograph exactly as given. `coreograph_args` has no default.
 - Tables and shapes are per method `{m}`: `tables/table` is now `tables/{m}_table`, and
   `shapes/{m}_boundaries` is `shapes/{m}_cells`. Table rows are indexed by the shapes' cell ids
   (`{image}_{m}_{target}_{n}`), not renumbered. See [output.md](docs/output.md#from-1x).
@@ -21,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- TMA dearray chooses Coreograph's `--downsampleFactor` per slide. Cores are detected at
+  factors 3 to 7 without writing tiles, scored against `tma_expected_cores` and
+  `tma_core_diameter_mm`, and Coreograph runs once with the best. The comparison is in
+  `preprocessing/dearray/sweep/`.
 - `use_cellpose` and `use_instanseg` together, each with its own table.
 - `segment_cells` (default true) and `segment_nuclei`. With both, `LINK_COMPARTMENTS` links each
   nucleus to the cell holding at least half of it and derives the cytoplasm: shapes
@@ -32,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A hook lints `nextflow_schema.json` after each agent edit and at commit.
 - One task writes the store, `WRITE_SEGMENTATIONS`; patch, resolve, link and aggregate tasks
   write files. Aggregation is our own copy of sopa's, with polygon holes honoured.
 - `WRITE_SEGMENTATIONS` removes pipeline-named shapes and tables the run no longer produces,
