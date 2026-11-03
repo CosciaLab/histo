@@ -55,12 +55,13 @@ def extractSubArgs(Map args, String group) {
 }
 
 // Targets to segment; cells unless segment_cells is false (null counts as on, as for a partial map), nuclei opt-in.
+// Truthiness, not == true: a bare flag arrives as the String "true" (rejectStringBooleans refuses any other text).
 def segmentationTargets(Map args) {
     def targets = []
-    if (args.segment_cells != false) {
+    if (args.segment_cells == null || args.segment_cells) {
         targets << 'cells'
     }
-    if (args.segment_nuclei == true) {
+    if (args.segment_nuclei) {
         targets << 'nuclei'
     }
     return targets

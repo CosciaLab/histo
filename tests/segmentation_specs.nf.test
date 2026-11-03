@@ -192,4 +192,33 @@ nextflow_function {
             assert out.contains("cellpose_kwargs key 'diameter' collides")
         }
     }
+
+    // A bare --segment_nuclei on the command line arrives as the String "true".
+    test("bare flags given as the text 'true' switch both targets on") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: 'true', segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei']
+        }
+    }
+
+    test("segment_cells false with segment_nuclei 'true' gives nuclei only") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_nuclei']
+        }
+    }
 }

@@ -154,6 +154,8 @@ nextflow_pipeline {
                 { assert names("QC_REPORT").size() == 2 },
                 { assert names("MERGE_SPATIALDATA").size() == 1 },
                 { assert names("MERGE_REPORT").size() == 1 },
+                // One write per core; the count keeps every() from passing on an empty list.
+                { assert staged(workDir).size() == 2 },
                 { assert staged(workDir).every { it['instanseg_nuclei.parquet'].contains('/linked/') } }
             )
         }

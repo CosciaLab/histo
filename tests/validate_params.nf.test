@@ -118,6 +118,33 @@ nextflow_function {
         }
     }
 
+    test("segment_nuclei as the text 'true' counts as a target") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("with segment_cells false and segment_nuclei unset there is nothing to segment") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("At least one of segment_cells and segment_nuclei") }
+        }
+    }
+
     test("segment_nuclei alone is accepted") {
         when {
             function {

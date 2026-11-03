@@ -15,6 +15,7 @@ include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
+include { segmentationTargets       } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -638,8 +639,8 @@ def validateParams(params) {
     else {
         assert enabled >= 1 : "A segmentation method is required: set at least one of use_cellpose and use_instanseg " +
             "to true, or use a profile that does (for example -profile test)"
-        // segment_cells null counts as on, as in segmentationTargets (modules/local/utils.nf).
-        assert params.segment_cells != false || params.segment_nuclei :
+        // The same function that builds the specs, so validation and segmentation cannot disagree.
+        assert segmentationTargets(params) :
             "At least one of segment_cells and segment_nuclei must be true: otherwise there is nothing to segment."
     }
 
