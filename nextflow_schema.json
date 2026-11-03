@@ -52,7 +52,7 @@
                 },
                 "preprocessing_only": {
                     "type": "boolean",
-                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report. Ashlar's own QC is still written when use_qc is true. Requires use_preprocessing; no segmentation backend is needed."
+                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report. Ashlar's own QC is still written when use_qc is true. Requires use_preprocessing; no segmentation method is needed."
                 },
                 "skip_reference_dna_check": {
                     "type": "boolean",
@@ -234,7 +234,7 @@
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "One GPU per Cellpose patch task. Cluster only; not with StarDist or InstanSeg."
+                    "description": "One GPU per Cellpose patch task. Cluster only; InstanSeg runs on CPU."
                 }
             },
             "fa_icon": "far fa-square"
@@ -268,12 +268,12 @@
         "filtering": {
             "title": "Cell filtering",
             "type": "object",
-            "description": "Filtering low-quality cells during segmentation and aggregation",
+            "description": "Filtering objects at segmentation. Cells are never dropped at aggregation.",
             "default": "",
             "properties": {
                 "min_area_pixels2": {
                     "type": "number",
-                    "description": "Cells with an area less than this value will be filtered. The unit is in pixels^2, and used by Stardist/Cellpose."
+                    "description": "Objects smaller than this, in pixels², are dropped at segmentation, per patch. Unset: sopa uses 0."
                 }
             },
             "fa_icon": "fas fa-filter"
@@ -286,7 +286,7 @@
             "properties": {
                 "expand_radius_ratio": {
                     "type": "number",
-                    "description": "Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities only. Helps capture membrane stainings at the cell boundary."
+                    "description": "Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes. Helps capture membrane stainings at the cell boundary."
                 }
             },
             "fa_icon": "fas fa-calculator"
@@ -294,7 +294,7 @@
         "image_preprocessing": {
             "title": "Image preprocessing",
             "type": "object",
-            "description": "Image preprocessing applied before channel-based segmentation methods (cellpose, stardist)",
+            "description": "Image preprocessing applied before segmentation (Cellpose, InstanSeg). Unset: sopa's per-method defaults (they differ for InstanSeg).",
             "default": "",
             "properties": {
                 "gaussian_sigma": {
@@ -362,12 +362,12 @@
             "properties": {
                 "segment_cells": {
                     "type": "boolean",
-                    "description": "Segment whole cells with each enabled method. Shapes `{method}_cells`, table `{method}_table`",
+                    "description": "Segment whole cells with each enabled method: shapes `{method}_cells`. Set false for nuclei only.",
                     "default": true
                 },
                 "segment_nuclei": {
                     "type": "boolean",
-                    "description": "Segment nuclei with each enabled method. Not available yet: this release segments cells only"
+                    "description": "Segment nuclei with each enabled method: shapes `{method}_nuclei`. With segment_cells, nuclei are linked to cells and the cytoplasm is derived."
                 }
             },
             "fa_icon": "fas fa-bullseye"
@@ -380,11 +380,11 @@
             "properties": {
                 "use_cellpose": {
                     "type": "boolean",
-                    "description": "Whether to run cellpose segmentation"
+                    "description": "Segment with Cellpose. May be combined with use_instanseg."
                 },
                 "cellpose_channels": {
                     "type": ["string", "integer"],
-                    "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters."
+                    "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters. The last is the nuclear channel, which segment_nuclei uses."
                 },
                 "flow_threshold": {
                     "type": "number",
@@ -413,7 +413,7 @@
             "properties": {
                 "use_instanseg": {
                     "type": "boolean",
-                    "description": "Whether to run InstanSeg segmentation"
+                    "description": "Segment with InstanSeg. May be combined with use_cellpose."
                 },
                 "instanseg_model_type": {
                     "type": "string",
@@ -443,7 +443,7 @@
                 "use_qc": {
                     "type": "boolean",
                     "description": "Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report",
-                    "help_text": "Writes a machine-readable JSON of metrics next to a self-contained HTML report, per sample, into `<outdir>/qc`. The JSON is the contract an unattended run should read; the HTML is for a person. With use_preprocessing, Ashlar also writes its stitching and registration QC to `<outdir>/preprocessing/registration/{sample}_ashlar_qc/`, which the report reads.",
+                    "help_text": "Writes a machine-readable JSON of metrics next to a self-contained HTML report, per sample and method, into `<outdir>/qc`, plus `{sample}_comparison.json` and `.html` when both methods segment cells. The JSON is the contract an unattended run should read; the HTML is for a person. With use_preprocessing, Ashlar also writes its stitching and registration QC to `<outdir>/preprocessing/registration/{sample}_ashlar_qc/`, which the report reads.",
                     "default": true
                 },
                 "use_qc_images": {

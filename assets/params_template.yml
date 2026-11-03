@@ -72,7 +72,7 @@
 ##     Stop after preprocessing: keep the stitched images under
 ##     preprocessing/ and skip segmentation, quantification and the QC
 ##     report. Ashlar's own QC is still written when use_qc is true. Requires
-##     use_preprocessing; no segmentation backend is needed.
+##     use_preprocessing; no segmentation method is needed.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # preprocessing_only: null
@@ -316,8 +316,7 @@
 ## -----------------------------------------------------------------------------
 ## use_gpu
 ## -----------------------------------------------------------------------------
-##     One GPU per Cellpose patch task. Cluster only; not with StarDist or
-##     InstanSeg.
+##     One GPU per Cellpose patch task. Cluster only; InstanSeg runs on CPU.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # use_gpu: null
@@ -365,13 +364,13 @@
 ## =============================================================================
 ## Cell filtering
 ## =============================================================================
-## Filtering low-quality cells during segmentation and aggregation
+## Filtering objects at segmentation. Cells are never dropped at aggregation.
 
 ## -----------------------------------------------------------------------------
 ## min_area_pixels2
 ## -----------------------------------------------------------------------------
-##     Cells with an area less than this value will be filtered. The unit is
-##     in pixels^2, and used by Stardist/Cellpose.
+##     Objects smaller than this, in pixels², are dropped at segmentation,
+##     per patch. Unset: sopa uses 0.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # min_area_pixels2: null
@@ -386,8 +385,9 @@
 ## expand_radius_ratio
 ## -----------------------------------------------------------------------------
 ##     Expand cell polygons by `expand_radius_ratio * mean_radius` when
-##     averaging channel intensities only. Helps capture membrane stainings
-##     at the cell boundary.
+##     averaging channel intensities, for X only; the nucleus and cytoplasm
+##     layers, area and centroids use the unexpanded shapes. Helps capture
+##     membrane stainings at the cell boundary.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # expand_radius_ratio: null
@@ -396,8 +396,8 @@
 ## =============================================================================
 ## Image preprocessing
 ## =============================================================================
-## Image preprocessing applied before channel-based segmentation methods
-## (cellpose, stardist)
+## Image preprocessing applied before segmentation (Cellpose, InstanSeg).
+## Unset: sopa's per-method defaults (they differ for InstanSeg).
 
 ## -----------------------------------------------------------------------------
 ## gaussian_sigma
@@ -498,8 +498,8 @@
 ## -----------------------------------------------------------------------------
 ## segment_cells
 ## -----------------------------------------------------------------------------
-##     Segment whole cells with each enabled method. Shapes `{method}_cells`,
-##     table `{method}_table`
+##     Segment whole cells with each enabled method: shapes `{method}_cells`.
+##     Set false for nuclei only.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # segment_cells: true
@@ -507,8 +507,9 @@
 ## -----------------------------------------------------------------------------
 ## segment_nuclei
 ## -----------------------------------------------------------------------------
-##     Segment nuclei with each enabled method. Not available yet: this
-##     release segments cells only
+##     Segment nuclei with each enabled method: shapes `{method}_nuclei`.
+##     With segment_cells, nuclei are linked to cells and the cytoplasm is
+##     derived.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # segment_nuclei: null
@@ -522,7 +523,7 @@
 ## -----------------------------------------------------------------------------
 ## use_cellpose
 ## -----------------------------------------------------------------------------
-##     Whether to run cellpose segmentation
+##     Segment with Cellpose. May be combined with use_instanseg.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # use_cellpose: null
@@ -532,7 +533,8 @@
 ## -----------------------------------------------------------------------------
 ##     Channel(s) to segment with Cellpose. Use marker names from the marker
 ##     sheet, e.g. "DNA_1". If multiple, separate by space, comma or pipe
-##     characters.
+##     characters. The last is the nuclear channel, which segment_nuclei
+##     uses.
 ##     Type: ['string', 'integer']
 ## -----------------------------------------------------------------------------
 # cellpose_channels: null
@@ -578,7 +580,7 @@
 ## -----------------------------------------------------------------------------
 ## use_instanseg
 ## -----------------------------------------------------------------------------
-##     Whether to run InstanSeg segmentation
+##     Segment with InstanSeg. May be combined with use_cellpose.
 ##     Type: boolean
 ## -----------------------------------------------------------------------------
 # use_instanseg: null
