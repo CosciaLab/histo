@@ -5,6 +5,8 @@ include { BASICPY    } from '../../../modules/nf-core/basicpy/main'
 include { ASHLAR     } from '../../../modules/nf-core/ashlar/main'
 include { BACKSUB    } from '../../../modules/nf-core/backsub/main'
 include { COREOGRAPH } from '../../../modules/nf-core/coreograph/main'
+include { COREOGRAPH_DETECT } from '../../../modules/local/coreograph_detect/main'
+include { COREOGRAPH_SELECT } from '../../../modules/local/coreograph_select/main'
 
 workflow PREPROCESS_IMAGES {
     take:
@@ -51,7 +53,26 @@ workflow PREPROCESS_IMAGES {
     // TMA dearray: one slide becomes N cores, each continuing as its own sample.
     // Runs before backsub so the unsubtracted image QC compares against is per core too.
     if (params.use_tma_dearray) {
-        COREOGRAPH(ASHLAR.out.tif)
+        // Unless coreograph_args pins it, the downsample factor is chosen per slide by detecting
+        // cores at each factor (no tiles written) and scoring them against the expected cores.
+        def sweep_factors = [3, 4, 5, 6, 7]
+        ch_to_dearray = ASHLAR.out.tif
+        if (!params.coreograph_args) {
+            COREOGRAPH_DETECT(ASHLAR.out.tif.combine(channel.fromList(sweep_factors)))
+            // size: releases each slide as soon as its own factors finish.
+            COREOGRAPH_SELECT(COREOGRAPH_DETECT.out.results.groupTuple(size: sweep_factors.size()))
+            ch_to_dearray = ASHLAR.out.tif
+                .join(COREOGRAPH_SELECT.out.selection)
+                .map { meta, image, selection ->
+                    def choice = new groovy.json.JsonSlurper().parse(selection)
+                    if (choice.warning) {
+                        log.warn("${meta.id}: ${choice.warning}")
+                    }
+                    // conf/modules.config reads downsample_factor to build COREOGRAPH's args.
+                    [meta + [downsample_factor: choice.downsample_factor as Integer], image]
+                }
+        }
+        COREOGRAPH(ch_to_dearray)
 
         // Core id comes from the patched module's {slide}_core001 filename; strip both
         // .tif and .ome.tif (Coreograph 2.4.6), or ".ome" leaks into ids and zarr names.

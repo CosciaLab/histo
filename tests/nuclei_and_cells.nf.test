@@ -131,6 +131,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 use_cellpose = false
                 use_instanseg = true
                 instanseg_pixel_size = 0.1

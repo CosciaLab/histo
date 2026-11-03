@@ -26,6 +26,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_qc = true
             }
@@ -37,6 +39,9 @@ nextflow_pipeline {
 
             assertAll(
                 { assert workflow.success },
+                // One detect task per downsample factor, one choice for the slide.
+                { assert names("COREOGRAPH_DETECT").size() == 5 },
+                { assert names("COREOGRAPH_SELECT").size() == 1 },
                 // The Coreograph stub emits two cores.
                 { assert names("AGGREGATE").size() == 2 },
                 { assert names("WRITE_SEGMENTATIONS").size() == 2 },
@@ -66,6 +71,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_instanseg = true
                 instanseg_pixel_size = 0.1
@@ -105,6 +112,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_qc = false
             }
