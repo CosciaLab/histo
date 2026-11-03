@@ -126,3 +126,34 @@ def test_missing_segmentation_attribute_raises(store, tmp_path):
     sdata.write_attrs()
     with pytest.raises(ValueError, match="cell_segmentation_image"):
         write_segmentations(store, *inputs(tmp_path))
+
+
+@pytest.mark.parametrize("nuclei", [[box(1, 1, 3, 3), box(40, 40, 45, 45)], []], ids=["linked", "no_nuclei"])
+def test_linked_compartments_are_written(store, tmp_path, nuclei):
+    """What WRITE_SEGMENTATIONS gets with both targets; an unlinked nucleus keeps a null link."""
+    from link_compartments import LINK_COLUMN, link, write_linked
+
+    cells = gpd.GeoDataFrame(
+        geometry=[box(0, 0, 5, 5), box(10, 0, 15, 5)], index=pd.Index(["c0", "c1"], name="cell_id")
+    )
+    cells.to_parquet(tmp_path / "m_cells.parquet")
+    nuclei = gpd.GeoDataFrame(
+        geometry=nuclei, index=pd.Index([f"n{i}" for i in range(len(nuclei))], name="cell_id")
+    )
+    write_linked(link(cells, nuclei), "m", tmp_path / "linked")
+    linked = tmp_path / "linked"
+    shapes = [tmp_path / "m_cells.parquet", linked / "m_nuclei.parquet", linked / "m_cytoplasm.parquet"]
+    write_segmentations(store, shapes, [make_table(tmp_path, "m_table", "m_cells", n=2)])
+    out = sd.read_zarr(store)
+    if len(nuclei):
+        assert {"m_cells", "m_nuclei", "m_cytoplasm"} <= set(out.shapes)
+        assert [None if pd.isna(v) else v for v in out.shapes["m_nuclei"][LINK_COLUMN]] == ["c0", None]
+    else:
+        # spatialdata cannot hold an empty shapes element, so none is written.
+        assert "m_cells" in out.shapes and not {"m_nuclei", "m_cytoplasm"} & set(out.shapes)
+
+
+def test_empty_shapes_remove_a_stale_element(store, tmp_path):
+    write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm")], [])
+    write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm", n=0)], [])
+    assert "m_cytoplasm" not in sd.read_zarr(store).shapes
