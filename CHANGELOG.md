@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - One task writes the store, `WRITE_SEGMENTATIONS`; patch, resolve, link and aggregate tasks
   write files. Aggregation is our own copy of sopa's, with polygon holes honoured.
+- `WRITE_SEGMENTATIONS` removes pipeline-named shapes and tables the run no longer produces,
+  e.g. after dropping a method. See [output.md](docs/output.md#spatialdata-directory).
 - `use_gpu` with `use_instanseg` runs InstanSeg on CPU and warns, instead of stopping.
 - Cells are never dropped at aggregation. A cell covering no pixel centre has NaN intensities
   (was 0); `obs.area` and centroids are of the unexpanded cell under `expand_radius_ratio`.
