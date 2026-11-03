@@ -1,9 +1,13 @@
 """Tests for the reading and metrics half of coreograph_detect.py (no TensorFlow needed)."""
 
+import itertools
+import json
+
+import coreograph_detect
 import numpy as np
 import pytest
 import tifffile
-from coreograph_detect import centroids_full_res, core_metrics, pixel_size_um, read_downsampled
+from coreograph_detect import centroids_full_res, core_metrics, main, pixel_size_um, read_downsampled
 
 ARR = np.zeros((2, 32, 32), dtype=np.uint16)
 
@@ -106,3 +110,74 @@ class TestCoreMetrics:
 def test_centroids_scaled_to_full_res():
     labels = discs([(10, 20)], 3, (40, 40))
     assert np.allclose(centroids_full_res(labels, 3), [[80, 160]])
+
+
+CENTRES = [(16, 16), (16, 48), (48, 16), (48, 48)]
+
+
+def argv(image):
+    return [
+        "--image", str(image), "--downsample-factor", "3", "--channel", "0", "--sensitivity", "0.3",
+        "--buffer", "2", "--expected-cores", "4", "--core-diameter-mm", "1.5", "--prefix", "slide",
+    ]  # fmt: skip
+
+
+class TestMain:
+    """main() with detect_labels patched out, so no TensorFlow is needed."""
+
+    def test_writes_four_outputs(self, tmp_path, monkeypatch):
+        img = write_ome(tmp_path, np.zeros((2, 512, 512), np.uint16), 0.65)
+        monkeypatch.setattr(
+            coreograph_detect, "detect_labels", lambda im, *_: (discs(CENTRES, 10, im.shape), 30.0)
+        )
+        monkeypatch.chdir(tmp_path)
+        main(argv(img))
+        m = json.loads((tmp_path / "slide_k3_metrics.json").read_text())
+        assert m["k"] == 3 and m["n_cores"] == 4 and m["pixel_um"] == pytest.approx(0.65)
+        for suffix in ["coremask.tif", "centroids.txt", "overlay.png"]:
+            assert (tmp_path / f"slide_k3_{suffix}").stat().st_size > 0
+
+    def test_detect_sees_downsampled_channel(self, tmp_path, monkeypatch):
+        arr = np.zeros((2, 512, 512), np.uint16)
+        arr[0] = 7
+        seen = {}
+
+        def fake(im, s, b):
+            seen.update(shape=im.shape, value=int(im.max()), sensitivity=s, buffer=b)
+            return discs(CENTRES, 10, im.shape), 30.0
+
+        monkeypatch.setattr(coreograph_detect, "detect_labels", fake)
+        monkeypatch.chdir(tmp_path)
+        main(argv(write_ome(tmp_path, arr, 0.65)))
+        assert seen == {"shape": (64, 64), "value": 7, "sensitivity": 0.3, "buffer": 2.0}
+
+    def test_centroids_in_coreograph_format(self, tmp_path, monkeypatch):
+        img = write_ome(tmp_path, np.zeros((2, 512, 512), np.uint16), 0.65)
+        monkeypatch.setattr(
+            coreograph_detect, "detect_labels", lambda im, *_: (discs(CENTRES, 10, im.shape), 30.0)
+        )
+        monkeypatch.chdir(tmp_path)
+        main(argv(img))
+        lines = (tmp_path / "slide_k3_centroids.txt").read_text().splitlines()
+        assert lines[0] == f"{128:10.5f} {128:10.5f}"
+        assert len(lines) == 4
+
+    def test_coremask_keeps_labels_above_255(self, tmp_path, monkeypatch):
+        labels = np.zeros((120, 90), np.int32)
+        for i, (y, x) in enumerate(itertools.product(range(0, 120, 6), range(0, 90, 6)), start=1):
+            labels[y : y + 3, x : x + 3] = i  # 20 × 15 = 300 squares
+        img = write_ome(tmp_path, np.zeros((2, 960, 720), np.uint16), 0.65)
+        monkeypatch.setattr(coreograph_detect, "detect_labels", lambda *_: (labels, 3.0))
+        monkeypatch.chdir(tmp_path)
+        main(argv(img))
+        assert tifffile.TiffFile(tmp_path / "slide_k3_coremask.tif").asarray().max() == 300
+        assert json.loads((tmp_path / "slide_k3_metrics.json").read_text())["n_cores"] == 300
+
+    def test_exits_with_message_without_pixel_size(self, tmp_path, monkeypatch):
+        img = write_ome(tmp_path, np.zeros((2, 64, 64), np.uint16), None, None)
+        monkeypatch.setattr(
+            coreograph_detect, "detect_labels", lambda im, *_: (discs(CENTRES, 10, im.shape), 30.0)
+        )
+        monkeypatch.chdir(tmp_path)
+        with pytest.raises(SystemExit, match="pixel size"):
+            main(argv(img))

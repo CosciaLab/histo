@@ -7,6 +7,10 @@ count and diameter so COREOGRAPH_SELECT can pick k. Only the UNet step needs Ten
 rest is plain numpy and scikit-image.
 """
 
+import argparse
+import json
+import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +18,8 @@ import tifffile
 import zarr
 from skimage.measure import regionprops
 
+# The Coreograph image keeps UNetCoreograph.py and its model in /app; overridable to run natively.
+COREOGRAPH_APP = os.environ.get("COREOGRAPH_APP", "/app")
 UM_PER_UNIT = {"µm": 1.0, "μm": 1.0, "um": 1.0, "nm": 1e-3, "mm": 1e3}
 
 
@@ -91,3 +97,123 @@ def centroids_full_res(labels: np.ndarray, k: int) -> np.ndarray:
     ds_factor = 1 / 2**k
     centroids = [p.centroid for p in regionprops(labels)]
     return np.array(centroids, dtype=float).reshape(-1, 2) / ds_factor
+
+
+def detect_labels(img: np.ndarray, sensitivity: float, buffer: float) -> tuple[np.ndarray, float]:
+    """Coreograph's TMA-mode detection on an already downsampled channel.
+
+    Returns the core labels at that scale and Coreograph's estCoreDiam (downsampled px), the
+    crop size it would use for every core.
+    """
+    from scipy.ndimage import distance_transform_edt
+    from skimage.feature import blob_log
+    from skimage.filters import gaussian
+    from skimage.measure import label
+    from skimage.morphology import remove_small_objects
+    from skimage.segmentation import watershed
+
+    sys.path.insert(0, COREOGRAPH_APP)
+    from UNetCoreograph import getProbMaps
+
+    # dsFactor 0: the image is already at 1/2^k, so getProbMaps must not halve it again.
+    classProbs = getProbMaps(img, 0, str(Path(COREOGRAPH_APP) / "model"))
+
+    # Copied from HMS-IDAC/UNetCoreograph 2.4.6, UNetCoreograph.py L1006-1039 (MIT). Keep in sync on bumps.
+    # Only args.buffer became buffer, and a noqa was added.
+    preMask = gaussian(np.uint8(classProbs * 255), 1) > 0.8
+
+    P = regionprops(label(preMask), cache=False)
+    area = [ele.area for ele in P]
+    if len(P) < 3:
+        medArea = np.median(area)
+        maxArea = np.percentile(area, 99)
+    else:
+        count = 0
+        labelpreMask = np.zeros(preMask.shape, dtype=np.uint32)
+        for props in P:
+            count += 1  # noqa: SIM113
+            yi = props.coords[:, 0]
+            xi = props.coords[:, 1]
+            labelpreMask[yi, xi] = count
+            P = regionprops(labelpreMask)
+            area = [ele.area for ele in P]
+        medArea = np.median(area)
+        maxArea = np.percentile(area, 99)
+    preMask = remove_small_objects(preMask, 0.2 * medArea)
+    coreRad = round(np.sqrt(medArea / np.pi))
+    estCoreDiam = round(np.sqrt(maxArea / np.pi) * 1.2 * buffer)
+
+    # preprocessing
+    fgFiltered = blob_log(preMask, coreRad * 0.6, threshold=sensitivity)
+    Imax = np.zeros(preMask.shape, dtype=np.uint8)
+    for iSpot in range(fgFiltered.shape[0]):
+        yi = np.uint32(round(fgFiltered[iSpot, 0]))
+        xi = np.uint32(round(fgFiltered[iSpot, 1]))
+        Imax[yi, xi] = 1
+    Imax = Imax * preMask
+    Idist = distance_transform_edt(1 - Imax)
+    markers = label(Imax)
+    coreLabel = watershed(Idist, markers, watershed_line=True, mask=preMask)
+
+    return coreLabel.astype(np.int32), float(estCoreDiam)
+
+
+def write_overlay(path: Path, img: np.ndarray, labels: np.ndarray, title: str) -> None:
+    """Core outlines and numbers on the channel, longest side at most 1024 px."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from skimage.segmentation import find_boundaries
+
+    step = max(1, -(-max(img.shape) // 1024))
+    thumb = img[::step, ::step].astype(float)
+    top = np.percentile(thumb, 99.9) or 1.0
+    rgb = np.repeat(np.clip(thumb / top, 0, 1)[..., None], 3, axis=2)
+    rgb[find_boundaries(labels, mode="outer")[::step, ::step]] = (1.0, 0.2, 0.2)
+
+    fig, ax = plt.subplots(figsize=(rgb.shape[1] / 100, rgb.shape[0] / 100 + 0.4), dpi=100)
+    ax.imshow(rgb, interpolation="nearest")
+    for p in regionprops(labels):
+        ax.text(
+            p.centroid[1] / step, p.centroid[0] / step, str(p.label), color="lime", ha="center", va="center"
+        )
+    ax.set_title(title)
+    ax.axis("off")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+
+
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--image", type=Path, required=True)
+    parser.add_argument("--downsample-factor", type=int, required=True)
+    parser.add_argument("--channel", type=int, default=0)
+    parser.add_argument("--sensitivity", type=float, default=0.3)
+    parser.add_argument("--buffer", type=float, default=2.0)
+    parser.add_argument("--expected-cores", type=int, required=True)
+    parser.add_argument("--core-diameter-mm", type=float, required=True)
+    parser.add_argument("--prefix", required=True)
+    args = parser.parse_args(argv)
+    k = args.downsample_factor
+    out = f"{args.prefix}_k{k}"
+
+    try:
+        pixel_um = pixel_size_um(args.image)
+        img = read_downsampled(args.image, args.channel, k)
+    except ValueError as e:
+        sys.exit(str(e))
+
+    labels, est_core_diam_px = detect_labels(img, args.sensitivity, args.buffer)
+    metrics = core_metrics(labels, est_core_diam_px, k, pixel_um, args.expected_cores, args.core_diameter_mm)
+    metrics["pixel_um"] = pixel_um
+
+    Path(f"{out}_metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    # uint16, not Coreograph's uint8, so labels do not wrap above 255 cores.
+    tifffile.imwrite(f"{out}_coremask.tif", labels.astype(np.uint16), compression="zlib")
+    np.savetxt(f"{out}_centroids.txt", centroids_full_res(labels, k), fmt="%10.5f")
+    write_overlay(Path(f"{out}_overlay.png"), img, labels, f"k={k}: {metrics['n_cores']} cores")
+
+
+if __name__ == "__main__":
+    main()
