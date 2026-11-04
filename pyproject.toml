@@ -46,6 +46,9 @@ dev = [
     # spatialdata API does safely. Brings dask, scipy and scikit-image, all in the sopa
     # container already.
     "spatialdata>=0.4",
+    # bin/coreograph_*.py run in the Coreograph image, which ships both.
+    "scikit-image>=0.22",
+    "matplotlib>=3.8",
 ]
 
 [tool.pytest.ini_options]

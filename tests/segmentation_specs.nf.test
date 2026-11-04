@@ -1,0 +1,226 @@
+// One spec per method x target, built from params.
+
+nextflow_function {
+
+    name "segmentationSpecs"
+    script "../modules/local/utils.nf"
+    function "segmentationSpecs"
+    tag "unit"
+    tag "validation"
+
+    test("Cellpose cells take cytoplasm then nucleus") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'CD45 DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'cellpose_cells'
+            assert function.result[0].image == 'full'
+            assert function.result[0].channels == ['CD45', 'DAPI']
+        }
+    }
+
+    test("Cellpose nuclei use the last channel name") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, segment_cells: false, segment_nuclei: true, cellpose_channels: 'CD45 DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'cellpose_nuclei'
+            assert function.result[0].channels == ['DAPI']
+        }
+    }
+
+    test("projection gives Cellpose the projected image and its channels") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_projection: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei']
+            assert function.result[0].channels == ['cell', 'nuclear']
+            assert function.result[1].channels == ['nuclear']
+            assert function.result*.image == ['projected', 'projected']
+        }
+    }
+
+    test("InstanSeg nuclei: target, full image, channels left for the marker sheet") {
+        when {
+            function {
+                """
+                input[0] = [ use_instanseg: true, segment_cells: false, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].method_kwargs.target == 'nuclei'
+            assert function.result[0].image == 'full'
+            assert function.result[0].channels == null
+        }
+    }
+
+    test("projection is Cellpose's input only; InstanSeg stays on the full image") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, use_projection: true, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.findAll { it.method == 'cellpose' }*.image == ['projected', 'projected']
+            assert function.result.findAll { it.method == 'instanseg' }*.image == ['full', 'full']
+        }
+    }
+
+    test("only Cellpose asks for a GPU") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, use_gpu: true, cellpose_channels: 'DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'instanseg_cells']
+            assert function.result[0].gpu == true
+            assert function.result[1].gpu == false
+        }
+    }
+
+    test("methods and targets come in a fixed order") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_instanseg: true, segment_nuclei: true, cellpose_channels: 'DAPI' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei', 'instanseg_cells', 'instanseg_nuclei']
+        }
+    }
+
+    // The *_kwargs text is parsed and merged by segment_patch.py, not here.
+    test("Cellpose method_kwargs: diameter 30, nulls dropped, free-form kwargs kept as text") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: 1.5,
+                             min_area_pixels2: 20, cellpose_kwargs: "{'niter': 10}" ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result[0].method_kwargs == [ diameter: 30, flow_threshold: 1.5 ]
+            assert function.result[0].method_kwargs_extra == "{'niter': 10}"
+            assert function.result[0].segmentation_kwargs == [ min_area: 20 ]
+        }
+    }
+
+    test("instanseg_kwargs text goes into the InstanSeg specs only") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true,
+                             instanseg_kwargs: "{'batch_size': 2}" ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.method_kwargs_extra == [ null, "{'batch_size': 2}" ]
+        }
+    }
+
+    // Command-line values arrive as Strings; as JSON strings they would reach sopa as str.
+    test("numeric params given as command-line Strings become numbers") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: '0.4', cellprob_threshold: '-6',
+                             min_area_pixels2: '20', clip_limit: '0.2', clahe_kernel_size: '8', gaussian_sigma: '1',
+                             use_instanseg: true, instanseg_channels: 'DAPI', instanseg_pixel_size: '0.65' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            def cellpose = function.result[0]
+            def instanseg = function.result[1]
+            def values = [
+                cellpose.method_kwargs.flow_threshold, cellpose.method_kwargs.cellprob_threshold,
+                instanseg.method_kwargs.pixel_size,
+            ] + cellpose.segmentation_kwargs.values()
+            assert values.every { it instanceof Number }
+            assert cellpose.method_kwargs.flow_threshold == 0.4
+            assert cellpose.method_kwargs.cellprob_threshold == -6
+            assert instanseg.method_kwargs.pixel_size == 0.65
+            assert cellpose.segmentation_kwargs == [ min_area: 20, clip_limit: 0.2, clahe_kernel_size: 8, gaussian_sigma: 1 ]
+        }
+    }
+
+    test("a numeric param that is not a number fails naming it") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', flow_threshold: 'high' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            def out = function.stdout.toString() + function.stderr.toString()
+            assert out.contains("flow_threshold must be a number, got 'high'")
+        }
+    }
+
+    // A bare --segment_nuclei on the command line arrives as the String "true".
+    test("bare flags given as the text 'true' switch both targets on") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: 'true', segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_cells', 'cellpose_nuclei']
+        }
+    }
+
+    test("segment_cells false with segment_nuclei 'true' gives nuclei only") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', segment_cells: false, segment_nuclei: 'true' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['cellpose_nuclei']
+        }
+    }
+}

@@ -1,0 +1,64 @@
+// The sweep dearrays on the first dna channel of the slide's marker sheet, as an image index.
+
+nextflow_function {
+
+    name "dearrayChannel"
+    script "../subworkflows/local/utils_nfcore_histo_pipeline/main.nf"
+    function "dearrayChannel"
+    tag "unit"
+    tag "validation"
+
+    test("dna first: index 0") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, marker_name: 'DAPI', channel_role: 'dna' ],
+                    [ channel_number: 2, marker_name: 'CD3',  channel_role: 'marker' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.result == 0
+        }
+    }
+
+    test("background channels before DAPI, as in mDVP17: the first dna's position") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ channel_number: 1, marker_name: '750_bg',  channel_role: 'autofluorescence' ],
+                    [ channel_number: 2, marker_name: '647_bg',  channel_role: 'autofluorescence' ],
+                    [ channel_number: 3, marker_name: '555_bg',  channel_role: 'autofluorescence' ],
+                    [ channel_number: 4, marker_name: '488_bg',  channel_role: 'autofluorescence' ],
+                    [ channel_number: 5, marker_name: 'DAPI_bg', channel_role: 'dna' ],
+                    [ channel_number: 6, marker_name: 'PDL1',    channel_role: 'marker' ],
+                    [ channel_number: 10, marker_name: 'DAPI_1', channel_role: 'dna' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.result == 4
+        }
+    }
+
+    test("rows out of order and read as text from the CSV: sorted by channel_number") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ channel_number: '10', marker_name: 'DAPI_2', channel_role: 'dna' ],
+                    [ channel_number: '2',  marker_name: 'DAPI_1', channel_role: 'dna' ],
+                    [ channel_number: '1',  marker_name: 'CD3',    channel_role: 'marker' ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.result == 1
+        }
+    }
+}

@@ -197,6 +197,20 @@ def patch_metrics(counts: Any, n_cells: int) -> dict[str, Any]:
     }
 
 
+def linking_metrics(n_nuclei: Any, cytoplasm_area: Any, unlinked_nuclei: int) -> dict[str, Any]:
+    """Cells by linked nucleus count, unlinked nuclei, and cells whose nuclei fill them (cytoplasm area 0)."""
+    import numpy as np
+
+    n = np.asarray(n_nuclei)
+    # NaN (no nucleus) compares unequal to 0, so only cells with a nucleus can count as empty.
+    empty = (n >= 1) & (np.asarray(cytoplasm_area, dtype=np.float64) == 0)
+    return {
+        "cells_by_n_nuclei": {"0": int((n == 0).sum()), "1": int((n == 1).sum()), "2+": int((n >= 2).sum())},
+        "unlinked_nuclei": int(unlinked_nuclei),
+        "empty_cytoplasm": int(empty.sum()),
+    }
+
+
 # Reading the store.
 
 
@@ -427,8 +441,24 @@ def segmentation_image_element(sdata_path: Path) -> str:
     return element
 
 
+def open_table(sdata_path: Path, name: str) -> Any:
+    """Open tables/<name>, failing with the name and the tables that do exist."""
+    import zarr
+
+    path = sdata_path / "tables" / name
+    if not path.is_dir():
+        have = (
+            sorted(p.name for p in (sdata_path / "tables").glob("*"))
+            if (sdata_path / "tables").is_dir()
+            else []
+        )
+        raise FileNotFoundError(f"table '{name}' not found in {sdata_path}; tables present: {have}")
+    return zarr.open_group(str(path), mode="r")
+
+
 def collect(
     sdata_path: Path,
+    table: str,
     min_cell_area: float,
     markers: list[str] | None = None,
     marker_rows: list[dict[str, Any]] | None = None,
@@ -442,7 +472,8 @@ def collect(
     import zarr
 
     element = segmentation_image_element(sdata_path)
-    table = zarr.open_group(str(sdata_path / "tables" / "table"), mode="r")
+    table_name = table
+    table = open_table(sdata_path, table)
 
     channel_names = [str(n) for n in read_column(table["var"]["_index"])]
     image_labels = image_channel_labels(sdata_path, element)
@@ -455,6 +486,8 @@ def collect(
 
     out: dict[str, Any] = {
         "sample": sdata_path.stem,
+        # With two methods a sample has two of these; this says which table was measured.
+        "table": table_name,
         "store": str(sdata_path),
         "image_element": element,
         "image": {
@@ -573,6 +606,24 @@ def collect(
                 **cycle_ratio_metrics(x[:, first_i], x[:, last_i]),
             }
 
+    # n_nuclei is in obs only when nuclei were linked to cells (both targets).
+    if "n_nuclei" in table["obs"]:
+        nuclei_name = f"{table_name.removesuffix('_table')}_nuclei"
+        nuclei_file = sdata_path / "shapes" / nuclei_name / "shapes.parquet"
+        n_nuclei = read_column(table["obs"]["n_nuclei"])
+        if nuclei_file.exists():
+            unlinked = (
+                pq.read_table(nuclei_file, columns=["linked_cell_id"]).column("linked_cell_id").null_count
+            )
+        elif (np.asarray(n_nuclei) == 0).all():
+            # The writer stores no element for an empty nuclei frame, so there is nothing unlinked.
+            unlinked = 0
+        else:
+            raise FileNotFoundError(
+                f"table '{table_name}' has linked nuclei but {nuclei_file} does not exist"
+            )
+        out["linking"] = linking_metrics(n_nuclei, read_column(table["obs"]["cytoplasm_area"]), unlinked)
+
     patches_file = sdata_path / "shapes" / "image_patches" / "shapes.parquet"
     if patches_file.exists():
         patches = pq.read_table(patches_file)
@@ -594,6 +645,7 @@ def collect(
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sdata", required=True, type=Path, help="SpatialData .zarr store")
+    ap.add_argument("--table", required=True, help="name of the table under tables/, e.g. cellpose_table")
     ap.add_argument("--out", required=True, type=Path, help="where to write the metrics JSON")
     ap.add_argument("--markers", type=Path, help="marker sheet CSV, to cross-check channel names")
     ap.add_argument(
@@ -639,6 +691,7 @@ def main() -> int:
 
     metrics = collect(
         args.sdata,
+        args.table,
         args.min_cell_area,
         markers,
         marker_rows=marker_rows,
@@ -656,6 +709,13 @@ def main() -> int:
         f"  channels   : {metrics['channels']['n_channels']}, table matches image: "
         f"{metrics['channels']['table_matches_image']}"
     )
+    if "linking" in metrics:
+        link = metrics["linking"]
+        by_n = ", ".join(f"{k}: {v}" for k, v in link["cells_by_n_nuclei"].items())
+        print(
+            f"  linking    : cells by nuclei {by_n}; {link['unlinked_nuclei']} nuclei unlinked; "
+            f"{link['empty_cytoplasm']} cells without cytoplasm"
+        )
     if metrics["patches"]:
         p = metrics["patches"]
         print(f"  patches    : {p['n_patches']} ({p['n_empty_patches']} with no cells)")

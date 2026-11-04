@@ -5,7 +5,7 @@ Input is raw cycles in any format Ashlar reads (Bio-Formats), or a stitched OME-
 H&E is planned and not supported.
 
 > [!WARNING]
-> **Version 1.4.2.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
+> **Version 2.0.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
 > sheet columns are stable. QC thresholds were calibrated on a single slide, so check your results.
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
@@ -30,21 +30,24 @@ nf-core. It follows nf-core conventions for reproducibility and to keep upstream
 
 ## Steps
 
-![Metro map of the three verified pipeline paths](docs/images/pipeline_paths.svg)
+![Metro map of three paths through the pipeline](docs/images/pipeline_paths.svg)
 
 Preprocessing (from mcmicro):
 
 1. Illumination correction (BaSiCPy)
 2. Stitching and registration (Ashlar)
-3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`
+3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`; the downsample factor is chosen
+   from the expected core count and diameter
 4. Background subtraction (backsub), optional: `--use_backsub`; per core on a TMA
 
 Downstream (from sopa):
 
 5. SpatialData Zarr conversion and channel naming from the marker sheet
-6. Tiled cell segmentation with Cellpose, StarDist or InstanSeg, optionally skipping empty tiles
-7. Aggregation of mean channel intensity per cell
-8. QC report per sample, and for a TMA a merged object per slide
+6. Tiled segmentation of cells, nuclei or both, with Cellpose, InstanSeg or both, optionally
+   skipping empty tiles; nuclei are linked to their cells and the cytoplasm derived
+7. Aggregation of mean channel intensity per cell, and per nucleus and cytoplasm
+8. QC report per sample and method, a comparison when both methods segment cells, and for a TMA a merged
+   object per slide
 
 `use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops
 after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna` in
@@ -53,7 +56,7 @@ the marker sheet; `--skip_reference_dna_check` overrides.
 ## Usage
 
 ```bash
-nextflow run CosciaLab/histo -r v1.4.2 \
+nextflow run CosciaLab/histo -r v2.0.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

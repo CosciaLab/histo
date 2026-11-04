@@ -50,9 +50,9 @@ def make_image(store, element, data):
     return labels
 
 
-def make_table(store, areas, centroids, channel_names):
+def make_table(store, areas, centroids, channel_names, name="table", shapes_name="cellpose_boundaries"):
     """A minimal AnnData table using all three column encodings at once."""
-    root = zarr.open_group(str(store / "tables" / "table"), mode="w")
+    root = zarr.open_group(str(store / "tables" / name), mode="w")
     root.create_array("obs/area", shape=(len(areas),), dtype="f8")[:] = areas
     root.create_array("obsm/spatial", shape=centroids.shape, dtype="f8")[:] = centroids
 
@@ -68,7 +68,7 @@ def make_table(store, areas, centroids, channel_names):
     region = root.create_group("obs/region")
     region.attrs["encoding-type"] = "categorical"
     cats = region.create_array("categories", shape=(1,), dtype="<U32")
-    cats[:] = np.array(["cellpose_boundaries"], dtype="<U32")
+    cats[:] = np.array([shapes_name], dtype="<U32")
     codes = region.create_array("codes", shape=(len(areas),), dtype="i1")
     codes[:] = 0
 
@@ -205,8 +205,32 @@ class TestChannelHistograms:
 
 
 class TestCollect:
+    def test_reads_the_named_table(self, store):
+        import shutil
+
+        shutil.rmtree(store / "tables" / "table")
+        make_table(
+            store,
+            np.array([4.0, 50.0]),
+            np.array([[1.0, 1.0], [2.0, 2.0]]),
+            ["ch0", "ch1"],
+            name="instanseg_table",
+            shapes_name="instanseg_cells",
+        )
+        assert (
+            collect(store, table="instanseg_table", min_cell_area=10.0, markers=None)["cells"]["n_cells"] == 2
+        )
+
+    def test_records_the_table_it_read(self, store):
+        """With two methods a sample has two JSONs; each says which table it measured."""
+        assert collect(store, table="table", min_cell_area=10.0, markers=None)["table"] == "table"
+
+    def test_missing_table_names_it(self, store):
+        with pytest.raises(FileNotFoundError, match="nope"):
+            collect(store, table="nope", min_cell_area=10.0, markers=None)
+
     def test_end_to_end(self, store):
-        m = collect(store, min_cell_area=10.0, markers=None)
+        m = collect(store, table="table", min_cell_area=10.0, markers=None)
         assert m["image_element"] == "sample"
         assert m["image"]["shape_cyx"] == [2, 8, 8]
         assert m["image"]["dtype"] == "uint16"
@@ -224,22 +248,22 @@ class TestCollect:
         json.dumps on a np.int64 raises, and it would only be discovered on a real
         run rather than here.
         """
-        json.dumps(collect(store, min_cell_area=10.0, markers=None))
+        json.dumps(collect(store, table="table", min_cell_area=10.0, markers=None))
 
     def test_marker_mismatch_is_reported_not_raised(self, store):
         """QC observes; it does not decide. A mismatch is a field, not an exception."""
-        m = collect(store, min_cell_area=10.0, markers=["wrong", "names"])
+        m = collect(store, table="table", min_cell_area=10.0, markers=["wrong", "names"])
         assert m["channels"]["matches_marker_sheet"] is False
         assert m["channels"]["marker_sheet_names"] == ["wrong", "names"]
 
     def test_marker_match_reported(self, store):
-        m = collect(store, min_cell_area=10.0, markers=["ch0", "ch1"])
+        m = collect(store, table="table", min_cell_area=10.0, markers=["ch0", "ch1"])
         assert m["channels"]["matches_marker_sheet"] is True
 
     def test_untiled_run_has_no_patches(self, store):
         """Absent, not zero: a reader must tell "not tiled" from "tiled and empty"."""
         (store / "shapes" / "image_patches" / "shapes.parquet").unlink()
-        assert collect(store, min_cell_area=10.0, markers=None)["patches"] is None
+        assert collect(store, table="table", min_cell_area=10.0, markers=None)["patches"] is None
 
     def test_table_image_disagreement_is_caught(self, store):
         """If the table and image disagree, every per-cell intensity is ambiguous."""
@@ -249,5 +273,52 @@ class TestCollect:
                 {"attributes": {"ome": {"omero": {"channels": [{"label": "other"}, {"label": "names"}]}}}}
             )
         )
-        m = collect(store, min_cell_area=10.0, markers=None)
+        m = collect(store, table="table", min_cell_area=10.0, markers=None)
         assert m["channels"]["table_matches_image"] is False
+
+
+def add_links(store, table, n_nuclei, cytoplasm_area, nuclei_name, linked):
+    """obs columns from LINK_COMPARTMENTS and the nuclei element with its link column."""
+    root = zarr.open_group(str(store / "tables" / table), mode="a")
+    root.create_array("obs/n_nuclei", shape=(len(n_nuclei),), dtype="i8")[:] = n_nuclei
+    root.create_array("obs/cytoplasm_area", shape=(len(n_nuclei),), dtype="f8")[:] = cytoplasm_area
+    d = store / "shapes" / nuclei_name
+    d.mkdir(parents=True)
+    pq.write_table(pa.table({"linked_cell_id": pa.array(linked, type=pa.string())}), d / "shapes.parquet")
+
+
+class TestLinking:
+    def test_counts_from_table_and_nuclei(self, store):
+        add_links(
+            store,
+            "table",
+            [0, 1, 2, 1],
+            [np.nan, 5.0, 0.0, 3.0],
+            "m_nuclei",
+            ["a", None, "b", "b", None, "c"],
+        )
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        m = collect(store, table="m_table", min_cell_area=10.0, markers=None)
+        assert m["linking"] == {
+            "cells_by_n_nuclei": {"0": 1, "1": 2, "2+": 1},
+            "unlinked_nuclei": 2,
+            "empty_cytoplasm": 1,
+        }
+        json.dumps(m)
+
+    def test_absent_without_nuclei(self, store):
+        assert "linking" not in collect(store, table="table", min_cell_area=10.0, markers=None)
+
+    def test_missing_nuclei_element_names_it(self, store):
+        add_links(store, "table", [1, 1, 1, 1], [1.0] * 4, "other_nuclei", [])
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        with pytest.raises(FileNotFoundError, match="m_nuclei"):
+            collect(store, table="m_table", min_cell_area=10.0, markers=None)
+
+    def test_no_nucleus_anywhere_and_no_element_is_zero_unlinked(self, store):
+        """An empty nuclei frame writes no element; with no linked nucleus none is expected."""
+        add_links(store, "table", [0, 0, 0, 0], [np.nan] * 4, "other_nuclei", [])
+        (store / "tables" / "table").rename(store / "tables" / "m_table")
+        m = collect(store, table="m_table", min_cell_area=10.0, markers=None)
+        assert m["linking"]["unlinked_nuclei"] == 0
+        assert m["linking"]["cells_by_n_nuclei"] == {"0": 4, "1": 0, "2+": 0}

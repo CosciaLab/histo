@@ -26,6 +26,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_qc = true
             }
@@ -37,8 +39,12 @@ nextflow_pipeline {
 
             assertAll(
                 { assert workflow.success },
+                // One detect task per downsample factor, one choice for the slide.
+                { assert names("COREOGRAPH_DETECT").size() == 5 },
+                { assert names("COREOGRAPH_SELECT").size() == 1 },
                 // The Coreograph stub emits two cores.
                 { assert names("AGGREGATE").size() == 2 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 2 },
                 { assert names("QC_REPORT").size() == 2 },
                 { assert names("MERGE_SPATIALDATA").size() == 1 },
                 { assert names("MERGE_REPORT").size() == 1 },
@@ -46,6 +52,47 @@ nextflow_pipeline {
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('MERGE_REPORT') }
+            )
+        }
+    }
+
+    test("with two methods, the slide gets one report per method") {
+
+        when {
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+                cellpose_channels = "DNA_6"
+                use_instanseg = true
+                instanseg_pixel_size = 0.1
+                instanseg_channels = "DNA_6"
+                use_qc = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def published = new File("$outputDir/qc").list() as List
+
+            assertAll(
+                { assert workflow.success },
+                // Two cores times two methods.
+                { assert names("QC_REPORT").size() == 4 },
+                { assert names("MERGE_SPATIALDATA").size() == 1 },
+                { assert names("MERGE_REPORT").size() == 2 },
+                { assert published.containsAll(['testslide_cellpose_slide_report.html', 'testslide_instanseg_slide_report.html']) }
             )
         }
     }
@@ -65,6 +112,8 @@ nextflow_pipeline {
                 input = sheet.path
                 use_preprocessing = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_qc = false
             }

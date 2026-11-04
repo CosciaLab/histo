@@ -1,0 +1,204 @@
+"""Tests for bin/write_segmentations.py on a real SpatialData store built in tmp_path."""
+
+import shutil
+
+import anndata as ad
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+import pytest
+import spatialdata as sd
+from shapely.geometry import box
+from spatialdata.models import Image2DModel, TableModel
+from spatialdata.transformations import Scale, get_transformation, set_transformation
+from write_segmentations import write_segmentations
+
+
+@pytest.fixture
+def store(tmp_path):
+    image = Image2DModel.parse(
+        np.ones((2, 64, 64), dtype=np.uint16), dims=("c", "y", "x"), c_coords=["A", "B"], scale_factors=[2]
+    )
+    set_transformation(image, Scale([0.5, 0.5], axes=("x", "y")), "global")
+    proj = Image2DModel.parse(np.ones((1, 64, 64), dtype=np.uint16), dims=("c", "y", "x"), c_coords=["P"])
+    path = tmp_path / "sample.zarr"
+    sdata = sd.SpatialData(images={"img": image, "img_projected": proj})
+    sdata.attrs["cell_segmentation_image"] = "img"
+    sdata.write(path)
+    return path
+
+
+def make_shapes(tmp_path, name, n=3):
+    gdf = gpd.GeoDataFrame(
+        geometry=[box(i * 10, 0, i * 10 + 5, 5) for i in range(n)],
+        index=pd.Index([f"c{i}" for i in range(n)], name="cell_id"),
+    )
+    p = tmp_path / f"{name}.parquet"
+    gdf.to_parquet(p)
+    return p
+
+
+def make_table(tmp_path, name, region, n=3):
+    obs = pd.DataFrame(
+        {"region": pd.Categorical([region] * n), "cell_id": [f"c{i}" for i in range(n)]},
+        index=[f"c{i}" for i in range(n)],
+    )
+    adata = TableModel.parse(
+        ad.AnnData(np.arange(n * 2, dtype=float).reshape(n, 2), obs=obs, var=pd.DataFrame(index=["A", "B"])),
+        region=region,
+        region_key="region",
+        instance_key="cell_id",
+    )
+    p = tmp_path / f"{name}.h5ad"
+    adata.write_h5ad(p)
+    return p
+
+
+def inputs(tmp_path):
+    return [make_shapes(tmp_path, "cellpose_cells")], [
+        make_table(tmp_path, "cellpose_table", "cellpose_cells")
+    ]
+
+
+def test_writes_shapes_and_table(store, tmp_path):
+    shapes, tables = inputs(tmp_path)
+    write_segmentations(store, shapes, tables)
+    out = sd.read_zarr(store)
+    assert "cellpose_cells" in out.shapes and "cellpose_table" in out.tables
+    assert list(out.shapes["cellpose_cells"].index) == ["c0", "c1", "c2"]
+    assert out.shapes["cellpose_cells"].index.name == "cell_id"
+
+
+def test_shapes_carry_the_image_transformations(store, tmp_path):
+    shapes, tables = inputs(tmp_path)
+    write_segmentations(store, shapes, tables)
+    out = sd.read_zarr(store)
+
+    def matrix(element):
+        return get_transformation(element, "global").to_affine_matrix(("x", "y"), ("x", "y"))
+
+    assert matrix(out.shapes["cellpose_cells"]).tolist() == matrix(out.images["img"]).tolist()
+    assert matrix(out.shapes["cellpose_cells"])[0, 0] == 0.5
+
+
+def test_second_run_leaves_one_of_each_with_same_rows(store, tmp_path):
+    shapes, tables = inputs(tmp_path)
+    write_segmentations(store, shapes, tables)
+    first = sd.read_zarr(store)
+    rows = (list(first.shapes["cellpose_cells"].index), first.tables["cellpose_table"].X.tolist())
+    write_segmentations(store, shapes, tables)
+    out = sd.read_zarr(store)
+    assert sorted(out.shapes) == ["cellpose_cells"] and sorted(out.tables) == ["cellpose_table"]
+    assert (list(out.shapes["cellpose_cells"].index), out.tables["cellpose_table"].X.tolist()) == rows
+
+
+def test_table_with_missing_region_raises(store, tmp_path):
+    shapes = [make_shapes(tmp_path, "cellpose_cells")]
+    tables = [make_table(tmp_path, "cellpose_table", "instanseg_cells")]
+    with pytest.raises(ValueError, match="cellpose_table.*instanseg_cells"):
+        write_segmentations(store, shapes, tables)
+    assert "cellpose_cells" not in sd.read_zarr(store).shapes
+
+
+def test_region_may_be_a_shape_already_in_the_store(store, tmp_path):
+    write_segmentations(store, [make_shapes(tmp_path, "cellpose_cells")], [])
+    write_segmentations(store, [], [make_table(tmp_path, "cellpose_table", "cellpose_cells")])
+    assert "cellpose_table" in sd.read_zarr(store).tables
+
+
+def test_projection_dropped_by_default(store, tmp_path):
+    write_segmentations(store, *inputs(tmp_path))
+    assert "img_projected" not in sd.read_zarr(store).images
+
+
+def test_keep_projection(store, tmp_path):
+    write_segmentations(store, *inputs(tmp_path), keep_projection=True)
+    assert "img_projected" in sd.read_zarr(store).images
+
+
+def test_absent_projection_is_a_noop(store, tmp_path):
+    write_segmentations(store, *inputs(tmp_path))
+    write_segmentations(store, *inputs(tmp_path))
+    assert "img" in sd.read_zarr(store).images
+
+
+def test_missing_segmentation_attribute_raises(store, tmp_path):
+    sdata = sd.read_zarr(store)
+    del sdata.attrs["cell_segmentation_image"]
+    sdata.write_attrs()
+    with pytest.raises(ValueError, match="cell_segmentation_image"):
+        write_segmentations(store, *inputs(tmp_path))
+
+
+@pytest.mark.parametrize("nuclei", [[box(1, 1, 3, 3), box(40, 40, 45, 45)], []], ids=["linked", "no_nuclei"])
+def test_linked_compartments_are_written(store, tmp_path, nuclei):
+    """What WRITE_SEGMENTATIONS gets with both targets; an unlinked nucleus keeps a null link."""
+    from link_compartments import LINK_COLUMN, link, write_linked
+
+    cells = gpd.GeoDataFrame(
+        geometry=[box(0, 0, 5, 5), box(10, 0, 15, 5)], index=pd.Index(["c0", "c1"], name="cell_id")
+    )
+    cells.to_parquet(tmp_path / "m_cells.parquet")
+    nuclei = gpd.GeoDataFrame(
+        geometry=nuclei, index=pd.Index([f"n{i}" for i in range(len(nuclei))], name="cell_id")
+    )
+    write_linked(link(cells, nuclei), "m", tmp_path / "linked")
+    linked = tmp_path / "linked"
+    shapes = [tmp_path / "m_cells.parquet", linked / "m_nuclei.parquet", linked / "m_cytoplasm.parquet"]
+    write_segmentations(store, shapes, [make_table(tmp_path, "m_table", "m_cells", n=2)])
+    out = sd.read_zarr(store)
+    if len(nuclei):
+        assert {"m_cells", "m_nuclei", "m_cytoplasm"} <= set(out.shapes)
+        assert [None if pd.isna(v) else v for v in out.shapes["m_nuclei"][LINK_COLUMN]] == ["c0", None]
+    else:
+        # spatialdata cannot hold an empty shapes element, so none is written.
+        assert "m_cells" in out.shapes and not {"m_nuclei", "m_cytoplasm"} & set(out.shapes)
+
+
+def test_empty_shapes_remove_a_stale_element(store, tmp_path):
+    write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm")], [])
+    write_segmentations(store, [make_shapes(tmp_path, "m_cytoplasm", n=0)], [])
+    assert "m_cytoplasm" not in sd.read_zarr(store).shapes
+
+
+def test_elements_of_a_dropped_method_are_removed_and_logged(store, tmp_path, capsys):
+    both = [make_shapes(tmp_path, f"{m}_cells") for m in ("cellpose", "instanseg")]
+    tables = [make_table(tmp_path, f"{m}_table", f"{m}_cells") for m in ("cellpose", "instanseg")]
+    write_segmentations(store, both, tables)
+    write_segmentations(store, [both[1]], [tables[1]])
+    out = sd.read_zarr(store)
+    assert sorted(out.shapes) == ["instanseg_cells"] and sorted(out.tables) == ["instanseg_table"]
+    log = capsys.readouterr().out
+    assert "removed stale shapes cellpose_cells" in log and "removed stale tables cellpose_table" in log
+
+
+def half_write(store, kind, name):
+    """What a crash mid-write leaves: the element's group without its data."""
+    for f in (store / kind / name).iterdir():
+        if f.name != "zarr.json":
+            shutil.rmtree(f) if f.is_dir() else f.unlink()
+
+
+@pytest.mark.parametrize(
+    "kind,name",
+    [("shapes", "cellpose_cells"), ("tables", "cellpose_table"), ("shapes", "instanseg_cells")],
+    ids=["input_shapes", "input_table", "stale_leftover"],
+)
+def test_a_half_written_element_does_not_block_a_retry(store, tmp_path, kind, name):
+    shapes = [make_shapes(tmp_path, "cellpose_cells"), make_shapes(tmp_path, "instanseg_cells")]
+    write_segmentations(store, shapes, [make_table(tmp_path, "cellpose_table", "cellpose_cells")])
+    half_write(store, kind, name)
+    with pytest.raises((OSError, KeyError)):  # the failure this guards against
+        sd.read_zarr(store)
+    write_segmentations(store, *inputs(tmp_path))
+    out = sd.read_zarr(store)
+    assert sorted(out.shapes) == ["cellpose_cells"] and sorted(out.tables) == ["cellpose_table"]
+
+
+def test_unreserved_elements_and_table_regions_stay(store, tmp_path):
+    write_segmentations(
+        store, [make_shapes(tmp_path, "my_regions"), make_shapes(tmp_path, "cellpose_cells")], []
+    )
+    write_segmentations(store, [], [make_table(tmp_path, "cellpose_table", "cellpose_cells")])
+    out = sd.read_zarr(store)
+    assert {"my_regions", "cellpose_cells"} <= set(out.shapes) and "cellpose_table" in out.tables

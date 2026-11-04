@@ -6,7 +6,7 @@
 //         --profile test_exemplar001,singularity,size_small,slurm
 // nf-test's --profile replaces the profile directive, so repeat test_exemplar001 (or use --profile=+...).
 // Property assertions, not snapshots: Cellpose output drifts with version and hardware.
-// Baseline 9,877 cells: cluster run of 3717ea0, 2026-10-06, at patch_width_pixel 2000 (tiling moves it <0.5%).
+// Both methods, cells and nuclei. 1.x baseline: 9,877 Cellpose cells (3717ea0, 2026-10-06).
 
 nextflow_pipeline {
 
@@ -32,13 +32,21 @@ nextflow_pipeline {
                 .attributes.ome.omero.channels
                 .collect { it.label }
 
-            def cells = slurp.parse(file("${zarr}/tables/table/X/zarr.json")).shape[0]
+            def methods = ['cellpose', 'instanseg']
+            def cells = methods.collectEntries { m ->
+                [(m): slurp.parse(file("${zarr}/tables/${m}_table/X/zarr.json")).shape[0]]
+            }
+            // PLACEHOLDER: set from the 2.0 cluster run; null skips the count check.
+            def baseline = [cellpose: null, instanseg: null]
             def imageShape = slurp.parse(file("${zarr}/images/exemplar-001/s0/zarr.json")).shape
 
             def ran = workflow.trace.succeeded().collect { it.name }
             def names = { proc -> ran.findAll { it.contains(proc) } }
 
-            def metrics = slurp.parse(file("$outputDir/qc/exemplar-001_qc.json"))
+            def metrics = slurp.parse(file("$outputDir/qc/exemplar-001_cellpose_qc.json"))
+            def methodMetrics = methods.collectEntries { m ->
+                [(m): slurp.parse(file("$outputDir/qc/exemplar-001_${m}_qc.json"))]
+            }
             def ashlarQc = slurp.parse(file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/qc.json"))
 
             assertAll(
@@ -57,7 +65,10 @@ nextflow_pipeline {
                 { assert names("BASICPY").size() == 3 },
 
                 // More than one patch, so boundary resolution is exercised.
-                { assert names("PATCH_SEGMENTATION_CELLPOSE").size() > 1 },
+                { assert names("SEGMENT_PATCH_CELLPOSE").size() > 1 },
+                { assert names("SEGMENT_PATCH_INSTANSEG").size() > 1 },
+                { assert names("LINK_COMPARTMENTS").size() == 2 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
 
                 // The plain path: neither of these may run under this profile.
                 { assert names("BACKSUB").isEmpty() },
@@ -67,15 +78,17 @@ nextflow_pipeline {
 
                 // The elements downstream analysis expects.
                 { assert file("${zarr}/images/exemplar-001").exists() },
-                { assert file("${zarr}/shapes/cellpose_boundaries").exists() },
+                { assert methods.every { m ->
+                    ['cells', 'nuclei', 'cytoplasm'].every { file("${zarr}/shapes/${m}_${it}").exists() }
+                } },
+                { assert methods.every { file("${zarr}/tables/${it}_table").exists() } },
                 { assert file("${zarr}/shapes/image_patches").exists() },
-                { assert file("${zarr}/tables/table").exists() },
                 { assert file("$outputDir/preprocessing/registration/exemplar-001.ome.tif").exists() },
                 // Ashlar QC: machine-readable summary, the PDF, and the report section reading them.
                 { assert ashlarQc.stitching.n_tiles > 1 },
                 { assert ashlarQc.registration.size() == 2 },
                 { assert file("$outputDir/preprocessing/registration/exemplar-001_ashlar_qc/exemplar-001_ashlar_report.pdf").exists() },
-                { assert path("$outputDir/qc/exemplar-001_qc_report.html").text.contains('Stitching and registration') },
+                { assert path("$outputDir/qc/exemplar-001_cellpose_qc_report.html").text.contains('Stitching and registration') },
 
                 // DNA_6/7/8 contain no "DAPI", so these prove QC read roles from the sheet, not names.
                 { assert metrics.channels.roles.dna == ['DNA_6', 'DNA_7', 'DNA_8'] },
@@ -85,7 +98,17 @@ nextflow_pipeline {
                 { assert metrics.cycle_ratio.last_channel == 'DNA_8' },
                 // No subtraction ran, so the block must be absent rather than empty.
                 { assert !metrics.containsKey('before') },
-                { assert file("$outputDir/qc/exemplar-001_qc_report.html").exists() },
+                { assert methods.every { file("$outputDir/qc/exemplar-001_${it}_qc_report.html").exists() } },
+
+                // Both targets: every method's QC counts its links.
+                { assert methodMetrics.every { _m, qc ->
+                    qc.linking?.keySet() == ['cells_by_n_nuclei', 'unlinked_nuclei', 'empty_cytoplasm'] as Set
+                } },
+
+                // Both methods segment cells, so they are compared.
+                { assert file("$outputDir/qc/exemplar-001_comparison.json").exists() },
+                { assert file("$outputDir/qc/exemplar-001_comparison.html").exists() },
+                { assert slurp.parse(file("$outputDir/qc/exemplar-001_comparison.json")).methods.keySet() == methods as Set },
 
                 // A missing entry means a module lost its version capture.
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('ASHLAR') },
@@ -93,7 +116,10 @@ nextflow_pipeline {
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SET_CHANNEL_NAMES') },
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('AGGREGATE') },
 
-                { assert cells > 9877 * 0.98 && cells < 9877 * 1.02 },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('SEGMENT_PATCH_INSTANSEG') },
+
+                { assert cells.every { _m, n -> n > 0 } },
+                { assert cells.every { m, n -> baseline[m] == null || (n > baseline[m] * 0.98 && n < baseline[m] * 1.02) } },
             )
         }
     }

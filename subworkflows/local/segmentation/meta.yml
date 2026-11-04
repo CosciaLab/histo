@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "segmentation"
+description: Segment every spec (method x target) patch by patch, resolve across patch borders, link nuclei to cells, aggregate per method and write shapes and tables into the store once per sample
+keywords:
+  - segmentation
+  - cellpose
+  - instanseg
+  - spatial
+  - imaging
+components:
+  - segment/patch
+  - resolve
+  - link/compartments
+  - aggregate
+  - write/segmentations
+  - defaultinstansegchannels
+  - instansegmaxpatchwidth
+  - instansegmemorygb
+input:
+  - ch_patches:
+      type: file
+      description: |
+        Channel containing a SpatialData Zarr store and its image patches file (the patch count).
+        Structure: [ val(meta), path(sdata_path), path(patches_file_image) ]
+  - ch_markers:
+      type: file
+      description: |
+        Channel containing each sample's marker sheet, read for the default InstanSeg channels
+        when instanseg_channels is unset. May be empty otherwise.
+        Structure: [ val(meta), path(csv) ]
+  - specs:
+      type: list
+      description: |
+        Segmentation spec maps from segmentationSpecs(params) in modules/local/utils.nf.
+output:
+  - sdata:
+      type: file
+      description: |
+        Channel containing the SpatialData Zarr store with shapes {method}_{target} (plus
+        {method}_cytoplasm with both targets) and tables {method}_table written.
+        Structure: [ val(meta), path(sdata_path) ]
+  - versions:
+      type: file
+      description: |
+        Channel containing software versions.
+        Structure: [ path(versions.yml) ]
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

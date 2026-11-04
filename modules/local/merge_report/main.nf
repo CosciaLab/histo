@@ -1,7 +1,7 @@
 process MERGE_REPORT {
     // Slide-level page built only from per-core QC_METRICS JSON; it measures nothing itself.
     label 'process_single'
-    tag "${meta.sample}"
+    tag "${meta.sample}:${meta.method}"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -9,12 +9,12 @@ process MERGE_REPORT {
 :         'community.wave.seqera.io/library/python_sopa:54a97bc5a187152d' }"
 
     input:
-    // meta is the slide; core_metrics holds every core of it. registration_dir is optional.
+    // meta is the slide and method; core_metrics holds every core of it. registration_dir is optional.
     tuple val(meta), path(core_metrics), path(registration_dir)
 
     output:
-    tuple val(meta), path("${meta.sample}_slide_report.html"), emit: report
-    path "versions.yml"                                      , emit: versions
+    tuple val(meta), path("${meta.sample}_${meta.method}_slide_report.html"), emit: report
+    path "versions.yml"                                                     , emit: versions
 
     script:
     def args = task.ext.args ?: ""
@@ -23,7 +23,7 @@ process MERGE_REPORT {
     merge_report.py \\
         --metrics ${core_metrics} \\
         --slide ${meta.sample} \\
-        --out ${meta.sample}_slide_report.html \\
+        --out ${meta.sample}_${meta.method}_slide_report.html \\
         ${registration} \\
         ${args}
 
@@ -35,7 +35,7 @@ process MERGE_REPORT {
 
     stub:
     """
-    touch ${meta.sample}_slide_report.html
+    touch ${meta.sample}_${meta.method}_slide_report.html
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

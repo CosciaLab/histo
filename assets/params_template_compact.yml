@@ -20,7 +20,9 @@
 # use_backsub: null                  # Subtract background channels after stitching.
 # backsub_args: null                 # Extra command-line arguments passed through to backsub.
 # use_tma_dearray: null              # Split a tissue microarray into individual cores with UNetCoreograph.
-# coreograph_args: "--downsampleFactor 5 --channel 0 --buffer 2"  # Extra command-line arguments passed through to UNetCoreograph.
+# tma_expected_cores: null           # Total number of cores expected on the slide.
+# tma_core_diameter_mm: null         # Expected core diameter in mm.
+# coreograph_args: null              # Command-line arguments for UNetCoreograph.
 
 ## Institutional config options
 # custom_config_version: "master"   # Git commit id for Institutional configs.
@@ -44,7 +46,7 @@
 # show_hidden: null          # Display hidden parameters in the help message (only works when --help or --help_full are provided).
 
 ## Patches
-# patch_width_pixel: 2000     # Width and height of each segmentation patch, in pixels.
+# patch_width_pixel: 2000.0   # Width and height of each segmentation patch, in pixels.
 # patch_overlap_pixel: 100.0  # Overlap between neighbouring patches, in pixels.
 # use_gpu: null               # One GPU per Cellpose patch task.
 
@@ -55,11 +57,10 @@
 # tissue_segmentation_kwargs: null  # Additional tissue segmentation parameters as a python dict string.
 
 ## Cell filtering
-# min_area_pixels2: null     # Cells with an area less than this value will be filtered.
-# min_intensity_ratio: null  # Cells whose mean channel intensity is less than `min_intensity_ratio * quantile_90` will be filtered.
+# min_area_pixels2: null  # Objects smaller than this, in pixels², are dropped at segmentation, per patch.
 
 ## Aggregation
-# expand_radius_ratio: null  # Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities only.
+# expand_radius_ratio: null  # Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes.
 
 ## Image preprocessing
 # gaussian_sigma: null     # Parameter for scipy gaussian_filter (applied before running the segmentation method).
@@ -74,27 +75,22 @@
 # projection_high_percentile: 99.9  # Per-marker percentile mapped to 1 before combining.
 # projection_sigma: 1.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
 
+## Segmentation targets
+# segment_cells: true   # Segment whole cells with each enabled method: shapes `{method}_cells`.
+# segment_nuclei: null  # Segment nuclei with each enabled method: shapes `{method}_nuclei`.
+
 ## Cellpose
-# use_cellpose: null        # Whether to run cellpose segmentation.
+# use_cellpose: null        # Segment with Cellpose.
 # cellpose_channels: null   # Channel(s) to segment with Cellpose.
 # flow_threshold: null      # Cellpose `flow_threshold` parameter.
 # cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
 # pretrained_model: null    # Cellpose `pretrained_model` parameter.
 # cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
 
-## Stardist
-# use_stardist: null         # Whether to run stardist segmentation.
-# stardist_model_type: null  # Name of stardist model to use.
-# prob_thresh: null          # Stardist `prob_thresh` parameter.
-# nms_thresh: null           # Stardist `nms_thresh` parameter.
-# stardist_channels: null    # Optional channel(s) to segment with StarDist.
-# stardist_kwargs: null      # Additional stardist parameters as a python dict string.
-
 ## InstanSeg
-# use_instanseg: null         # Whether to run InstanSeg segmentation.
+# use_instanseg: null         # Segment with InstanSeg.
 # instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
 # instanseg_pixel_size: null  # Image resolution in microns per pixel.
-# instanseg_target: null      # Whether to output `cells` or `nuclei` boundaries. sopa defaults to `cells`.
 # instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
 

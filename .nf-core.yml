@@ -61,7 +61,7 @@ lint:
   #     collected in workflows/histo.nf. qc does emit versions, but these tests run under
   #     -stub, so the snapshot would pin the stub blocks' literal "stub" strings.
   #
-  # The first two are `nextflow_workflow` tests of a subworkflow. The rest are
+  # The first three are `nextflow_workflow` tests of a subworkflow. The rest are
   # `nextflow_function` tests of the input validators, where no process runs at all:
   # they call a Groovy function and assert on what it rejects.
   #
@@ -69,6 +69,7 @@ lint:
   nf_test_content:
     - tests/preprocess_images.nf.test
     - tests/qc.nf.test
+    - tests/segmentation.nf.test
     - tests/validate_markersheet.nf.test
     - tests/validate_marker_sheet_column.nf.test
     - tests/reject_unknown_params.nf.test
@@ -76,13 +77,15 @@ lint:
     - tests/reject_string_booleans.nf.test
     - tests/validate_cycle_numbers.nf.test
     - tests/reference_channels.nf.test
+    - tests/dearray_channel.nf.test
     - tests/validate_params.nf.test
     - tests/args_cli.nf.test
     - tests/instanseg_memory.nf.test
+    - tests/segmentation_specs.nf.test
 
   multiqc_config: false
 
-nf_core_version: 4.0.3
+nf_core_version: 4.2.0
 repository_type: pipeline
 template:
   author: Jose Nimo
@@ -96,4 +99,4 @@ template:
     - igenomes
     - multiqc
     - fastqc
-  version: 1.4.2
+  version: 2.0.0

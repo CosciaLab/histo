@@ -16,6 +16,7 @@ from qc_metrics import (
     compartments_by_channel,
     cycle_ratio_metrics,
     effective_bit_depth,
+    linking_metrics,
     nuclear_cycle_pair,
     patch_metrics,
     percentiles_from_histogram,
@@ -350,6 +351,13 @@ class TestCycleRatioMetrics:
         assert "note" in m
         assert "histogram" not in m
 
+    def test_unmeasured_cell_is_undefined(self):
+        """A cell covering no pixel centre has NaN means; it must not reach the statistics."""
+        m = cycle_ratio_metrics(np.array([np.nan, 100.0]), np.array([np.nan, 100.0]))
+        assert m["n_undefined"] == 1
+        assert m["median_log2_ratio"] == 0.0
+        assert sum(m["histogram"]) == 1
+
     def test_tail_is_clipped_not_dropped(self):
         """Counts beyond the drawn range are reported rather than silently binned in."""
         m = cycle_ratio_metrics(np.array([1.0, 1.0]), np.array([1024.0, 1.0]), clip=4.0)
@@ -601,3 +609,28 @@ class TestRoleDeclaringSheetIsAuthoritative:
         ]
         _, how = resolve_nuclear_rows(rows)
         assert how == "channel_role 'dna'"
+
+
+class TestLinkingMetrics:
+    def test_counts(self):
+        m = linking_metrics(
+            n_nuclei=np.array([0, 1, 1, 2, 3]),
+            cytoplasm_area=np.array([np.nan, 10.0, 0.0, 0.0, 5.0]),
+            unlinked_nuclei=4,
+        )
+        assert m == {
+            "cells_by_n_nuclei": {"0": 1, "1": 2, "2+": 2},
+            "unlinked_nuclei": 4,
+            # A cell without a nucleus has NaN, not 0: it has no cytoplasm to be empty.
+            "empty_cytoplasm": 2,
+        }
+
+    def test_no_nuclei_anywhere(self):
+        m = linking_metrics(np.zeros(3, dtype=int), np.full(3, np.nan), 0)
+        assert m["cells_by_n_nuclei"] == {"0": 3, "1": 0, "2+": 0}
+        assert m["empty_cytoplasm"] == 0
+
+    def test_json_serialisable(self):
+        import json
+
+        json.dumps(linking_metrics(np.array([1]), np.array([1.0]), np.int64(0)))

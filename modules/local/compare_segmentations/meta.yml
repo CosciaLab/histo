@@ -1,0 +1,65 @@
+name: "compare_segmentations"
+description: Compare the Cellpose and InstanSeg cells of one store (counts, areas, one-to-one IoU matches, crops). Writes nothing into the store.
+keywords:
+  - segmentation
+  - comparison
+  - quality_control
+  - cellpose
+  - instanseg
+tools:
+  - "geopandas":
+      description: "Geographic data in pandas: GeoDataFrames of shapely geometries."
+      homepage: "https://geopandas.org"
+      documentation: "https://geopandas.org/en/stable/docs.html"
+      tool_dev_url: "https://github.com/geopandas/geopandas"
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+  - "shapely":
+      description: "Manipulation and analysis of planar geometric objects, based on GEOS."
+      homepage: "https://shapely.readthedocs.io"
+      documentation: "https://shapely.readthedocs.io"
+      tool_dev_url: "https://github.com/shapely/shapely"
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store after WRITE_SEGMENTATIONS; only read
+        pattern: "*.zarr"
+output:
+  json:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - ${meta.sample}_comparison.json:
+          type: file
+          description: Comparison metrics
+          pattern: "*_comparison.json"
+  html:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - ${meta.sample}_comparison.html:
+          type: file
+          description: Self-contained comparison report with crops
+          pattern: "*_comparison.html"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

@@ -1,4 +1,4 @@
-// Function library vendored from nf-core/sopa at c2b4e5f. New sopa params must also be added to extractSubArgs().
+// Function library vendored from nf-core/sopa at c2b4e5f. New sopa params go in extractSubArgs() or segmentationSpecs().
 // Kept flat despite lint (local_component_structure): as utils/main.nf it fails the stub/versions hooks.
 
 def stringifyItem(String key, value) {
@@ -38,55 +38,7 @@ def stringifyValueForCli(value) {
 }
 
 def extractSubArgs(Map args, String group) {
-    if (group == "cellpose") {
-        return [
-            // sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
-            diameter: 30,
-            // sopa reads two channels as cytoplasm, then nucleus.
-            channels: args.use_projection ? ['cell', 'nuclear'] : getChannels(args.cellpose_channels, false),
-            flow_threshold: args.flow_threshold,
-            cellprob_threshold: args.cellprob_threshold,
-            pretrained_model: args.pretrained_model,
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.cellpose_kwargs,
-        ]
-    } else if (group == "stardist") {
-        return [
-            model_type: args.stardist_model_type,
-            prob_thresh: args.prob_thresh,
-            nms_thresh: args.nms_thresh,
-            channels: getChannels(args.stardist_channels, true),
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.stardist_kwargs,
-        ]
-    } else if (group == "instanseg") {
-        return [
-            model_type: args.instanseg_model_type,
-            pixel_size: args.instanseg_pixel_size,
-            target: args.instanseg_target,
-            channels: getChannels(args.instanseg_channels, true),
-            min_area: args.min_area_pixels2,
-            clip_limit: args.clip_limit,
-            clahe_kernel_size: args.clahe_kernel_size,
-            gaussian_sigma: args.gaussian_sigma,
-            method_kwargs: args.instanseg_kwargs,
-        ]
-    } else if (group == "aggregate") {
-        return [
-            // Always on: sopa defaults to off, which leaves no intensities to quantify.
-            aggregate_channels: true,
-            // sopa's shapes_key. Named, because sopa 2.2.9's lookup does not know instanseg_boundaries.
-            method_name: boundariesKey(args),
-            expand_radius_ratio: args.expand_radius_ratio,
-            min_intensity_ratio: args.min_intensity_ratio,
-        ]
-    } else if (group == "tissue_segmentation") {
+    if (group == "tissue_segmentation") {
         return [
             level: args.level,
             mode: args.mode,
@@ -102,10 +54,82 @@ def extractSubArgs(Map args, String group) {
     }
 }
 
-// Shapes element the resolve step of the enabled backend writes; null without a backend.
-def boundariesKey(Map args) {
-    def backend = ['cellpose', 'stardist', 'instanseg'].find { args['use_' + it] }
-    return backend ? backend + '_boundaries' : null
+// Targets to segment; cells unless segment_cells is false (null counts as on, as for a partial map), nuclei opt-in.
+// Truthiness, not == true: a bare flag arrives as the String "true" (rejectStringBooleans refuses any other text).
+def segmentationTargets(Map args) {
+    def targets = []
+    if (args.segment_cells == null || args.segment_cells) {
+        targets << 'cells'
+    }
+    if (args.segment_nuclei) {
+        targets << 'nuclei'
+    }
+    return targets
+}
+
+// One spec per enabled method x target. Unset values are dropped, not defaulted: sopa's
+// defaults are applied per method downstream.
+def segmentationSpecs(Map args) {
+    def specs = []
+    def targets = segmentationTargets(args)
+    def image = args.use_projection ? 'projected' : 'full'
+    def segmentation_kwargs = [
+        min_area: toNumber('min_area_pixels2', args.min_area_pixels2),
+        clip_limit: toNumber('clip_limit', args.clip_limit),
+        clahe_kernel_size: toNumber('clahe_kernel_size', args.clahe_kernel_size),
+        gaussian_sigma: toNumber('gaussian_sigma', args.gaussian_sigma),
+    ].findAll { _k, v -> v != null }
+
+    if (args.use_cellpose) {
+        targets.each { target ->
+            def channels
+            if (args.use_projection) {
+                channels = target == 'cells' ? ['cell', 'nuclear'] : ['nuclear']
+            } else {
+                def names = getChannels(args.cellpose_channels, false)
+                channels = target == 'cells' ? names : [names.last()]
+            }
+            specs << [
+                name: "cellpose_${target}".toString(),
+                method: 'cellpose',
+                target: target,
+                image: image,
+                channels: channels,
+                // diameter: sopa requires it; cellpose 4 rescales by 30 / diameter, so 30 means no rescaling.
+                method_kwargs: [
+                    diameter: 30,
+                    flow_threshold: toNumber('flow_threshold', args.flow_threshold),
+                    cellprob_threshold: toNumber('cellprob_threshold', args.cellprob_threshold),
+                    pretrained_model: args.pretrained_model,
+                ].findAll { _k, v -> v != null },
+                // Python dict text as given; segment_patch.py parses it and merges it into method_kwargs.
+                method_kwargs_extra: args.cellpose_kwargs,
+                segmentation_kwargs: segmentation_kwargs,
+                gpu: args.use_gpu ? true : false,
+            ]
+        }
+    }
+    if (args.use_instanseg) {
+        targets.each { target ->
+            specs << [
+                name: "instanseg_${target}".toString(),
+                method: 'instanseg',
+                target: target,
+                // The projection is Cellpose's input only; its channels do not exist for InstanSeg.
+                image: 'full',
+                channels: getChannels(args.instanseg_channels, true),
+                method_kwargs: [
+                    model_type: args.instanseg_model_type,
+                    pixel_size: toNumber('instanseg_pixel_size', args.instanseg_pixel_size),
+                    target: target,
+                ].findAll { _k, v -> v != null },
+                method_kwargs_extra: args.instanseg_kwargs,
+                segmentation_kwargs: segmentation_kwargs,
+                gpu: false,
+            ]
+        }
+    }
+    return specs
 }
 
 // Channels may be a string or a number (schema type ["string", "integer"]); left untyped so
@@ -126,9 +150,29 @@ def getChannels(channels, Boolean allow_null = false) {
     return channels.toString().split(/[ ,|]+/).findAll { it }
 }
 
+// Command-line values arrive as Strings and params cannot be reassigned, so numbers are parsed
+// where used: in arithmetic "3000" * 0.65 is string repetition, and in kwargs JSON a str for sopa.
+def toNumber(String name, value) {
+    if (value == null || value instanceof Number) {
+        return value
+    }
+    if (value instanceof CharSequence) {
+        def text = value.toString().trim()
+        if (text.isInteger()) {
+            return text.toInteger()
+        }
+        if (text.isBigDecimal()) {
+            return text.toBigDecimal()
+        }
+    }
+    error("${name} must be a number, got '${value}'")
+}
+
 // GB one InstanSeg patch task asks for. Per megapixel at the model's 0.5 µm/px, peak_rss is flat
 // to ~4 channels, then ~0.25 GB per channel (test7, dropbox run 00009); ~1.2x headroom.
 def instansegMemoryGB(int n_channels, patch_width, pixel_size) {
+    patch_width = toNumber('patch_width_pixel', patch_width)
+    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
     def megapixels = Math.pow(patch_width * pixel_size / 0.5, 2) / 1e6
     return Math.ceil(2 + megapixels * instansegGBPerMegapixel(n_channels)) as int
 }
@@ -139,6 +183,7 @@ def instansegGBPerMegapixel(int n_channels) {
 
 // Largest patch_width_pixel, in steps of 100, whose request stays within gigabytes.
 def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
+    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
     def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
     return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
 }

@@ -1,4 +1,5 @@
-// The sopa CLI flags built from params.
+// The sopa CLI flags built from params. Segmentation and aggregation take spec maps instead
+// (segmentation_specs.nf.test).
 
 nextflow_function {
 
@@ -8,124 +9,48 @@ nextflow_function {
     tag "unit"
     tag "validation"
 
-    test("projection hands Cellpose the cell channel, then the nuclear one") {
+    test("image_patches passes the patch width and overlap") {
+        when {
+            function {
+                """
+                input[0] = "image_patches"
+                input[1] = [ patch_width_pixel: 2000, patch_overlap_pixel: 100 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == "--patch-width-pixel 2000 --patch-overlap-pixel 100"
+        }
+    }
+
+    test("tissue_segmentation leaves unset params out") {
+        when {
+            function {
+                """
+                input[0] = "tissue_segmentation"
+                input[1] = [ level: 2, mode: null, tissue_segmentation_kwargs: null ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == "--level 2"
+        }
+    }
+
+    test("the per-backend groups are gone") {
         when {
             function {
                 """
                 input[0] = "cellpose"
-                input[1] = [ use_projection: true, cellpose_channels: null ]
+                input[1] = [ use_cellpose: true, cellpose_channels: 'DNA_6' ]
                 """
             }
         }
         then {
-            assert function.success
-            assert function.result.contains("--channels 'cell' --channels 'nuclear'")
-        }
-    }
-
-    test("without projection, cellpose_channels is passed through") {
-        when {
-            function {
-                """
-                input[0] = "cellpose"
-                input[1] = [ use_projection: false, cellpose_channels: 'DNA_6' ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert function.result.contains("--channels 'DNA_6'")
-        }
-    }
-
-    test("diameter is fixed at 30, cpsam's native size, and model_type is not passed") {
-        when {
-            function {
-                """
-                input[0] = "cellpose"
-                input[1] = [ use_projection: false, cellpose_channels: 'DNA_6', cellpose_diameter: 15, cellpose_model_type: 'cyto3' ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert function.result.contains("--diameter 30")
-            assert !function.result.contains("--model-type")
-        }
-    }
-
-    test("no GPU or device flag: the module adds it from the task's GPU request") {
-        when {
-            function {
-                """
-                input[0] = "cellpose"
-                input[1] = [ use_projection: false, cellpose_channels: 'DNA_6', use_gpu: true, cellpose_use_gpu: true ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert !function.result.contains("gpu")
-        }
-    }
-
-    test("aggregate names the InstanSeg boundaries, which sopa 2.2.9 does not look up") {
-        when {
-            function {
-                """
-                input[0] = "aggregate"
-                input[1] = [ use_instanseg: true ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert function.result.contains("--method-name 'instanseg_boundaries'")
-        }
-    }
-
-    test("aggregate names the Cellpose boundaries, also with projection") {
-        when {
-            function {
-                """
-                input[0] = "aggregate"
-                input[1] = [ use_cellpose: true, use_projection: true ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert function.result.contains("--method-name 'cellpose_boundaries'")
-        }
-    }
-
-    test("aggregate names the StarDist boundaries") {
-        when {
-            function {
-                """
-                input[0] = "aggregate"
-                input[1] = [ use_stardist: true ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert function.result.contains("--method-name 'stardist_boundaries'")
-        }
-    }
-
-    test("InstanSeg gets no device flag from params") {
-        when {
-            function {
-                """
-                input[0] = "instanseg"
-                input[1] = [ instanseg_pixel_size: 0.65, use_gpu: true, instanseg_device: 'cuda' ]
-                """
-            }
-        }
-        then {
-            assert function.success
-            assert !function.result.contains("--device")
+            assert function.failed
+            assert function.stdout.any { it.contains("Unknown argument group: cellpose") }
         }
     }
 }

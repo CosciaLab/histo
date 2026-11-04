@@ -1,7 +1,7 @@
 process QC_IMAGES {
     // Separate from QC_METRICS because it is slow (neighbour graph, polygon rasterising).
     label "process_medium"
-    tag "${meta.sample}"
+    tag "${meta.sample}:${meta.method}"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container
@@ -13,16 +13,18 @@ process QC_IMAGES {
 
     output:
     // A directory, since the number of PNGs depends on the number of clusters.
-    tuple val(meta), path("${meta.sample}_qc_images"), emit: images
-    path "versions.yml"                              , emit: versions
+    tuple val(meta), path("${meta.sample}_${meta.method}_qc_images"), emit: images
+    path "versions.yml"                                             , emit: versions
 
     script:
+    // meta.table is the method's table, set per method in subworkflows/local/qc.
     def args = task.ext.args ?: ""
     def sheet = markers ? "--markers ${markers}" : ""
     """
     qc_images.py \\
         --sdata ${sdata_path} \\
-        --out-dir ${meta.sample}_qc_images \\
+        --table ${meta.table} \\
+        --out-dir ${meta.sample}_${meta.method}_qc_images \\
         ${sheet} \\
         ${args}
 
@@ -37,9 +39,9 @@ process QC_IMAGES {
 
     stub:
     """
-    mkdir -p ${meta.sample}_qc_images
+    mkdir -p ${meta.sample}_${meta.method}_qc_images
     echo '{"sample": "${meta.sample}", "crops": [], "stub": true}' \\
-        > ${meta.sample}_qc_images/qc_images.json
+        > ${meta.sample}_${meta.method}_qc_images/qc_images.json
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

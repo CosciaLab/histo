@@ -3,7 +3,7 @@
 ## Quick start
 
 ```bash
-nextflow run CosciaLab/histo -r v1.4.2 \
+nextflow run CosciaLab/histo -r v2.0.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -69,13 +69,27 @@ channel a marker feeds: `nuclear`, `cell` or `none`. Without the column, the fir
 `autofluorescence`. The two columns describe one fact, so they are checked against each other.
 
 `remove` set to `true` drops a channel after backsub; without `--use_backsub` it is ignored with a
-warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`,
-`stardist_channels` or `instanseg_channels`; both are rejected at startup.
+warning. Keep at least one `dna` channel, and do not name a removed channel in `cellpose_channels`
+or `instanseg_channels`; both are rejected at startup.
 
 Ashlar registers every cycle on the same within-cycle channel (`-c` in `ashlar_args`, default
-0), and Coreograph dearrays on one channel of the stitched image (`--channel` in
-`coreograph_args`). Both may be `-1` for the last channel. The run stops at startup when either
-index lands on a channel that is not `dna`; set `skip_reference_dna_check: true` to run anyway.
+0), and Coreograph dearrays on one channel of the stitched image: the marker sheet's first `dna`
+channel, or `--channel` in `coreograph_args`. Both indices may be `-1` for the last channel. The
+run stops at startup when either index lands on a channel that is not `dna`; set
+`skip_reference_dna_check: true` to run anyway.
+
+### TMA dearray
+
+Coreograph finds cores reliably only at the right `--downsampleFactor`, and a wrong one fails
+silently: cores split along tissue bands, or neighbours merge. So the pipeline asks how many
+cores to expect (`tma_expected_cores`, a count, not rows × columns) and how large
+(`tma_core_diameter_mm`). It detects cores at factors 3 to 7, keeps the one whose cores best
+match, and dearrays once with it. Both values apply to every slide in the run, so run arrays
+with different layouts separately. Check `preprocessing/dearray/sweep/{slide}_sweep_overlays.png`;
+the log warns when even the best factor is off by more than 10 % in count or 25 % in diameter.
+
+To run Coreograph exactly as you say instead, set `coreograph_args`, for example
+`'--downsampleFactor 4 --channel 0 --buffer 2'`. The sweep is then skipped.
 
 ### When stitching or registration looks wrong
 
@@ -95,10 +109,10 @@ Paths must be absolute.
 
 ## Parameters
 
-Required: `input`, `outdir` and, unless `preprocessing_only`, one segmentation backend. Cellpose
-also needs `cellpose_channels` or `use_projection`. InstanSeg reads every channel unless you name
-some. StarDist defaults to sopa's H&E model: for mIF set `stardist_model_type: 2D_versatile_fluo`
-and one nuclear `stardist_channels` (untested on real data). Everything else has a default.
+Required: `input`, `outdir` and, unless `preprocessing_only`, at least one segmentation method.
+Cellpose also needs `cellpose_channels` or `use_projection`; InstanSeg needs
+`instanseg_pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
+startup; see [output.md](output.md#from-1x).
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -107,29 +121,46 @@ not work and never did: Nextflow reads the flag on its own, sets it true, and th
 before the pipeline sees it, so `--use_backsub false` would perform background subtraction. The
 pipeline stops at startup rather than letting that happen, for every boolean it declares.
 
-| Parameter                  | Default              | Change it when                                                                                          |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.   |
-| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.         |
-| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                    |
-| `use_backsub`              | `false`              | You have background channels to subtract.                                                               |
-| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                               |
-| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide.  |
-| `use_cellpose`             | `false`              | Exactly one of `use_cellpose`, `use_stardist` or `use_instanseg` must be true.                          |
-| `cellpose_channels`        | none                 | Always, unless `use_projection`. Use a marker name, e.g. `"DNA_1"`.                                     |
-| `use_projection`           | `false`              | You want whole cells, not nuclei. See below.                                                            |
-| `use_stardist`             | `false`              | You want StarDist nuclei instead of Cellpose. See the note above on its model and channel.              |
-| `use_instanseg`            | `false`              | You want InstanSeg instead of Cellpose. Needs `instanseg_pixel_size`; channels default from each sheet. |
-| `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                  |
-| `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                   |
-| `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                   |
-| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                     |
+| Parameter                  | Default              | Change it when                                                                                         |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
+| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
+| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
+| `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
+| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
+| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
+| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                 |
+| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                       |
+| `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                    |
+| `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                      |
+| `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                  |
+| `use_instanseg`            | `false`              | You want InstanSeg. Needs `instanseg_pixel_size`; channels default from each sheet.                    |
+| `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                 |
+| `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                |
+| `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                 |
+| `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                  |
+| `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                  |
+| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
 
 Every parameter and its default is in two generated files.
 [assets/params_template_compact.yml](../assets/params_template_compact.yml) has one line each:
 copy it to `params.yml` and uncomment what you change.
 [assets/params_template.yml](../assets/params_template.yml) has the full descriptions. `null` in
 either means off or unset. `--help` prints the same list.
+
+### Methods and targets
+
+Each enabled method (`use_cellpose`, `use_instanseg`) segments each enabled target
+(`segment_cells`, `segment_nuclei`), and each method gets its own table, `{method}_table`.
+With both targets, each nucleus is linked to the cell holding at least half of it, the cytoplasm
+is the cell minus its nuclei, and the table gains `nucleus` and `cytoplasm` layers. With both
+methods segmenting cells and `use_qc`, `qc/{sample}_comparison.html` compares them. The layout is in
+[output.md](output.md#spatialdata-directory).
+
+Cellpose segments nuclei on the last of `cellpose_channels` (with `use_projection`, the
+`nuclear` channel). InstanSeg segments nuclei on `dna` channels only, unless
+`instanseg_channels` is set. Each method × target is one more pass over every patch, so two
+methods with two targets cost four segmentations.
 
 ### Choosing `patch_width_pixel`
 
@@ -246,10 +277,19 @@ All three temp variables are needed for different consumers: `TMPDIR` for tools 
 containers, `NXF_TEMP` for Nextflow's own scratch, and `java.io.tmpdir` for the JVM,
 which is the one that fails first and least helpfully.
 
+### `-resume` and the store
+
+Tasks that write a sample's store in place (e.g. `WRITE_SEGMENTATIONS`) are cached like any
+other. After a later run has changed the store, `-resume` back to earlier parameters reuses those
+tasks and does not restore the earlier store; nor does a Cellpose patch task find the projection
+a later run deleted ("projection removed by an earlier run"). Rerun those samples without
+`-resume`.
+
 ### GPU segmentation
 
-`use_gpu: true` gives each Cellpose patch task one GPU. StarDist has no GPU image, and sopa's
-InstanSeg wrapper fails on CUDA ([ROADMAP](../ROADMAP.md)); both are rejected at startup.
+`use_gpu: true` gives each Cellpose patch task one GPU. It applies to Cellpose only: sopa's
+InstanSeg wrapper fails on CUDA ([ROADMAP](../ROADMAP.md)), so InstanSeg runs on CPU, also in the
+same run, and the log says so.
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
 sopa image cannot run on the V100s. At most 16 patches run at once, with 1 CPU and 8 GB on
 `size_tiny` and `size_small`, else 2 CPUs and 16 GB. A task fails if CUDA is not usable in it,

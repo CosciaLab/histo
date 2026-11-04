@@ -62,6 +62,8 @@ nextflow_workflow {
             params {
                 use_backsub = false
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
             }
             workflow {
                 """
@@ -92,6 +94,13 @@ nextflow_workflow {
 
             assertAll(
                 { assert workflow.success },
+                // One detect task per factor, one select per slide.
+                { assert workflow.trace.succeeded().count { it.name.contains('COREOGRAPH_DETECT') } == 5 },
+                { assert workflow.trace.succeeded().count { it.name.contains('COREOGRAPH_SELECT') } == 1 },
+                // Every core records the factor that produced it (the select stub picks 5).
+                { assert metas.every { it.downsample_factor == 5 } },
+                // And the channel it was dearrayed on: the sheet's first dna channel.
+                { assert metas.every { it.dearray_channel == 0 } },
                 // The Coreograph stub emits two cores, so one slide becomes two samples.
                 { assert workflow.out.images.size() == 2 },
                 // No file extension in core IDs: they become zarr names and merged element prefixes.
@@ -117,6 +126,8 @@ nextflow_workflow {
             params {
                 use_backsub = true
                 use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
             }
             workflow {
                 """
@@ -159,6 +170,7 @@ nextflow_workflow {
 
                 // Cores still know their slide after passing through backsub.
                 { assert workflow.out.images.every { it[0].slide == 'testslide' } },
+                { assert workflow.out.images.every { it[0].downsample_factor == 5 } },
 
                 // backsub's sheet is per core; keyed by slide, the join keeps only one core.
                 { assert workflow.out.markers.size() == 2 },
@@ -237,6 +249,165 @@ nextflow_workflow {
                 { assert workflow.success },
                 { assert workflow.out.images.size() == 1 },
                 { assert workflow.out.unsubtracted.size() == 0 }
+            )
+        }
+    }
+
+    test("two slides each get their own sweep") {
+
+        when {
+            params {
+                use_backsub = false
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+            }
+            workflow {
+                """
+                input[0] = Channel.of(
+                    [
+                        [ id: 'slideA', cycle_number: 1 ],
+                        file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'slideA', cycle_number: 2 ],
+                        file("\${projectDir}/tests/stub_data/cycle02.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'slideB', cycle_number: 1 ],
+                        file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'slideB', cycle_number: 2 ],
+                        file("\${projectDir}/tests/stub_data/cycle02.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ]
+                )
+                input[1] = Channel.of(
+                    [
+                        [ id: 'slideA' ],
+                        file("\${projectDir}/tests/stub_data/markers.csv", checkIfExists: true)
+                    ],
+                    [
+                        [ id: 'slideB' ],
+                        file("\${projectDir}/tests/stub_data/markers.csv", checkIfExists: true)
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def metas = workflow.out.images.collect { it[0] }
+
+            assertAll(
+                { assert workflow.success },
+                // Five factors per slide, one choice per slide; groups must not mix slides.
+                { assert ran.count { it.contains('COREOGRAPH_DETECT') } == 10 },
+                { assert ran.count { it.contains('COREOGRAPH_SELECT') } == 2 },
+                { assert ran.count { it ==~ /.*:COREOGRAPH \(.*\)/ } == 2 },
+                { assert metas.collect { it.id }.sort() == [
+                    'slideA_core001', 'slideA_core002', 'slideB_core001', 'slideB_core002',
+                ] },
+                { assert metas.every { it.id.startsWith(it.slide + '_core') } }
+            )
+        }
+    }
+
+    test("coreograph_args skips the sweep") {
+
+        when {
+            params {
+                use_backsub = false
+                use_tma_dearray = true
+                coreograph_args = '--downsampleFactor 4 --channel 0 --buffer 2'
+            }
+            workflow {
+                """
+                input[0] = Channel.of(
+                    [
+                        [ id: 'testslide', cycle_number: 1 ],
+                        file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'testslide', cycle_number: 2 ],
+                        file("\${projectDir}/tests/stub_data/cycle02.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ]
+                )
+                input[1] = Channel.of(
+                    [
+                        [ id: 'testslide' ],
+                        file("\${projectDir}/tests/stub_data/markers.csv", checkIfExists: true)
+                    ]
+                )
+                """
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+
+            assertAll(
+                { assert workflow.success },
+                { assert !ran.any { it.contains('COREOGRAPH_DETECT') || it.contains('COREOGRAPH_SELECT') } },
+                { assert workflow.out.images.size() == 2 },
+                { assert workflow.out.images.every { !it[0].containsKey('downsample_factor') } },
+                { assert workflow.out.images.every { !it[0].containsKey('dearray_channel') } }
+            )
+        }
+    }
+
+    test("the sweep dearrays on the sheet's first dna channel, wherever it is") {
+
+        when {
+            params {
+                use_backsub = false
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+            }
+            workflow {
+                """
+                input[0] = Channel.of(
+                    [
+                        [ id: 'testslide', cycle_number: 1 ],
+                        file("\${projectDir}/tests/stub_data/cycle01.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ],
+                    [
+                        [ id: 'testslide', cycle_number: 2 ],
+                        file("\${projectDir}/tests/stub_data/cycle02.ome.tiff", checkIfExists: true),
+                        [],
+                        []
+                    ]
+                )
+                input[1] = Channel.of([
+                    [ id: 'testslide' ],
+                    file("\${projectDir}/tests/stub_data/markers_dna_second.csv", checkIfExists: true)
+                ])
+                """
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                // A background channel comes first, as in mDVP17; DNA_6 is image channel 1.
+                { assert workflow.out.images.size() == 2 },
+                { assert workflow.out.images.every { it[0].dearray_channel == 1 } }
             )
         }
     }
