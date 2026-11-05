@@ -129,11 +129,11 @@ passes, so geometry is all they share, and only resolved shapes are final. A nuc
 the cell holding the largest share of its area if that share is at least 0.5, a constant; ties
 go to the cell first in the frame. Nothing is dropped.
 
-**Aggregation is copied from sopa 2.2.12, with two fixes.** sopa rasterizes the exterior only,
-so a cytoplasm ring would be measured as the whole cell, and one part's hole could erase
-another part: here holes are cut and each part gets its own mask, OR-ed (an island in a lake
-survives). Building the table with `TableModel.parse` keeps the cell ids sopa's `parse_table`
-renumbers. Empty mask: NaN. Offer the fixes upstream (ROADMAP).
+**Mask rasterising is copied from sopa 2.2.12, with one fix.** sopa rasterizes the exterior
+only, so a cytoplasm ring would be measured as the whole cell. Here holes are cut, each
+MultiPolygon part in its own mask, OR-ed, so one part's hole cannot erase another (an island in
+a lake survives). Building the table with `TableModel.parse` keeps the cell ids sopa's
+`parse_table` renumbers. Empty mask: NaN. Offer the fix upstream (ROADMAP).
 
 **NaN is "not measured", 0 "measured, nothing there".** A cell without a nucleus has NaN layers
 and `cytoplasm_area`; a cell its nuclei fill has `cytoplasm_area` 0.
