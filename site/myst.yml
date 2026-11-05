@@ -8,6 +8,13 @@ project:
     - file: reference/parameters.md
     - file: reference/samplesheet.md
     - file: reference/output.md
+    - title: How it works
+      children:
+        - file: how-it-works/index.md
+        - file: how-it-works/basicpy.md
+        - file: how-it-works/ashlar.md
+        - file: how-it-works/coreograph.md
+        - file: how-it-works/backsub.md
     - file: changelog.md
     - file: citations.md
 site:
