@@ -53,7 +53,7 @@ cluster, and a task's memory follows the patch, not the slide.
   it.
 
 % source: workflows/histo.nf:82-103
-% source: https://github.com/prism-oncology/sopa/blob/v2.3.0/sopa/patches/patches.py
+% source: https://github.com/prism-oncology/sopa/blob/v2.2.9/sopa/patches/patches.py
 % source: subworkflows/local/segmentation/main.nf:34-40
 % source: subworkflows/local/segmentation/main.nf:71-105
 % source: bin/resolve_segmentation.py:1-80

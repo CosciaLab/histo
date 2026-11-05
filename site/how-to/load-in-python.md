@@ -7,8 +7,8 @@ The full layout is in [SpatialData directory](../reference/output.md#spatialdata
 ## Steps
 
 1. Install [spatialdata](https://spatialdata.scverse.org/en/stable/): `pip install spatialdata`.
-2. Read the store and pick a method's table and shapes. The snippet assumes the default run,
-   Cellpose cells only:
+2. Read the store and pick a method's table and shapes. The snippet assumes a Cellpose,
+   cells-only run:
 
    ```python
    import spatialdata as sd

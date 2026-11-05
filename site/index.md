@@ -11,6 +11,7 @@ nf-core conventions and is not affiliated with or endorsed by nf-core.
 
 :::{figure} ../docs/images/pipeline_paths.svg
 :alt: Metro map of the three paths through the pipeline
+[Open the map at full size](../docs/images/pipeline_paths.svg).
 :::
 
 % source: README.md#steps
@@ -45,6 +46,15 @@ What comes out and how to read the QC.
 :::{card} Reference
 :link: reference/usage.md
 Usage, parameters, sheets and outputs.
+:::
+
+:::{card} At the MDC
+:link: mdc.md
+The dropbox and running on the MDC cluster.
+:::
+
+:::{card} Troubleshooting
+[Resume and debug a run](how-to/resume-debug.md); [common failures](outputs/visual-qc.md#common-failures).
 :::
 
 ::::

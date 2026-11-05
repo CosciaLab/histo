@@ -13,15 +13,10 @@ On a TMA, start with `qc/{slide}_{m}_slide_report.html`, which names the cores t
 check. With `preprocessing_only` there is no report; check stitching in
 `preprocessing/registration/{sample}_ashlar_qc/{sample}_ashlar_report.pdf`.
 
-What each section shows: [QC report](../how-it-works/qc-report.md).
+What each section shows, with a figure of its top: [QC report](../how-it-works/qc-report.md).
 
 % source: docs/output.md#qc-report
 % source: docs/output.md:115-116
-
-:::{note} Figure pending
-The top of a QC report (cell count, integrity checks, channel table), from
-`qc/{sample}_cellpose_qc_report.html` of an exemplar-001 run.
-:::
 
 ## 2. The stitched OME-TIFF
 
@@ -31,8 +26,7 @@ built from the later image under `background_subtraction/` or `dearray/`. Ashlar
 pyramidal, tiled OME-TIFF and no marker names, so channels are unnamed here; names are added only
 in the store. The pixel size is in this file.
 
-- [QuPath](https://qupath.github.io) opens it; QuPath recommends OME-TIFF, and may fail on a TIFF
-  without pyramid levels.
+- [QuPath](https://qupath.github.io) opens it; QuPath recommends OME-TIFF.
 - [napari](https://napari.org).
 
 % source: docs/output.md#preprocessing

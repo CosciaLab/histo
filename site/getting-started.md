@@ -3,13 +3,16 @@
 ## Requirements
 
 - Nextflow 25.10.4 or later.
-- A container engine: Singularity or Apptainer on the cluster, Docker locally.
+- A container engine: Singularity or Apptainer on the cluster, Docker locally. On Apple Silicon,
+  [BaSiCPy](how-it-works/basicpy.md#caveats) and [Coreograph](how-it-works/coreograph.md#caveats)
+  do not run.
 - The container images, staged before the run. The pipeline pulls nothing at launch; see
   [Fetching images](reference/usage.md#fetching-images).
 
 % source: README.md#usage
 % source: nextflow.config:320
 % source: docs/usage.md#profiles
+% source: docs/CONTRIBUTING.md#on-the-mac
 
 ## Nextflow in one paragraph
 
@@ -26,12 +29,14 @@ a change. See the Nextflow docs: [install](https://www.nextflow.io/docs/latest/i
 
 ## Inputs
 
-Two sheets: a samplesheet (one row per cycle, or one row per sample for a stitched image) and a
-marker sheet (one row per channel). Columns are in [Samplesheets](reference/samplesheet.md); how to
-write and check them is in [Write and check the input sheets](how-to/input-sheets.md).
+Two sheets: a samplesheet (one row per cycle) and a marker sheet (one row per channel). A
+pre-stitched image needs only the samplesheet, one row per sample; its channel names come from the
+image. Columns are in [Samplesheets](reference/samplesheet.md); how to write and check them is in
+[Write and check the input sheets](how-to/input-sheets.md).
 
 % source: docs/usage.md#inputs
 % source: docs/usage.md#parameters
+% source: site/vignettes/prestitched.md
 
 ## Profiles
 
