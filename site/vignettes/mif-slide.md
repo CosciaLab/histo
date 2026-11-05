@@ -34,8 +34,8 @@ channel_number,cycle_number,marker_name,channel_role,channel_compartment,filter
 
 - The nuclear stain is first in each cycle, because Ashlar aligns every cycle on within-cycle
   channel 0 unless `-c` says otherwise.
-- `channel_compartment` chooses the projection's cell channel: every `marker` with `membrane` or
-  `cytoplasm`. Ki67 stays out.
+- `channel_compartment` chooses the projection's cell channel by default: every `marker` with
+  `membrane` or `cytoplasm`. Ki67 stays out. An optional `segmentation` column overrides this.
 
 Column rules: [Inputs](../reference/usage.md#inputs) and [Samplesheets](../reference/samplesheet.md).
 
@@ -67,7 +67,7 @@ patch_width_pixel: 3000
 
 - [`use_projection`](../reference/parameters.md#use_projection) builds Cellpose's nuclear and
   cell channels from the marker sheet. The three thresholds are Cellpose's own; without them
-  sopa's tile the tissue into cells. See
+  sopa's defaults tile the tissue into cells. See
   [Two-channel segmentation](../reference/usage.md#two-channel-segmentation-use-projection).
 - [`instanseg_pixel_size`](../reference/parameters.md#instanseg_pixel_size) is your image's
   pixel size in µm. InstanSeg requires it.
@@ -108,17 +108,19 @@ results/
 │   ├── illumination/   slide01_cycle1-dfp.ome.tif, -ffp.ome.tif; per cycle
 │   └── registration/   slide01.ome.tif, slide01_ashlar_qc/
 ├── slide01.zarr/
-│   ├── shapes/         cellpose_cells, cellpose_nuclei, cellpose_cytoplasm, instanseg_cells, …
+│   ├── images/         the image, channels named from the marker sheet
+│   ├── shapes/         image_patches, cellpose_cells, cellpose_nuclei, cellpose_cytoplasm, …
 │   └── tables/         cellpose_table, instanseg_table
 ├── qc/
 │   ├── slide01_cellpose_qc_report.html, slide01_instanseg_qc_report.html
 │   ├── slide01_cellpose_qc.json, slide01_instanseg_qc.json
-│   ├── slide01_comparison.html
+│   ├── slide01_cellpose_qc_images/, slide01_instanseg_qc_images/
+│   ├── slide01_comparison.html, slide01_comparison.json
 │   └── slide01_projection.png, slide01_projection.json
 └── pipeline_info/
 ```
 
-Every file: [Outputs](../outputs/outputs.md).
+An excerpt; every file: [Outputs](../outputs/outputs.md).
 
 % source: docs/output.md#preprocessing
 % source: docs/output.md#spatialdata-directory

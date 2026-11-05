@@ -64,7 +64,7 @@ patch_width_pixel: 8000
 - [`use_backsub`](../reference/parameters.md#use_backsub) turns the step on.
 - [`cellpose_channels`](../reference/parameters.md#cellpose_channels): marker names, nuclear
   last. A removed channel here stops the run at startup.
-- The three thresholds are Cellpose's own; without them sopa's tile the tissue into cells. See
+- The three thresholds are Cellpose's own; without them sopa's defaults tile the tissue into cells. See
   [Cellpose](../how-it-works/cellpose.md#caveats).
 - `patch_width_pixel` `8000` assumes a stitched image of about 100 000 × 60 000 px: about 100
   patches. See [Choosing `patch_width_pixel`](../reference/usage.md#choosing-patch-width-pixel).
@@ -98,13 +98,15 @@ results/
 │   ├── registration/            wsi01.ome.tif, wsi01_ashlar_qc/
 │   └── background_subtraction/  wsi01_backsub.ome.tif, wsi01_backsub.csv
 ├── wsi01.zarr/
-│   ├── shapes/                  cellpose_cells
+│   ├── images/                  the background-subtracted image
+│   ├── shapes/                  image_patches, cellpose_cells
 │   └── tables/                  cellpose_table
-├── qc/                          wsi01_cellpose_qc_report.html, wsi01_cellpose_qc.json
+├── qc/                          wsi01_cellpose_qc_report.html, wsi01_cellpose_qc.json,
+│                                wsi01_cellpose_qc_images/
 └── pipeline_info/
 ```
 
-Every file: [Outputs](../outputs/outputs.md).
+An excerpt; every file: [Outputs](../outputs/outputs.md).
 
 % source: docs/output.md#preprocessing
 % source: docs/output.md#spatialdata-directory

@@ -94,17 +94,22 @@ results/
 ├── preprocessing/
 │   ├── illumination/   TMA01_cycle1-dfp.ome.tif, -ffp.ome.tif; per cycle
 │   ├── registration/   TMA01.ome.tif, TMA01_ashlar_qc/
-│   └── dearray/        TMA01_core001.ome.tif, … one per core; TMA01_tma_map.tif, masks/
-│       └── sweep/      TMA01_sweep.tsv, TMA01_sweep_overlays.png, TMA01_selection.json
+│   └── dearray/        TMA01_core001.ome.tif, … one per core
+│       │               TMA01_tma_map.tif, TMA01_coremask.tif, TMA01_centroids.txt
+│       ├── masks/      TMA01_core001_mask.tif, … one per core
+│       └── sweep/      TMA01_sweep.tsv, TMA01_sweep_overlays.png, TMA01_selection.json,
+│                       TMA01_k3_overlay.png, … per factor
 ├── TMA01_merged.zarr/  every core, one store
 ├── TMA01_merge_manifest.json
 ├── qc/
 │   ├── TMA01_instanseg_slide_report.html
-│   └── TMA01_core001_instanseg_qc_report.html, … one per core
+│   ├── TMA01_core001_instanseg_qc_report.html, … one per core
+│   ├── TMA01_core001_instanseg_qc.json, … one per core
+│   └── TMA01_core001_instanseg_qc_images/, … one per core
 └── pipeline_info/
 ```
 
-Per-core stores are not published. Every file: [Outputs](../outputs/outputs.md).
+Per-core stores are not published. An excerpt; every file: [Outputs](../outputs/outputs.md).
 
 % source: docs/output.md#what-runs
 % source: docs/output.md#preprocessing

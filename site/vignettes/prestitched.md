@@ -21,6 +21,8 @@ slideB,/data/myproject/stitched/slideB.ome.tif
 - `data_path` is the stitched OME-TIFF. It is the only format read.
 - No marker sheet. Channel names come from the image itself, so name channels in
   `cellpose_channels` as the OME-XML does. An image without names gives `Channel:0:0`, … .
+- That includes this pipeline's own stitched images from [Stitching only](stitching-only.md):
+  Ashlar writes no channel names, so set them in the OME-XML first.
 
 Columns: [Samplesheets](../reference/samplesheet.md).
 
@@ -28,6 +30,7 @@ Columns: [Samplesheets](../reference/samplesheet.md).
 % source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:124-146
 % source: modules/local/utils.nf:217-225
 % source: docs/output.md:50-52
+% source: docs/decisions.md#channel-names
 % source: site/outputs/visual-qc.md#common-failures
 
 ## Parameters
