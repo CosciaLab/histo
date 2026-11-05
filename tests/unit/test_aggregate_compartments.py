@@ -1,8 +1,18 @@
-"""Tests for aggregate_compartments.py: hole-aware means, table assembly, obs labels."""
+"""Tests for aggregate_compartments.py: hole-aware tiled statistics, table assembly, obs labels."""
 
 import numpy as np
 import pytest
-from aggregate_compartments import build_table, compartment_layer, label_cells, mean_intensities, rasterize
+from aggregate_compartments import (
+    STATISTICS,
+    build_table,
+    compartment_layer,
+    label_cells,
+    measure_intensities,
+    obs_columns,
+    parse_statistics,
+    rasterize,
+    stat_var,
+)
 
 pd = pytest.importorskip("pandas", reason="needs pandas")
 gpd = pytest.importorskip("geopandas", reason="needs geopandas")
@@ -56,12 +66,12 @@ class TestMeanIntensities:
         # Polygons touch their boundary pixels (17x17 = 289 px). Exterior-only filling would
         # average ~21.2 here (the ideal 16x16 square: (36*100 + 220*10)/256 = 22.7); the ring is all 10.
         ring = Polygon(box(2, 2, 18, 18).exterior.coords, [box(7, 7, 13, 13).exterior.coords])
-        out = mean_intensities(bright_centre_image(), frame([ring]))
+        out = measure_intensities(bright_centre_image(), frame([ring]), ["mean"])[0]
         assert out.shape == (1, 1)
         assert out[0, 0] == pytest.approx(10)
 
     def test_solid_square_includes_centre(self):
-        out = mean_intensities(bright_centre_image(), frame([box(2, 2, 18, 18)]))
+        out = measure_intensities(bright_centre_image(), frame([box(2, 2, 18, 18)]), ["mean"])[0]
         assert out[0, 0] == pytest.approx(10 + 90 * 36 / 289)
 
     def test_multipolygon_averages_both_parts(self):
@@ -69,31 +79,34 @@ class TestMeanIntensities:
         img[0:5, 0:5] = 10  # boundary pixels are touched, so 5x5
         img[10:15, 10:15] = 30
         parts = MultiPolygon([box(0, 0, 4, 4), box(10, 10, 14, 14)])
-        out = mean_intensities(make_image([img]), frame([parts]))
+        out = measure_intensities(make_image([img]), frame([parts]), ["mean"])[0]
         assert out[0, 0] == pytest.approx(20)
 
     def test_two_channels_and_chunks(self):
         a, b = np.full((20, 20), 1.0), np.full((20, 20), 2.0)
-        out = mean_intensities(
-            make_image([a, b], chunks=(2, 8, 8)), frame([box(3, 3, 15, 15), box(0, 0, 5, 5)])
-        )
+        out = measure_intensities(
+            make_image([a, b], chunks=(2, 8, 8)),
+            frame([box(3, 3, 15, 15), box(0, 0, 5, 5)]),
+            ["mean"],
+            tile_size=8,
+        )[0]
         assert out.shape == (2, 2)
         np.testing.assert_allclose(out, [[1, 2], [1, 2]])
 
     def test_no_shapes(self):
-        out = mean_intensities(bright_centre_image(), frame([]))
+        out = measure_intensities(bright_centre_image(), frame([]), ["mean"])[0]
         assert out.shape == (0, 1)
 
 
 class TestCompartmentLayer:
     def test_missing_cells_are_nan(self):
         cells = frame([box(0, 0, 4, 4), box(10, 10, 14, 14)], ["a_0", "a_1"])
-        out = compartment_layer(bright_centre_image(), cells.iloc[[1]], cells)
+        out = compartment_layer(bright_centre_image(), cells.iloc[[1]], cells, ["mean"])[0]
         assert np.isnan(out[0]).all() and not np.isnan(out[1]).any()
 
     def test_empty_compartment_is_all_nan(self):
         cells = frame([box(0, 0, 4, 4)], ["a_0"])
-        assert np.isnan(compartment_layer(bright_centre_image(), frame([]), cells)).all()
+        assert np.isnan(compartment_layer(bright_centre_image(), frame([]), cells, ["mean"])[0]).all()
 
 
 def position_image(h=40, w=40):
@@ -101,21 +114,106 @@ def position_image(h=40, w=40):
     return np.arange(h * w, dtype=float).reshape(1, h, w)
 
 
-class TestChunkEdges:
-    def test_chunked_equals_single_chunk(self):
+class TestTiles:
+    def test_small_tiles_equal_default(self):
         round_cell = Point(19.5, 19.5).buffer(7)
         two_part = MultiPolygon([box(14, 3, 22, 9), box(16, 30, 26, 37)])
         ring = Polygon(box(10, 10, 30, 30).exterior.coords, [box(15, 15, 25, 25).exterior.coords])
         shapes = frame([round_cell, two_part, ring])
         data = position_image()
-        want = mean_intensities(make_image(list(data)), shapes)
-        got = mean_intensities(make_image(list(data), chunks=(1, 16, 16)), shapes)
+        want = measure_intensities(make_image(list(data)), shapes, ["mean"])[0]
+        got = measure_intensities(make_image(list(data), chunks=(1, 16, 16)), shapes, ["mean"], tile_size=16)[
+            0
+        ]
         np.testing.assert_allclose(got, want)
 
     def test_empty_mask_is_nan(self):
         tiny = box(5.2, 5.2, 5.4, 5.4)  # touches no pixel centre
-        out = mean_intensities(bright_centre_image(), frame([tiny, box(0, 0, 4, 4)]))
+        out = measure_intensities(bright_centre_image(), frame([tiny, box(0, 0, 4, 4)]), ["mean"])[0]
         assert np.isnan(out[0, 0]) and not np.isnan(out[1, 0])
+
+
+class TestStatistics:
+    def test_statistics_on_known_pixels(self):
+        img = make_image([np.arange(1, 10, dtype=float).reshape(3, 3)])
+        out, _ = measure_intensities(img, frame([box(0, 0, 2, 2)]), list(STATISTICS))
+        px = np.arange(1, 10, dtype=float)
+        want = [px.mean(), np.median(px), px.std(), 1, 9, *np.quantile(px, [0.25, 0.75, 0.9])]
+        np.testing.assert_allclose(out[0], want, rtol=1e-6)
+
+    def test_statistic_major_order(self):
+        a, b = np.full((10, 10), 1.0), np.arange(100.0).reshape(10, 10)
+        out, _ = measure_intensities(make_image([a, b]), frame([box(0, 0, 4, 4)]), ["mean", "std"])
+        assert out.shape == (1, 4)
+        assert out[0, 0] == pytest.approx(1) and out[0, 2] == pytest.approx(0)
+        assert out[0, 1] > 1 and out[0, 3] > 0
+
+    def test_float32(self):
+        out, _ = measure_intensities(bright_centre_image(), frame([box(0, 0, 4, 4)]), ["mean"])
+        assert out.dtype == np.float32
+
+    def test_tile_size_invariance(self):
+        round_cell = Point(19.5, 19.5).buffer(7)
+        two_part = MultiPolygon([box(14, 3, 22, 9), box(16, 30, 26, 37)])
+        ring = Polygon(box(10, 10, 30, 30).exterior.coords, [box(15, 15, 25, 25).exterior.coords])
+        shapes = frame(
+            [round_cell, two_part, ring, box(5, 5, 35, 35), box(8, 8, 20, 20), box(12, 12, 24, 24)]
+        )
+        img = make_image(list(position_image()))
+        want = measure_intensities(img, shapes, list(STATISTICS), tile_size=4096)[0]
+        got = measure_intensities(img, shapes, list(STATISTICS), tile_size=8)[0]
+        np.testing.assert_array_equal(got, want)
+
+    def test_edge_shape_inside_image_only(self):
+        img = make_image([np.ones((40, 40))])
+        shapes = frame([box(30, 30, 45, 45), box(39.2, 39.2, 40, 40)])
+        out, _ = measure_intensities(img, shapes, ["mean"], tile_size=16)
+        assert out[0, 0] == pytest.approx(1)
+
+    def test_edge_shape_mean_over_in_image_pixels(self):
+        data = position_image()
+        out, _ = measure_intensities(
+            make_image(list(data)), frame([box(30, 30, 45, 45)]), ["mean"], tile_size=16
+        )
+        assert out[0, 0] == pytest.approx(data[0, 30:, 30:].mean())
+
+    def test_blob_larger_than_tile(self):
+        img = make_image(list(position_image()))
+        shapes = frame([box(1, 1, 38, 38)])
+        want = measure_intensities(img, shapes, list(STATISTICS), tile_size=4096)[0]
+        got = measure_intensities(img, shapes, list(STATISTICS), tile_size=4)[0]
+        np.testing.assert_array_equal(got, want)
+
+    def test_none_and_empty_rows_nan(self):
+        shapes = frame([None, Polygon(), box(0, 0, 4, 4)])
+        out, _ = measure_intensities(bright_centre_image(), shapes, ["mean"])
+        assert np.isnan(out[:2]).all() and np.isfinite(out[2]).all()
+
+    def test_window_reported(self):
+        img = make_image(list(position_image()))
+        _, window = measure_intensities(img, frame([box(1, 1, 38, 38)]), ["mean"], tile_size=4)
+        assert window >= 38
+
+
+class TestParseStatistics:
+    def test_default(self):
+        assert parse_statistics("mean,median,std") == ["mean", "median", "std"]
+
+    def test_spaces_stripped(self):
+        assert parse_statistics(" mean , q90") == ["mean", "q90"]
+
+    def test_off_menu(self):
+        with pytest.raises(ValueError, match="q99") as e:
+            parse_statistics("mean,q99")
+        assert "median" in str(e.value)
+
+    def test_duplicate(self):
+        with pytest.raises(ValueError, match="mean"):
+            parse_statistics("mean,mean")
+
+    def test_mean_required(self):
+        with pytest.raises(ValueError, match="mean"):
+            parse_statistics("median")
 
 
 class TestRasterizeParts:
@@ -137,13 +235,14 @@ def table(**kw):
     args = dict(
         cells=three_cells(),
         x=np.ones((3, 2)),
-        var_names=["DAPI", "CD3"],
+        var=stat_var(["DAPI", "CD3"], ["mean"]),
         layers={},
         obs_extra=None,
         region="cellpose_cells",
         slide="TMA01",
         core_id=None,
         specs=[SPEC],
+        quantification={"statistics": ["mean"], "tile_size": 2048, "max_window_px": 10},
     )
     args.update(kw)
     return build_table(**args)
@@ -154,13 +253,13 @@ class TestBuildTable:
         t = table()
         assert list(t.obs_names) == ["a_0", "a_1", "a_2"]
         assert list(t.obs["cell_id"]) == ["a_0", "a_1", "a_2"]
-        assert list(t.var_names) == ["DAPI", "CD3"]
+        assert list(t.var_names) == ["DAPI_mean", "CD3_mean"]
 
     def test_sopa_obs_columns(self):
         t = table()
         assert isinstance(t.obs["region"].dtype, pd.CategoricalDtype)
         assert list(t.obs["region"].unique()) == ["cellpose_cells"]
-        np.testing.assert_allclose(t.obs["area"], [16, 16, 16])
+        assert "area" not in t.obs
         assert t.obsm["spatial"].shape == (3, 2)
         np.testing.assert_allclose(t.obsm["spatial"][0], [2, 2])
 
@@ -207,9 +306,74 @@ class TestBuildTable:
         assert back.uns["segmentation"]["cellpose_cells"]["diameter"] == 30
         assert list(back.obs_names) == ["a_0", "a_1", "a_2"]
 
+    def test_uns_quantification(self, tmp_path):
+        import anndata as ad
+
+        t = table()
+        t.write_h5ad(tmp_path / "t.h5ad")
+        q = ad.read_h5ad(tmp_path / "t.h5ad").uns["quantification"]
+        assert list(q["statistics"]) == ["mean"]
+        assert q["tile_size"] == 2048 and q["max_window_px"] == 10
+
+    def test_x_float32(self):
+        t = table(layers={"nucleus": np.zeros((3, 2))})
+        assert t.X.dtype == np.float32 and t.layers["nucleus"].dtype == np.float32
+
+    def test_var_columns(self):
+        assert list(table().var.columns) == ["marker", "statistic"]
+
     def test_mismatched_rows_refused(self):
         with pytest.raises(ValueError, match="rows"):
             table(x=np.ones((2, 2)))
+
+
+def test_stat_var_marker_with_underscore():
+    v = stat_var(["DAPI", "CD45_RO"], ["mean", "std"])
+    assert list(v.index) == ["DAPI_mean", "CD45_RO_mean", "DAPI_std", "CD45_RO_std"]
+    assert list(v["marker"]) == ["DAPI", "CD45_RO", "DAPI", "CD45_RO"]
+    assert list(v["statistic"]) == ["mean", "mean", "std", "std"]
+
+
+class TestObsColumns:
+    SUFFIXES = [
+        "area",
+        "perimeter",
+        "circularity",
+        "solidity",
+        "eccentricity",
+        "major_axis_length",
+        "minor_axis_length",
+    ]
+
+    def test_cells_only(self):
+        out = obs_columns(three_cells(), "cells", None, None)
+        assert list(out.columns) == [f"cell_{s}" for s in self.SUFFIXES]
+        assert out["cell_area"].iloc[0] == pytest.approx(16)
+
+    def test_with_links(self):
+        cells = frame([box(0, 0, 10, 10), box(20, 20, 30, 30)], ["a_0", "a_1"])
+        nuc = frame([Polygon([(1, 1), (7, 1), (7, 4), (1, 4)])], ["a_0"])
+        links = pd.DataFrame(
+            {
+                "n_nuclei": [1, 0],
+                "nucleus_id": pd.array(["n_0", None], dtype="string"),
+                "nucleus_area": [18.0, 0.0],
+                "cytoplasm_area": [82.0, np.nan],
+            },
+            index=cells.index,
+        )
+        out = obs_columns(cells, "cells", nuc, links)
+        assert np.isfinite(out["nucleus_eccentricity"].iloc[0])
+        assert out["nc_ratio"].iloc[0] == pytest.approx(
+            out["nucleus_area"].iloc[0] / out["cell_area"].iloc[0]
+        )
+        assert out["nucleus_area"].iloc[1] == 0
+        assert np.isnan(out["nc_ratio"].iloc[1]) and np.isnan(out["nucleus_circularity"].iloc[1])
+        assert list(out["n_nuclei"]) == [1, 0]
+
+    def test_nuclei_only(self):
+        out = obs_columns(three_cells(), "nuclei", None, None)
+        assert list(out.columns) == [f"nucleus_{s}" for s in self.SUFFIXES]
 
 
 def sopa_obs(n=3):
@@ -264,19 +428,20 @@ class TestCompartmentsFromLinks:
         linked = link(cells, nuclei)
         image = bright_centre_image()
         layers = {
-            "nucleus": compartment_layer(image, linked.nucleus_compartment, cells),
-            "cytoplasm": compartment_layer(image, linked.cytoplasm, cells),
+            "nucleus": compartment_layer(image, linked.nucleus_compartment, cells, ["mean"])[0],
+            "cytoplasm": compartment_layer(image, linked.cytoplasm, cells, ["mean"])[0],
         }
         t = build_table(
             cells,
-            mean_intensities(image, cells),
-            ["ch0"],
+            measure_intensities(image, cells, ["mean"])[0],
+            stat_var(["ch0"], ["mean"]),
             layers,
-            linked.links,
+            obs_columns(cells, "cells", linked.nucleus_compartment, linked.links),
             "m_cells",
             "S1",
             None,
             [SPEC],
+            {"statistics": ["mean"], "tile_size": 2048, "max_window_px": 10},
         )
         # The h5ad round trip is where all-NA id columns used to fail.
         t.write_h5ad(tmp_path / "t.h5ad")
@@ -323,3 +488,14 @@ class TestArgs:
 
         with pytest.raises(SystemExit):
             parse_args([*REQUIRED, "--shapes", "n.parquet", "--target", "nuclei", "--cytoplasm", "c.parquet"])
+
+    def test_parse_args_rejects_bad_statistics(self):
+        from aggregate_compartments import parse_args
+
+        with pytest.raises(SystemExit):
+            parse_args([*REQUIRED, "--shapes", "m_cells.parquet", "--statistics", "median"])
+
+    def test_statistics_default(self):
+        from aggregate_compartments import parse_args
+
+        assert parse_args([*REQUIRED, "--shapes", "m_cells.parquet"]).statistics == "mean,median,std"

@@ -60,7 +60,8 @@
 # min_area_pixels2: null  # Objects smaller than this, in pixels², are dropped at segmentation, per patch.
 
 ## Aggregation
-# expand_radius_ratio: null  # Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes.
+# expand_radius_ratio: null  # Expand cell polygons by `expand_radius_ratio * mean_radius` when measuring channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes.
+# quantification_statistics: "mean,median,std"  # Per-marker statistics, comma-separated, no spaces: mean, median, std, min, max, q25, q75, q90. mean is required.
 
 ## Image preprocessing
 # gaussian_sigma: null     # Parameter for scipy gaussian_filter (applied before running the segmentation method).

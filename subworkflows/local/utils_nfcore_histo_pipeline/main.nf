@@ -704,5 +704,15 @@ def validateParams(params) {
             "tma_core_diameter_mm must be greater than 0. Got: ${params.tma_core_diameter_mm}"
     }
 
+    // QC clusters on the mean, and a repeated statistic would write duplicate columns.
+    if (params.quantification_statistics != null) {
+        def stats = params.quantification_statistics.split(',') as List
+        assert 'mean' in stats : "quantification_statistics must include mean: QC clusters on it. " +
+            "Got: ${params.quantification_statistics}"
+        def twice = stats.findAll { s -> stats.count(s) > 1 }.unique()
+        assert !twice : "quantification_statistics lists ${twice.join(', ')} twice. " +
+            "Got: ${params.quantification_statistics}"
+    }
+
     return params
 }

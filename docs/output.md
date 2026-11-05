@@ -145,14 +145,21 @@ Cell ids are `{image}_{m}_cells_{n}` (`{image}_{m}_nuclei_{n}` for nuclei), uniq
 store: the shapes' index and the table's `obs_names` and `obs['cell_id']` are the same ids.
 `{m}_table` holds:
 
-- `X`: mean intensity per marker over the whole cell (the nucleus in a nuclei-only run), after
-  `expand_radius_ratio` if set.
-- `layers['nucleus']`, `layers['cytoplasm']` (both targets): the mean over the cell's nucleus
-  compartment (its linked nuclei, clipped to the cell) and over its cytoplasm.
-- `obs`: `region` (`{m}_cells`, or `{m}_nuclei`), `cell_id`, `area` (px², unexpanded),
-  `slide`, and `core_id` on a dearrayed TMA. With both targets also `n_nuclei` (linked nuclei),
-  `nucleus_id` (the largest), `nucleus_area` and `cytoplasm_area` (px²).
+- `X`: the statistics per marker over the whole cell (the nucleus in a nuclei-only run), after
+  `expand_radius_ratio` if set, float32. `var_names` are `{marker}_{statistic}` (`CD3_mean`);
+  `var` has columns `marker` and `statistic`. Statistics are set by `quantification_statistics`
+  (default `mean,median,std`); `std` is the population SD.
+- `layers['nucleus']`, `layers['cytoplasm']` (both targets): the same `var` over the cell's
+  nucleus compartment (its linked nuclei, clipped to the cell) and over its cytoplasm.
+- `obs`: `region` (`{m}_cells`, or `{m}_nuclei`), `cell_id`, `slide`, and `core_id` on a
+  dearrayed TMA. Shape features of the unexpanded polygon, in px and px²: `cell_area`,
+  `cell_perimeter`, `cell_circularity` (NaN below 30 px²), `cell_solidity`, `cell_eccentricity`,
+  `cell_major_axis_length`, `cell_minor_axis_length`. With both targets also `n_nuclei` (linked
+  nuclei), `nucleus_id` (the largest), `cytoplasm_area`, the same seven as `nucleus_*` over the
+  nucleus compartment, and `nc_ratio` (`nucleus_area / cell_area`). A nuclei-only run has
+  `nucleus_*` for its own rows and no `cell_*`.
 - `obsm['spatial']`: centroids of the unexpanded cells.
+- `uns['quantification']`: `statistics`, `tile_size` and `max_window_px`, the largest read window.
 - `uns['segmentation']`: the settings each segmentation was requested with, keyed by name
   (`{m}_cells`, `{m}_nuclei`). Unset options are absent; sopa's defaults applied.
   `{m}_kwargs` is kept as given, as text, in `method_kwargs_extra`. Lists such as `channels`
@@ -166,7 +173,15 @@ NaN means "not measured", 0 means "measured, nothing there":
 | Nuclei fill the cell   | `cytoplasm` NaN            | > 0            | 0                |
 | Covers no pixel centre | `X` and both layers NaN    |                |                  |
 
+Without a linked nucleus, the other `nucleus_*` shape columns and `nc_ratio` are NaN.
+
 Cells are never dropped. A cell covering no pixel centre is left out of the QC clustering.
+
+To select one statistic:
+
+```python
+adata[:, adata.var.statistic == "median"]
+```
 
 `slide` and `core_id` say where cells came from: `slide` is the sample name from the
 samplesheet, `core_id` the core (e.g. `TMA01_core001`). Runs without dearraying have no
@@ -194,6 +209,12 @@ Removed parameters stop the run at startup: `use_stardist` and every StarDist op
 `instanseg_target` (use `segment_cells`, `segment_nuclei`), `min_intensity_ratio`,
 `technology` and `aggregate_channels`. Cells crossing an image chunk edge were measured with a
 shifted mask in 1.x, so their intensities change ([CHANGELOG](../CHANGELOG.md)).
+
+#### From 2.x
+
+- `obs['area']` is `obs['cell_area']` (`nucleus_area` in a nuclei-only run).
+- Columns are per statistic: `adata[:, "CD3"]` is `adata[:, "CD3_mean"]`.
+- `X` and the layers are float32.
 
 ### QC report
 
