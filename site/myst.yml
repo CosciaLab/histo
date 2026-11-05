@@ -23,6 +23,7 @@ project:
         - file: how-it-works/linking.md
         - file: how-it-works/quantification.md
         - file: how-it-works/qc-report.md
+        - file: how-it-works/modalities.md
     - file: changelog.md
     - file: citations.md
 site:

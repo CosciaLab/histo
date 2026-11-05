@@ -40,4 +40,4 @@ Downstream:
 
 Across both:
 
-- Caveats by modality
+- [Caveats by modality](modalities.md)
