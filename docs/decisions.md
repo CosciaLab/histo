@@ -130,13 +130,10 @@ the cell holding the largest share of its area if that share is at least 0.5, a 
 go to the cell first in the frame. Nothing is dropped.
 
 **Aggregation is copied from sopa 2.2.12, with two fixes.** sopa rasterizes the exterior only,
-so a cytoplasm ring would be measured as the whole cell. And it places the mask of a cell crossing a
-dask chunk edge at the cell's bounds, not the clipped window's: the mask is shifted, so 1.x
-intensities of such cells were wrong (errors up to ~3600 units in review). Building the table
-with `TableModel.parse` keeps the cell ids sopa's `parse_table` renumbers. Also: each part of a
-MultiPolygon gets its own mask, OR-ed (an island in a lake survives); a synchronous dask
-scheduler, as tasks add into shared arrays; NaN for an empty mask. Offer both fixes
-upstream (ROADMAP).
+so a cytoplasm ring would be measured as the whole cell, and a MultiPolygon would lose all but
+one part: here holes are cut and each part gets its own mask, OR-ed (an island in a lake
+survives). Building the table with `TableModel.parse` keeps the cell ids sopa's `parse_table`
+renumbers. Empty mask: NaN. Offer the fixes upstream (ROADMAP).
 
 **NaN is "not measured", 0 "measured, nothing there".** A cell without a nucleus has NaN layers
 and `cytoplasm_area`; a cell its nuclei fill has `cytoplasm_area` 0.
@@ -153,6 +150,25 @@ Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, a
 the kwargs JSON fails sopa in every patch task.
 
 **StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
+
+## Quantification
+
+**Shapes are read in tile windows, not segmentation patches.** `patch_width_pixel` is tuned for
+segmentation, patches need not overlap enough to hold a cell, and tying the two would make
+a resource setting change the table. A shape belongs to the tile holding its centroid; the
+window grows to its pixel bounds, so a giant shape enlarges only its own. Each shape is measured
+whole, so medians and SDs are exact and `tile_size` does not change results.
+
+**The statistic menu is `mean`, `median`, `std`, `min`, `max`, `q25`, `q75`, `q90`; the default
+leaves out `min`, `max` and `q99`.** No benchmark ranks statistics for phenotyping, and the mean
+is the baseline. In a 50 px cell q99 is the max; min is mostly background and max a hot pixel
+or a bright neighbour. They are QC signals, so opt-in. `mean` is required, as QC clusters on it.
+
+**Morphology is computed on the polygons**, exactly, with no raster. Circularity depends on how
+the polygon was made (sopa smooths) and is unstable below ~30 px², so compare it within one
+method only.
+
+**Pixel units.** Areas and lengths are px and px², as `area` was. µm is on the ROADMAP's longer term, if at all.
 
 ## Containers
 

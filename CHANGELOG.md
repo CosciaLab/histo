@@ -3,7 +3,24 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v3.0.0 - [unreleased]
+
+### Breaking
+
+- Table `var_names` are `{marker}_{statistic}` (`CD3_mean`), with `var` columns `marker` and
+  `statistic`; 2.x had one column per marker. See [output.md](docs/output.md#from-2x).
+- `obs['area']` is `obs['cell_area']`.
+- `X` and the layers are float32.
+- QC reads the `mean` columns, so it needs a 3.0 table.
+
+### Added
+
+- `quantification_statistics` (default `mean,median,std`; also `min`, `max`, `q25`, `q75`,
+  `q90`) sets the statistics per marker. `mean` is required.
+- Shape features in `obs` for the cell and, where linked, the nucleus: `cell_*` and `nucleus_*`
+  area, perimeter, circularity, solidity, eccentricity and axis lengths, in px.
+- `nc_ratio`, `nucleus_area / cell_area`.
+- `uns['quantification']`: the statistics, `tile_size` and the largest read window.
 
 ### Changed
 

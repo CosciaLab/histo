@@ -10,24 +10,21 @@ Quantification, documentation, resources, segmentation defaults, learned feature
 report overhaul. Each release adds a QC report chapter for what it measures (MultiQC suits tool
 logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
 
-### 2.1: quantification of every cell from every method, then filtering
+### 3.0: quantification of every cell from every method, then filtering
 
-1. **Aggregation beyond the mean.** `AGGREGATE` writes the mean per compartment and `obs.area`
-   only. Extend `bin/aggregate_compartments.py`: per-channel quantiles and SD as `layers`;
-   perimeter, solidity, eccentricity in `obs`. Risk: memory on the WSI. 3–4 days.
-2. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
+1. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
    `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_{method}_qc.json` and the report;
    check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
-3. **Report chapters**, one per stage.
+2. **Report chapters**, one per stage.
 
-### 2.2: documentation website
+### 3.1: documentation website
 
 For curious users: one page per module with what it does and why, its tool and version, inputs,
 outputs, parameters and defaults, and an exemplar-001 figure. Generate what it can from
 `meta.yml` and the schema so it cannot drift. The repo is public, so GitHub Pages can host it.
 1–2 weeks.
 
-### 2.3: tiling and resources
+### 3.2: tiling and resources
 
 1. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
    patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
@@ -38,7 +35,7 @@ outputs, parameters and defaults, and an exemplar-001 figure. Generate what it c
    decision (decisions.md, Parameters): a value derived from the image alone is the same on any
    hardware. Needs item 1 for the cap.
 
-### 2.4: segmentation defaults
+### 3.3: segmentation defaults
 
 1. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
    regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.3.0`. Bake both
@@ -52,11 +49,11 @@ outputs, parameters and defaults, and an exemplar-001 figure. Generate what it c
 3. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
    and cytoplasm. The cellpose docs say a third channel needs retraining; item 2 tests it first.
 
-### 2.5 onward: learned features
+### 3.4 onward: learned features
 
 Nimbus, KRONOS and VirTues, one per release; Nimbus first, as its per-cell marker positivity
-feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 2.3's GPU sizing
-and 2.4's baked weights. None is in bioconda, so expect private images. Check weight licences
+feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing
+and 3.3's baked weights. None is in bioconda, so expect private images. Check weight licences
 first.
 
 ### Then: QC report overhaul
@@ -138,7 +135,7 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    `clip_limit`, and with projection max or sum. An HTML sheet, settings by crops, shows each
    row's cell count, median area and nuclei inside cells, and a params snippet to paste; a rerun
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
-   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 2.4 item 2, which sets
+   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 3.3 item 2, which sets
    the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
@@ -164,10 +161,10 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
 - **InstanSeg on GPU is capped at 10 channels.** A stopgap (`instansegGpuMaxChannels`): sopa
   runs a whole patch at once, an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near
-  70 GB. 2.3 item 1 measures GPU peaks by channels and tile area; replace the cap with a warning
+  70 GB. 3.2 item 1 measures GPU peaks by channels and tile area; replace the cap with a warning
   or a patch width that fits, and size InstanSeg's GPU tasks (CPUs, host memory) from the same runs.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (2.1 item 2). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (3.0 item 1). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** except `size_tiny`; rewrite from large-slide runs (`-with-tower`).
 
