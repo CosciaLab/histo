@@ -6,21 +6,11 @@ troubleshootability. Sizes are focused working time, estimated before the releas
 
 ## Next releases
 
-Resources, quantification, segmentation defaults, then learned features; each adds a QC report
-chapter (MultiQC suits tool logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
+Quantification, documentation, resources, segmentation defaults, learned features, then a QC
+report overhaul. Each release adds a QC report chapter for what it measures (MultiQC suits tool
+logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
 
-### 2.1: tiling and resources
-
-1. **`SEGMENT_PATCH_CELLPOSE` CPUs**: `process_single`, but used 133%.
-2. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
-   patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
-   size-profile stopgap for GPU tasks and item 1. Crops and configs are ready outside the repo.
-3. **Automatic `patch_width_pixel`.** A first step reads the image size from its metadata and picks
-   the width that gives 300–400 patches, capped for resources, logged and overridable. Reverses a
-   decision (decisions.md, Parameters): a value derived from the image alone is the same on any
-   hardware. Needs item 2 for the cap.
-
-### 2.2: quantification of every cell from every method, then filtering
+### 2.1: quantification of every cell from every method, then filtering
 
 1. **Aggregation beyond the mean.** `AGGREGATE` writes the mean per compartment and `obs.area`
    only. Extend `bin/aggregate_compartments.py`: per-channel quantiles and SD as `layers`;
@@ -30,7 +20,25 @@ chapter (MultiQC suits tool logs, not our figures). 2.0 is in the [CHANGELOG](CH
    check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
 3. **Report chapters**, one per stage.
 
-### 2.3: segmentation defaults
+### 2.2: documentation website
+
+For curious users: one page per module with what it does and why, its tool and version, inputs,
+outputs, parameters and defaults, and an exemplar-001 figure. Generate what it can from
+`meta.yml` and the schema so it cannot drift. The repo is public, so GitHub Pages can host it.
+1–2 weeks.
+
+### 2.3: tiling and resources
+
+1. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
+   patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
+   size-profile stopgap for GPU tasks and the fixed 4 CPUs for segmentation. Crops and configs
+   are ready outside the repo.
+2. **Automatic `patch_width_pixel`.** A first step reads the image size from its metadata and picks
+   the width that gives 300–400 patches, capped for resources, logged and overridable. Reverses a
+   decision (decisions.md, Parameters): a value derived from the image alone is the same on any
+   hardware. Needs item 1 for the cap.
+
+### 2.4: segmentation defaults
 
 1. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
    regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
@@ -44,11 +52,33 @@ chapter (MultiQC suits tool logs, not our figures). 2.0 is in the [CHANGELOG](CH
 3. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
    and cytoplasm. The cellpose docs say a third channel needs retraining; item 2 tests it first.
 
-### 2.4 onward: learned features
+### 2.5 onward: learned features
 
-Nimbus first, then KRONOS and VirTues, one per release. One interface: image and shapes in,
-`obs`/`obsm` out. Reuses 2.1's GPU sizing and 2.3's baked weights. None is in bioconda, so
-expect private images. Check weight licences first.
+Nimbus, KRONOS and VirTues, one per release; Nimbus first, as its per-cell marker positivity
+feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 2.3's GPU sizing
+and 2.4's baked weights. None is in bioconda, so expect private images. Check weight licences
+first.
+
+### Then: QC report overhaul
+
+Keep every metric; improve the experience. Today a sample gets one report per method plus a
+comparison page, and a TMA slide gets one per core per method plus a slide report per method,
+so channel, nuclear stain and stitching sections repeat (`QC_METRICS` also recomputes the image
+histograms per method). First list each section, what it answers and where it appears; agree a
+layout by hand (e.g. one report per sample, methods side by side, a summary first, sections in
+pipeline order); then rebuild. Comes after learned features so their chapters are included.
+
+**Cross-run dashboard with [Depictio](https://github.com/depictio/depictio)** (MIT,
+self-hosted, pre-production per its docs), for comparing runs, slides and users:
+
+1. **Summary table.** Each run writes one flat TSV/Parquet from its `_qc.json` files: cell
+   counts, areas, per-channel stats, linking, Ashlar and Coreograph status, version. Useful
+   without Depictio, which ingests tables and MultiQC, not JSON. 2–3 days.
+2. **Pilot.** `depictio local up` on the Mac with 2–3 delivered runs. ~1 day.
+3. **Server.** Needs a lab VM reachable from the ceph nodes and browsers; SLURM cannot host
+   it. The dropbox ingests a run once it is COMPLETED. Pin a version: releases are daily.
+
+Images stay in our HTML reports: Depictio shows PNG/JPG only, not OME-TIFF or Zarr.
 
 ### Separate track: dearray before Ashlar
 
@@ -102,16 +132,13 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, an H&E nuclear model, morphology features,
    no QC at first. May need a new image for a WSI reader. 3–5 weeks.
-6. **Documentation website** for curious users: one page per module with what it does and why,
-   its tool and version, inputs, outputs, parameters and defaults, and an exemplar-001 figure.
-   Generate what it can from `meta.yml` and the schema so it cannot drift. 1–2 weeks.
-7. **Segmentation preview**, so users pick settings by eye instead of worrying about optimising
+6. **Segmentation preview**, so users pick settings by eye instead of worrying about optimising
    them. A mode that stops after segmenting ~5 crops chosen to span the slide (dense, sparse,
    tissue edge, brightest cell marker) over a small grid: `cellprob_threshold`, `flow_threshold`,
    `clip_limit`, and with projection max or sum. An HTML sheet, settings by crops, shows each
    row's cell count, median area and nuclei inside cells, and a params snippet to paste; a rerun
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
-   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 2.3 item 2, which sets
+   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 2.4 item 2, which sets
    the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
@@ -141,10 +168,9 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   GPU memory: an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near 70 GB. Measure GPU
   peaks and warn against those, not `instansegMemoryGB`.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (2.2 item 2). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (2.1 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** except `size_tiny`; rewrite from large-slide runs (`-with-tower`).
-- **H&E is not supported**; only `ome_tif` mIF input.
 
 ### Tooling
 
@@ -162,6 +188,7 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### From 2.0
 
+- **Exemplar baselines are null** until 2.0's cluster runs, so the count checks are skipped.
 - **Repair geometry once in `RESOLVE`** (`make_valid`, polygonal parts), so `{m}_cells` and
   `{m}_nuclei` areas agree with the linking's; `LINK_COMPARTMENTS`' repair becomes a safety net.
 - **`uns['segmentation']` records the requested spec**, not sopa's defaults filled in later.
@@ -191,7 +218,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **`groupKey` for the cycle regroup.**
 - **A `reference_dna` marker sheet column.** The sheet is already wide. Instead, the run stops
   when the Ashlar or Coreograph channel index is not `dna` (`skip_reference_dna_check` overrides).
-- **A soft QC gate** (`qc_summary.tsv`). Few samples; each user reads their own QC report.
+- **A soft QC gate.** Few samples; each user reads their own QC report. The summary table
+  is planned (QC report overhaul); failing on it is not.
 - **A run-level resource QC script.** Seqera Platform (`-with-tower`) shows retries and memory.
 - **Running the exemplar nf-tests on the cluster.** Releases are checked by hand; revisit with
   more contributors.
