@@ -1,5 +1,5 @@
 // use_gpu under -stub: conf/gpu.config is included and the pipeline still wires up. The GPU
-// request, --nv and the CUDA check only act on a real cluster run.
+// request, --nv and the CUDA check only act on a real cluster run, for Cellpose and InstanSeg.
 
 nextflow_pipeline {
 
@@ -34,7 +34,7 @@ nextflow_pipeline {
         }
     }
 
-    test("use_gpu with InstanSeg runs it on CPU and says so") {
+    test("use_gpu with InstanSeg runs both methods once per patch, without the CPU fallback") {
 
         when {
             params {
@@ -56,7 +56,7 @@ nextflow_pipeline {
                 { assert workflow.success },
                 { assert names("SEGMENT_PATCH_CELLPOSE").size() == 2 },
                 { assert names("SEGMENT_PATCH_INSTANSEG").size() == 2 },
-                { assert log.contains("use_gpu applies to Cellpose; InstanSeg runs on CPU (sopa cannot run it on CUDA yet)") }
+                { assert !log.contains("InstanSeg runs on CPU") }
             )
         }
     }

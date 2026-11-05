@@ -248,7 +248,7 @@
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "One GPU per Cellpose patch task. Cluster only; InstanSeg runs on CPU."
+                    "description": "One GPU per Cellpose and InstanSeg patch task. Cluster only; InstanSeg then takes at most 10 channels."
                 }
             },
             "fa_icon": "far fa-square"

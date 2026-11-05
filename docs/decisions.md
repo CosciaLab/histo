@@ -98,9 +98,9 @@ one exemplar core, 2 channels peaked at 15 GB and 37 at 130 GB. See `instansegMe
 GPU tasks are, as a stopgap: larger slides usually get larger patches. A tile-size benchmark
 replaces both (ROADMAP).
 
-**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on Cellpose patch tasks,
-and `SEGMENT_PATCH` derives the device from it, so the two cannot disagree. InstanSeg stays on
-CPU until sopa's wrapper works on CUDA (ROADMAP).
+**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on Cellpose and InstanSeg
+patch tasks, and `SEGMENT_PATCH` derives the device from it, so the two cannot disagree. InstanSeg
+on GPU is capped at 10 channels, checked at startup, until its GPU memory is measured (ROADMAP).
 The SLURM executor ignores `accelerator`, so `slurm` and `mdc` translate it into `--gres`. MDC asks
 for A40s: the sopa image's CUDA 13 has no V100 kernels, and only A40 nodes have Ceph. A CUDA check
 fails the task, since cellpose falls back to CPU silently.

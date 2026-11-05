@@ -238,6 +238,46 @@ nextflow_function {
         }
     }
 
+    test("with use_gpu, InstanSeg's default of 11 channels is rejected before stitching") {
+        when {
+            params {
+                use_backsub = false
+                use_instanseg = true
+                use_gpu = true
+            }
+            function {
+                """
+                input[0] = [ [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna' ] ] +
+                    (2..11).collect { [ channel_number: it, cycle_number: 1, marker_name: "M\$it", channel_role: 'marker' ] }
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("11 channels") && it.contains("at most 10") && it.contains("instanseg_channels") }
+        }
+    }
+
+    test("with use_gpu and backsub, removed channels do not count towards InstanSeg's 10") {
+        when {
+            params {
+                use_backsub = true
+                use_instanseg = true
+                use_gpu = true
+            }
+            function {
+                """
+                input[0] = [ [ channel_number: 1, cycle_number: 1, marker_name: 'DAPI', channel_role: 'dna', exposure: 100 ] ] +
+                    (2..11).collect { [ channel_number: it, cycle_number: 1, marker_name: "M\$it", channel_role: 'marker',
+                                        exposure: 100, remove: it == 11 ] }
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
     test("without backsub, remove is accepted with a warning that it does nothing") {
         when {
             params {

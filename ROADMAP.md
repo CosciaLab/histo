@@ -162,11 +162,10 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
-- **`use_gpu` applies to Cellpose only; InstanSeg runs on CPU.** sopa calls `.numpy()` on its
-  CUDA tensor without `.cpu()` (`sopa/segmentation/methods/_instanseg.py`, 2.2.12 and main).
-  Report upstream; once fixed, give InstanSeg the GPU (`conf/gpu.config`) and size patches for
-  GPU memory: an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near 70 GB. Measure GPU
-  peaks and warn against those, not `instansegMemoryGB`.
+- **InstanSeg on GPU is capped at 10 channels.** A stopgap (`instansegGpuMaxChannels`): sopa
+  runs a whole patch at once, an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near
+  70 GB. Measure GPU peaks by channels and patch width, then replace the cap with a warning or a
+  patch width that fits, and size InstanSeg's GPU tasks (CPUs, host memory) from the same runs.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
   sopa's CLI uses 0. Filtering belongs after aggregation (2.1 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
