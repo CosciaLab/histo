@@ -12,6 +12,20 @@ project:
         - file: vignettes/tma.md
         - file: vignettes/prestitched.md
         - file: vignettes/stitching-only.md
+    - title: How-to guides
+      children:
+        - file: how-to/how-to.md
+        - file: how-to/input-sheets.md
+        - file: how-to/segmentation-choices.md
+        - file: how-to/use-projection.md
+        - file: how-to/patch-width.md
+        - file: how-to/gpu.md
+        - file: how-to/tissue-segmentation.md
+        - file: how-to/illumination-profiles.md
+        - file: how-to/fix-stitching.md
+        - file: how-to/resume-debug.md
+        - file: how-to/offline-containers.md
+        - file: how-to/load-in-python.md
     - file: reference/usage.md
     - file: reference/parameters.md
     - file: reference/samplesheet.md
