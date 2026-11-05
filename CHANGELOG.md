@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Documentation website (MyST, GitHub Pages): vignettes, how-to guides, how-it-works pages,
+  outputs and visual QC, and a parameter reference generated from the schema. Parameter rules
+  (requires, conflicts, ignored unless) are in the schema `help_text`.
 - `quantification_statistics` (default `mean,median,std`; also `min`, `max`, `q25`, `q75`,
   `q90`) sets the statistics per marker. `mean` is required.
 - Shape features in `obs` for the cell and, where linked, the nucleus: `cell_*` and `nucleus_*`

@@ -19,10 +19,15 @@ logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
 
 ### 3.1: documentation website
 
-For curious users: one page per module with what it does and why, its tool and version, inputs,
-outputs, parameters and defaults, and an exemplar-001 figure. Generate what it can from
-`meta.yml` and the schema so it cannot drift. The repo is public, so GitHub Pages can host it.
-1–2 weeks.
+The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What remains:
+
+1. **Figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
+   screenshots.
+2. **Odon.** Document it on the visual-QC page.
+3. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
+   (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
+   `docs/output.md` calls the profiles "fitted".
+4. **Pages.** Set GitHub Pages source to "GitHub Actions" in the repo settings (one-time, owner).
 
 ### 3.2: tiling and resources
 

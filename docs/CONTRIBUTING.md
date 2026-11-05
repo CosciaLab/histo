@@ -17,7 +17,8 @@ a GitHub issue; contact the maintainer if you want to use it.
 ## Testing
 
 Four tiers, cheapest first. CI runs unit tests and `--tag stub,validation`; neither needs a
-container. `tests/nextflow.config` caps tasks at 2 CPUs and 6 GB to fit the GitHub runner.
+container. `tests/nextflow.config` caps tasks at 2 CPUs and 6 GB to fit the GitHub runner. The docs site
+build and link check also run in CI (see [Docs site](#docs-site)).
 
 ### Before committing
 
@@ -185,6 +186,25 @@ offers no AVX instructions. Checked on 2026-10-29:
 So a real run on the Mac is possible only for the partial path: a stitched image, or tiles
 with illumination profiles from a cluster run, then Cellpose or InstanSeg, without dearraying.
 Expect small numerical differences (no AVX). The cluster is the reference.
+
+## Docs site
+
+The site in `site/` is built with MyST and deployed to GitHub Pages from `main`; CI builds it
+and checks links on every PR.
+
+```bash
+uv run tools/site_reference.py && cd site && npm ci && BASE_URL=/histo npm run build && npm run check
+npx myst start    # live preview, from site/
+```
+
+- Reference pages come from the schema, `meta.yml` and `containers.tsv`. Do not edit
+  `site/_generated/`.
+- Every factual paragraph has a `% source:` comment.
+- Filenames are unique: MyST flattens URLs. Section landing pages are `<section>/<section>.md`.
+- Paper figures only under CC BY, with the licence in the caption and a row in `site/FIGURES.md`.
+- Parameter rules (**Requires**, **Conflicts**, **Ignored unless**) go in the schema `help_text`;
+  `tests/unit/test_schema_rules.py` checks coverage.
+- At release, bump the `-r vX.Y.Z` strings in `site/` (`grep -rn -- '-r v' site`).
 
 ## Metro map
 
