@@ -4,6 +4,14 @@ project:
   github: https://github.com/CosciaLab/histo
   toc:
     - file: index.md
+    - title: Vignettes
+      children:
+        - file: vignettes/vignettes.md
+        - file: vignettes/mif-slide.md
+        - file: vignettes/wsi-backsub.md
+        - file: vignettes/tma.md
+        - file: vignettes/prestitched.md
+        - file: vignettes/stitching-only.md
     - file: reference/usage.md
     - file: reference/parameters.md
     - file: reference/samplesheet.md
