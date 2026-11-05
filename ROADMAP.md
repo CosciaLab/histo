@@ -68,6 +68,18 @@ histograms per method). First list each section, what it answers and where it ap
 layout by hand (e.g. one report per sample, methods side by side, a summary first, sections in
 pipeline order); then rebuild. Comes after learned features so their chapters are included.
 
+**Cross-run dashboard with [Depictio](https://github.com/depictio/depictio)** (MIT,
+self-hosted, pre-production per its docs), for comparing runs, slides and users:
+
+1. **Summary table.** Each run writes one flat TSV/Parquet from its `_qc.json` files: cell
+   counts, areas, per-channel stats, linking, Ashlar and Coreograph status, version. Useful
+   without Depictio, which ingests tables and MultiQC, not JSON. 2–3 days.
+2. **Pilot.** `depictio local up` on the Mac with 2–3 delivered runs. ~1 day.
+3. **Server.** Needs a lab VM reachable from the ceph nodes and browsers; SLURM cannot host
+   it. The dropbox ingests a run once it is COMPLETED. Pin a version: releases are daily.
+
+Images stay in our HTML reports: Depictio shows PNG/JPG only, not OME-TIFF or Zarr.
+
 ### Separate track: dearray before Ashlar
 
 Ships in 3.0: it changes the preprocessing outputs. Likely to change, as is Longer term item 4.
@@ -206,7 +218,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **`groupKey` for the cycle regroup.**
 - **A `reference_dna` marker sheet column.** The sheet is already wide. Instead, the run stops
   when the Ashlar or Coreograph channel index is not `dna` (`skip_reference_dna_check` overrides).
-- **A soft QC gate** (`qc_summary.tsv`). Few samples; each user reads their own QC report.
+- **A soft QC gate.** Few samples; each user reads their own QC report. The summary table
+  is planned (QC report overhaul); failing on it is not.
 - **A run-level resource QC script.** Seqera Platform (`-with-tower`) shows retries and memory.
 - **Running the exemplar nf-tests on the cluster.** Releases are checked by hand; revisit with
   more contributors.
