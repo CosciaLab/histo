@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 200" font-family="sans-serif" font-size="12">
+  <rect width="480" height="200" fill="#ffffff"/>
+  <!-- overlap band -->
+  <rect x="140" y="40" width="40" height="120" fill="#e4e4e4"/>
+  <!-- patches -->
+  <rect x="20" y="40" width="160" height="120" fill="none" stroke="#1f6fb4" stroke-width="2"/>
+  <rect x="140" y="40" width="160" height="120" fill="none" stroke="#c4510a" stroke-width="2" stroke-dasharray="6 4"/>
+  <text x="22" y="32" fill="#1f6fb4">patch 1</text>
+  <text x="298" y="32" fill="#c4510a" text-anchor="end">patch 2</text>
+  <text x="160" y="178" fill="#444444" text-anchor="middle">overlap</text>
+  <!-- cells seen by one patch -->
+  <g fill="none" stroke="#1f6fb4" stroke-width="2">
+    <circle cx="60" cy="80" r="12"/>
+    <circle cx="95" cy="125" r="13"/>
+    <circle cx="50" cy="135" r="10"/>
+  </g>
+  <g fill="none" stroke="#c4510a" stroke-width="2" stroke-dasharray="4 3">
+    <circle cx="230" cy="75" r="12"/>
+    <circle cx="265" cy="125" r="13"/>
+    <circle cx="220" cy="135" r="11"/>
+  </g>
+  <!-- one cell in the overlap, found by both patches -->
+  <circle cx="157" cy="95" r="14" fill="none" stroke="#1f6fb4" stroke-width="2"/>
+  <circle cx="163" cy="98" r="14" fill="none" stroke="#c4510a" stroke-width="2" stroke-dasharray="4 3"/>
+  <!-- resolve -->
+  <line x1="315" y1="100" x2="355" y2="100" stroke="#444444" stroke-width="2"/>
+  <polygon points="355,94 365,100 355,106" fill="#444444"/>
+  <text x="340" y="88" fill="#444444" text-anchor="middle">resolve</text>
+  <circle cx="397" cy="98" r="14" fill="none" stroke="#111111" stroke-width="4"/>
+  <circle cx="403" cy="101" r="14" fill="none" stroke="#111111" stroke-width="4"/>
+  <circle cx="397" cy="98" r="14" fill="#d9d9d9"/>
+  <circle cx="403" cy="101" r="14" fill="#d9d9d9"/>
+  <text x="400" y="138" fill="#111111" text-anchor="middle">one cell</text>
+  <text x="400" y="154" fill="#444444" text-anchor="middle">(the union)</text>
+</svg>

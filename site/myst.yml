@@ -15,6 +15,14 @@ project:
         - file: how-it-works/ashlar.md
         - file: how-it-works/coreograph.md
         - file: how-it-works/backsub.md
+        - file: how-it-works/spatialdata.md
+        - file: how-it-works/tiling.md
+        - file: how-it-works/cellpose.md
+        - file: how-it-works/instanseg.md
+        - file: how-it-works/projection.md
+        - file: how-it-works/linking.md
+        - file: how-it-works/quantification.md
+        - file: how-it-works/qc-report.md
     - file: changelog.md
     - file: citations.md
 site:

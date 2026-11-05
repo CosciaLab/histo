@@ -29,14 +29,14 @@ Preprocessing:
 
 Downstream:
 
-- SpatialData
-- Tiling
-- Cellpose
-- InstanSeg
-- Channel projection
-- Linking nuclei and cells
-- Quantification
-- QC report
+- [Data on disk: SpatialData](spatialdata.md)
+- [Tiled segmentation: sopa](tiling.md)
+- [Cell segmentation: Cellpose](cellpose.md)
+- [Cell segmentation: InstanSeg](instanseg.md)
+- [Channel projection](projection.md)
+- [Linking nuclei and cells](linking.md)
+- [Quantification](quantification.md)
+- [QC report](qc-report.md)
 
 Across both:
 
