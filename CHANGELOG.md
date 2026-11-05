@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Table `var_names` are `{marker}_{statistic}` (`CD3_mean`), with `var` columns `marker` and
   `statistic`; 2.x had one column per marker. See [output.md](docs/output.md#from-2x).
-- `obs['area']` is `obs['cell_area']`.
+- `obs['area']` is `obs['cell_area']` (`nucleus_area` in a nuclei-only run).
 - `X` and the layers are float32.
 - QC reads the `mean` columns, so it needs a 3.0 table.
 

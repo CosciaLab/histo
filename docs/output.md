@@ -173,6 +173,8 @@ NaN means "not measured", 0 means "measured, nothing there":
 | Nuclei fill the cell   | `cytoplasm` NaN            | > 0            | 0                |
 | Covers no pixel centre | `X` and both layers NaN    |                |                  |
 
+Without a linked nucleus, the other `nucleus_*` shape columns and `nc_ratio` are NaN.
+
 Cells are never dropped. A cell covering no pixel centre is left out of the QC clustering.
 
 To select one statistic:
@@ -210,7 +212,7 @@ shifted mask in 1.x, so their intensities change ([CHANGELOG](../CHANGELOG.md)).
 
 #### From 2.x
 
-- `obs['area']` is `obs['cell_area']`.
+- `obs['area']` is `obs['cell_area']` (`nucleus_area` in a nuclei-only run).
 - Columns are per statistic: `adata[:, "CD3"]` is `adata[:, "CD3_mean"]`.
 - `X` and the layers are float32.
 

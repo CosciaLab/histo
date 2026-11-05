@@ -130,8 +130,8 @@ the cell holding the largest share of its area if that share is at least 0.5, a 
 go to the cell first in the frame. Nothing is dropped.
 
 **Aggregation is copied from sopa 2.2.12, with two fixes.** sopa rasterizes the exterior only,
-so a cytoplasm ring would be measured as the whole cell, and a MultiPolygon would lose all but
-one part: here holes are cut and each part gets its own mask, OR-ed (an island in a lake
+so a cytoplasm ring would be measured as the whole cell, and one part's hole could erase
+another part: here holes are cut and each part gets its own mask, OR-ed (an island in a lake
 survives). Building the table with `TableModel.parse` keeps the cell ids sopa's `parse_table`
 renumbers. Empty mask: NaN. Offer the fixes upstream (ROADMAP).
 
@@ -156,7 +156,7 @@ the kwargs JSON fails sopa in every patch task.
 **Shapes are read in tile windows, not segmentation patches.** `patch_width_pixel` is tuned for
 segmentation, patches need not overlap enough to hold a cell, and tying the two would make
 a resource setting change the table. A shape belongs to the tile holding its centroid; the
-window grows to its pixel bounds, so a giant shape enlarges only its own. Each shape is measured
+window grows to its pixel bounds, so a giant shape enlarges only its tile's window. Each shape is measured
 whole, so medians and SDs are exact and `tile_size` does not change results.
 
 **The statistic menu is `mean`, `median`, `std`, `min`, `max`, `q25`, `q75`, `q90`; the default

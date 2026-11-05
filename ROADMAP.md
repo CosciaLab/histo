@@ -180,7 +180,7 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
   then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
 - **Offer upstream to sopa** (decisions.md, Segmentation): `--image-key` for staining
-  segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize; chunk-edge mask origin.
+  segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize.
 
 ### From 2.0
 
