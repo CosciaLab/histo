@@ -6,7 +6,7 @@ This document describes the output produced by the pipeline.
 
 ## What runs
 
-The three routes drawn as the metro map in the [README](../README.md#steps). Everything else is
+The three routes drawn as the metro map in the [README](https://github.com/CosciaLab/histo/blob/dev/README.md#steps). Everything else is
 off by default. Each column's segmentation is an example: any methods and targets fit any route.
 
 Read down a column to get one run's process list, in order. The QC steps and
@@ -208,7 +208,7 @@ step that writes to the store.
 Removed parameters stop the run at startup: `use_stardist` and every StarDist option,
 `instanseg_target` (use `segment_cells`, `segment_nuclei`), `min_intensity_ratio`,
 `technology` and `aggregate_channels`. Cells crossing an image chunk edge were measured with a
-shifted mask in 1.x, so their intensities change ([CHANGELOG](../CHANGELOG.md)).
+shifted mask in 1.x, so their intensities change ([CHANGELOG](https://github.com/CosciaLab/histo/blob/dev/CHANGELOG.md)).
 
 #### From 2.x
 

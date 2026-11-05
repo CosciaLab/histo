@@ -1,0 +1,14 @@
+version: 1
+project:
+  title: CosciaLab/histo
+  github: https://github.com/CosciaLab/histo
+  toc:
+    - file: index.md
+    - file: reference/usage.md
+    - file: reference/output.md
+    - file: changelog.md
+    - file: citations.md
+site:
+  template: book-theme
+  options:
+    logo_text: histo
