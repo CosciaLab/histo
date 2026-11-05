@@ -5,6 +5,8 @@ project:
   toc:
     - file: index.md
     - file: reference/usage.md
+    - file: reference/parameters.md
+    - file: reference/samplesheet.md
     - file: reference/output.md
     - file: changelog.md
     - file: citations.md

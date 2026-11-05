@@ -23,9 +23,8 @@ jobs:
           cache: npm
           cache-dependency-path: site/package-lock.json
       - uses: astral-sh/setup-uv@v6
-      # Guarded until tools/site_reference.py lands (Task 2), then unguarded.
       - name: Generate reference pages
-        run: if [ -f tools/site_reference.py ]; then uv run tools/site_reference.py; fi
+        run: uv run tools/site_reference.py
       - name: Install
         working-directory: site
         run: npm ci
@@ -51,7 +50,7 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - uses: astral-sh/setup-uv@v6
       - name: Generate reference pages
-        run: if [ -f tools/site_reference.py ]; then uv run tools/site_reference.py; fi
+        run: uv run tools/site_reference.py
       - working-directory: site
         run: npm ci
       - name: Check links

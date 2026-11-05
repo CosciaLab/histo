@@ -32,6 +32,8 @@ dependencies = []
 # pandas is needed by bin/merge_spatialdata.py, not by the tests directly.
 dev = [
     "pytest>=8",
+    # read by tools/site_reference.py
+    "pyyaml>=6",
     "numpy>=1.26",
     "pandas>=2",
     "zarr>=3",
