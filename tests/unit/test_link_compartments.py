@@ -136,11 +136,25 @@ def aggregate_links(c, out, tmp_path):
     pytest.importorskip("spatialdata", reason="needs spatialdata")
     import anndata as ad
     import numpy as np
-    from aggregate_compartments import build_table
+    from aggregate_compartments import build_table, obs_columns, stat_var
 
     write_linked(out, "m", tmp_path / "linked")
     links = pd.read_parquet(tmp_path / "linked" / "m_links.parquet").reindex(c.index)
-    table = build_table(c, np.zeros((len(c), 1)), ["ch0"], {}, links, "m_cells", "slide", None, [])
+    compartment = gpd.read_parquet(tmp_path / "linked" / "m_nucleus_compartment.parquet")
+    obs_extra = obs_columns(c, "cells", compartment, links)
+    quantification = {"statistics": ["mean"], "tile_size": 2048, "max_window_px": 0}
+    table = build_table(
+        c,
+        np.zeros((len(c), 1)),
+        stat_var(["ch0"], ["mean"]),
+        {},
+        obs_extra,
+        "m_cells",
+        "slide",
+        None,
+        [],
+        quantification,
+    )
     table.write_h5ad(tmp_path / "table.h5ad")
     return ad.read_h5ad(tmp_path / "table.h5ad").obs
 

@@ -8,8 +8,10 @@ from aggregate_compartments import (
     compartment_layer,
     label_cells,
     measure_intensities,
+    obs_columns,
     parse_statistics,
     rasterize,
+    stat_var,
 )
 
 pd = pytest.importorskip("pandas", reason="needs pandas")
@@ -233,13 +235,14 @@ def table(**kw):
     args = dict(
         cells=three_cells(),
         x=np.ones((3, 2)),
-        var_names=["DAPI", "CD3"],
+        var=stat_var(["DAPI", "CD3"], ["mean"]),
         layers={},
         obs_extra=None,
         region="cellpose_cells",
         slide="TMA01",
         core_id=None,
         specs=[SPEC],
+        quantification={"statistics": ["mean"], "tile_size": 2048, "max_window_px": 10},
     )
     args.update(kw)
     return build_table(**args)
@@ -250,13 +253,13 @@ class TestBuildTable:
         t = table()
         assert list(t.obs_names) == ["a_0", "a_1", "a_2"]
         assert list(t.obs["cell_id"]) == ["a_0", "a_1", "a_2"]
-        assert list(t.var_names) == ["DAPI", "CD3"]
+        assert list(t.var_names) == ["DAPI_mean", "CD3_mean"]
 
     def test_sopa_obs_columns(self):
         t = table()
         assert isinstance(t.obs["region"].dtype, pd.CategoricalDtype)
         assert list(t.obs["region"].unique()) == ["cellpose_cells"]
-        np.testing.assert_allclose(t.obs["area"], [16, 16, 16])
+        assert "area" not in t.obs
         assert t.obsm["spatial"].shape == (3, 2)
         np.testing.assert_allclose(t.obsm["spatial"][0], [2, 2])
 
@@ -303,9 +306,74 @@ class TestBuildTable:
         assert back.uns["segmentation"]["cellpose_cells"]["diameter"] == 30
         assert list(back.obs_names) == ["a_0", "a_1", "a_2"]
 
+    def test_uns_quantification(self, tmp_path):
+        import anndata as ad
+
+        t = table()
+        t.write_h5ad(tmp_path / "t.h5ad")
+        q = ad.read_h5ad(tmp_path / "t.h5ad").uns["quantification"]
+        assert list(q["statistics"]) == ["mean"]
+        assert q["tile_size"] == 2048 and q["max_window_px"] == 10
+
+    def test_x_float32(self):
+        t = table(layers={"nucleus": np.zeros((3, 2))})
+        assert t.X.dtype == np.float32 and t.layers["nucleus"].dtype == np.float32
+
+    def test_var_columns(self):
+        assert list(table().var.columns) == ["marker", "statistic"]
+
     def test_mismatched_rows_refused(self):
         with pytest.raises(ValueError, match="rows"):
             table(x=np.ones((2, 2)))
+
+
+def test_stat_var_marker_with_underscore():
+    v = stat_var(["DAPI", "CD45_RO"], ["mean", "std"])
+    assert list(v.index) == ["DAPI_mean", "CD45_RO_mean", "DAPI_std", "CD45_RO_std"]
+    assert list(v["marker"]) == ["DAPI", "CD45_RO", "DAPI", "CD45_RO"]
+    assert list(v["statistic"]) == ["mean", "mean", "std", "std"]
+
+
+class TestObsColumns:
+    SUFFIXES = [
+        "area",
+        "perimeter",
+        "circularity",
+        "solidity",
+        "eccentricity",
+        "major_axis_length",
+        "minor_axis_length",
+    ]
+
+    def test_cells_only(self):
+        out = obs_columns(three_cells(), "cells", None, None)
+        assert list(out.columns) == [f"cell_{s}" for s in self.SUFFIXES]
+        assert out["cell_area"].iloc[0] == pytest.approx(16)
+
+    def test_with_links(self):
+        cells = frame([box(0, 0, 10, 10), box(20, 20, 30, 30)], ["a_0", "a_1"])
+        nuc = frame([Polygon([(1, 1), (7, 1), (7, 4), (1, 4)])], ["a_0"])
+        links = pd.DataFrame(
+            {
+                "n_nuclei": [1, 0],
+                "nucleus_id": pd.array(["n_0", None], dtype="string"),
+                "nucleus_area": [18.0, 0.0],
+                "cytoplasm_area": [82.0, np.nan],
+            },
+            index=cells.index,
+        )
+        out = obs_columns(cells, "cells", nuc, links)
+        assert np.isfinite(out["nucleus_eccentricity"].iloc[0])
+        assert out["nc_ratio"].iloc[0] == pytest.approx(
+            out["nucleus_area"].iloc[0] / out["cell_area"].iloc[0]
+        )
+        assert out["nucleus_area"].iloc[1] == 0
+        assert np.isnan(out["nc_ratio"].iloc[1]) and np.isnan(out["nucleus_circularity"].iloc[1])
+        assert list(out["n_nuclei"]) == [1, 0]
+
+    def test_nuclei_only(self):
+        out = obs_columns(three_cells(), "nuclei", None, None)
+        assert list(out.columns) == [f"nucleus_{s}" for s in self.SUFFIXES]
 
 
 def sopa_obs(n=3):
@@ -366,13 +434,14 @@ class TestCompartmentsFromLinks:
         t = build_table(
             cells,
             measure_intensities(image, cells, ["mean"])[0],
-            ["ch0"],
+            stat_var(["ch0"], ["mean"]),
             layers,
-            linked.links,
+            obs_columns(cells, "cells", linked.nucleus_compartment, linked.links),
             "m_cells",
             "S1",
             None,
             [SPEC],
+            {"statistics": ["mean"], "tile_size": 2048, "max_window_px": 10},
         )
         # The h5ad round trip is where all-NA id columns used to fail.
         t.write_h5ad(tmp_path / "t.h5ad")
@@ -419,3 +488,14 @@ class TestArgs:
 
         with pytest.raises(SystemExit):
             parse_args([*REQUIRED, "--shapes", "n.parquet", "--target", "nuclei", "--cytoplasm", "c.parquet"])
+
+    def test_parse_args_rejects_bad_statistics(self):
+        from aggregate_compartments import parse_args
+
+        with pytest.raises(SystemExit):
+            parse_args([*REQUIRED, "--shapes", "m_cells.parquet", "--statistics", "median"])
+
+    def test_statistics_default(self):
+        from aggregate_compartments import parse_args
+
+        assert parse_args([*REQUIRED, "--shapes", "m_cells.parquet"]).statistics == "mean,median,std"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-cell marker intensity statistics, one AnnData table per method, written to a file.
 
-Statistics (mean, median, std, min, max, q25, q75, q90) are computed per cell and marker from
+Statistics (mean, median, std, min, max, q25, q75, q90; --statistics) are computed per cell and marker from
 all of the cell's pixels, read in tile windows so size does not limit the image. `rasterize` and
 `pixel_outer_bounds` are copied from sopa 2.2.12 (BSD 3-Clause, licence below); `rasterize` honours
 polygon holes, so a cytoplasm ring is not measured as the whole cell.
@@ -9,7 +9,7 @@ The store is only read; a later step writes the table into it.
 
 Optional compartments (nucleus, cytoplasm) become layers of the same table. Their parquets
 are indexed by cell id; cells absent from them get NaN. `--links` is a parquet of per-cell
-columns indexed by cell id (for example n_nuclei), joined into obs.
+columns indexed by cell id (for example n_nuclei), joined into obs with shape features and nc_ratio.
 
 
 BSD 3-Clause License
@@ -196,9 +196,44 @@ def specs_by_name(specs: list[dict]) -> dict:
     return {s["name"]: {k: v for k, v in s.items() if v is not None} for s in specs}
 
 
-def build_table(cells, x, var_names, layers, obs_extra, region, slide, core_id, specs):
+def stat_var(markers: list[str], statistics: list[str]):
+    """var for X and layers: statistic-major, named {marker}_{statistic}; read `marker`/`statistic`, never parse the name."""
+    import pandas as pd
+
+    rows = [(m, s) for s in statistics for m in markers]
+    return pd.DataFrame(
+        {"marker": [m for m, _ in rows], "statistic": [s for _, s in rows]},
+        index=pd.Index([f"{m}_{s}" for m, s in rows]),
+    )
+
+
+def obs_columns(cells, target, nucleus_compartment, links):
+    """Morphology (always of the unexpanded shapes) plus links, indexed like `cells`."""
+    import numpy as np
+    import pandas as pd
+
+    from measure_shapes import shape_features
+
+    if target == "nuclei":
+        return shape_features(cells.geometry.tolist(), cells.index, "nucleus")
+    out = shape_features(cells.geometry.tolist(), cells.index, "cell")
+    if links is None:
+        return out
+    # nucleus_area keeps its links meaning (0 without a nucleus); shape_features gives the other six
+    compartment = nucleus_compartment.reindex(cells.index)
+    nucleus = shape_features(compartment.geometry.tolist(), cells.index, "nucleus").drop(
+        columns="nucleus_area"
+    )
+    out = pd.concat([out, links.reindex(cells.index), nucleus], axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out["nc_ratio"] = np.where(out["n_nuclei"] > 0, out["nucleus_area"] / out["cell_area"], np.nan)
+    return out
+
+
+def build_table(cells, x, var, layers, obs_extra, region, slide, core_id, specs, quantification):
     """AnnData with sopa's obs columns, obs_names = cell index unchanged, parsed as a SpatialData table."""
-    # area and obsm['spatial'] describe the cells as given (unexpanded); sopa used the expanded ones
+    # obsm['spatial'] describes the cells as given (unexpanded); sopa used the expanded ones
+    import numpy as np
     import pandas as pd
     from anndata import AnnData
     from spatialdata.models import TableModel
@@ -211,15 +246,16 @@ def build_table(cells, x, var_names, layers, obs_extra, region, slide, core_id, 
     obs["region"] = pd.Series(region, index=names, dtype="category")
     obs = label_cells(obs, slide, core_id)
     obs["cell_id"] = names
-    obs["area"] = cells.area.values
     if obs_extra is not None:
         obs = obs.join(obs_extra.set_axis(obs_extra.index.astype(str)))
 
-    adata = AnnData(x, obs=obs, var=pd.DataFrame(index=list(var_names)))
+    # the one place dtype is fixed: float32 halves the table
+    adata = AnnData(np.asarray(x, dtype=np.float32), obs=obs, var=var)
     for name, layer in layers.items():
-        adata.layers[name] = layer
+        adata.layers[name] = np.asarray(layer, dtype=np.float32)
     adata.obsm["spatial"] = cells.centroid.get_coordinates().values.reshape(len(cells), 2)
     adata.uns["segmentation"] = specs_by_name(specs)
+    adata.uns["quantification"] = quantification
 
     return TableModel.parse(adata, region=region, region_key="region", instance_key="cell_id")
 
@@ -267,10 +303,19 @@ def parse_args(argv=None):
         type=float,
         default=0,
         help="expand the measured objects (--shapes: cells, or nuclei in a nuclei-only run) for X only, "
-        "not the layers; obs area and obsm spatial stay unexpanded",
+        "not the layers; obs morphology and obsm spatial stay unexpanded",
+    )
+    parser.add_argument(
+        "--statistics",
+        default="mean,median,std",
+        help=f"comma-separated per-cell statistics, must include mean; from {', '.join(STATISTICS)}",
     )
     parser.add_argument("--output", required=True, help="h5ad file to write")
     args = parser.parse_args(argv)
+    try:
+        parse_statistics(args.statistics)
+    except ValueError as e:
+        parser.error(str(e))
     if args.target == "nuclei" and (args.nuclei_compartment or args.cytoplasm or args.links):
         parser.error("--nuclei-compartment, --cytoplasm and --links need --target cells")
     return args
@@ -287,40 +332,47 @@ def main() -> int:
 
     from resolve_segmentation import store_image_key
 
+    statistics = parse_statistics(args.statistics)
     specs = json.loads(Path(args.specs).read_text())
     image_key = store_image_key(args.sdata)
     sdata = sd.read_zarr(args.sdata)
     image = get_spatial_image(sdata, image_key)
-    var_names = [str(c) for c in image.coords["c"].values]
+    markers = [str(c) for c in image.coords["c"].values]
 
     # RESOLVE shapes are already in this image's pixel coordinates (identity transform).
     cells = gpd.read_parquet(args.shapes)
     measured = expand_radius(cells, args.expand_radius_ratio)
-    x = measure_intensities(image, measured, ["mean"])[0]
+    x, window = measure_intensities(image, measured, statistics)
 
     layers = {}
-    if args.nuclei_compartment:
-        layers["nucleus"] = compartment_layer(
-            image, gpd.read_parquet(args.nuclei_compartment), cells, ["mean"]
-        )[0]
-    if args.cytoplasm:
-        layers["cytoplasm"] = compartment_layer(image, gpd.read_parquet(args.cytoplasm), cells, ["mean"])[0]
-    obs_extra = pd.read_parquet(args.links).reindex(cells.index) if args.links else None
+    windows = [window]
+    nucleus_compartment = gpd.read_parquet(args.nuclei_compartment) if args.nuclei_compartment else None
+    for name, shapes in (
+        ("nucleus", nucleus_compartment),
+        ("cytoplasm", gpd.read_parquet(args.cytoplasm) if args.cytoplasm else None),
+    ):
+        if shapes is not None:
+            layers[name], w = compartment_layer(image, shapes, cells, statistics)
+            windows.append(w)
+    links = pd.read_parquet(args.links) if args.links else None
+    obs_extra = obs_columns(cells, args.target, nucleus_compartment, links)
 
     table = build_table(
         cells,
         x,
-        var_names,
+        stat_var(markers, statistics),
         layers,
         obs_extra,
         f"{args.method}_{args.target}",
         args.slide,
         args.core_id,
         specs,
+        {"statistics": statistics, "tile_size": TILE_SIZE, "max_window_px": int(max(windows))},
     )
     table.write_h5ad(args.output)
     print(
-        f"[aggregate] {args.method}: {table.n_obs} {args.target} x {table.n_vars} markers, layers {sorted(layers)}"
+        f"[aggregate] {args.method}: {table.n_obs} {args.target} x {len(markers)} markers, "
+        f"statistics {statistics}, layers {sorted(layers)}"
     )
     return 0
 
