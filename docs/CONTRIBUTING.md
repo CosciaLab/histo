@@ -202,6 +202,8 @@ npx myst start    # live preview, from site/
 - Every factual paragraph has a `% source:` comment.
 - Filenames are unique: MyST flattens URLs. Section landing pages are `<section>/<section>.md`.
 - Paper figures only under CC BY, with the licence in the caption and a row in `site/FIGURES.md`.
+- Each cited DOI needs an entry in `site/references.bib`; the build does not fetch from
+  doi.org. Get it with `curl -LH 'Accept: application/x-bibtex' https://doi.org/<doi>`.
 - Parameter rules (**Requires**, **Conflicts**, **Ignored unless**) go in the schema `help_text`;
   `tests/unit/test_schema_rules.py` checks coverage.
 - At release, bump the `-r vX.Y.Z` strings in `site/` (`grep -rn -- '-r v' site`).

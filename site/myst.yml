@@ -2,6 +2,9 @@ version: 1
 project:
   title: CosciaLab/histo
   github: https://github.com/CosciaLab/histo
+  # Local entries for every cited DOI, so the build does not fetch from doi.org.
+  bibliography:
+    - references.bib
   toc:
     - file: index.md
     - file: getting-started.md
