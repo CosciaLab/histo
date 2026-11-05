@@ -4,6 +4,7 @@ project:
   github: https://github.com/CosciaLab/histo
   toc:
     - file: index.md
+    - file: getting-started.md
     - title: Vignettes
       children:
         - file: vignettes/vignettes.md
@@ -26,10 +27,6 @@ project:
         - file: how-to/resume-debug.md
         - file: how-to/offline-containers.md
         - file: how-to/load-in-python.md
-    - file: reference/usage.md
-    - file: reference/parameters.md
-    - file: reference/samplesheet.md
-    - file: reference/output.md
     - title: How it works
       children:
         - file: how-it-works/how-it-works.md
@@ -51,6 +48,13 @@ project:
         - file: outputs/outputs.md
         - file: outputs/what-changes-it.md
         - file: outputs/visual-qc.md
+    - file: mdc.md
+    - title: Reference
+      children:
+        - file: reference/usage.md
+        - file: reference/output.md
+        - file: reference/parameters.md
+        - file: reference/samplesheet.md
     - file: changelog.md
     - file: citations.md
 site:
