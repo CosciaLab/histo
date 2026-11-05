@@ -1,11 +1,12 @@
 # Skip empty glass
 
-Goal: segment only where there is tissue, so patches over empty glass are not run. Where it
-sits in the pipeline: [Tiled segmentation](../how-it-works/tiling.md#in-this-pipeline).
+Goal: segment only where there is tissue, so patches over empty glass are not run.
+
+Where it sits in the pipeline: [Tiled segmentation](../how-it-works/tiling.md#in-this-pipeline).
 
 ## Steps
 
-1. Switch it on in `params.yml`. For mIF, also set the mode:
+1. Switch it on in `params.yml`, with the mode for fluorescence:
 
    ```yaml
    use_tissue_segmentation: true
@@ -41,15 +42,16 @@ sits in the pipeline: [Tiled segmentation](../how-it-works/tiling.md#in-this-pip
 
 ## Pitfalls
 
-- **An image with exactly three channels** defaults to `saturation`, the H&E mode, which expects
-  an 8-bit RGB image. Set `mode: staining`.
+- **Without `mode`, an image with exactly three channels** gets `saturation`, the H&E mode,
+  which expects an 8-bit RGB image.
 - **Use double quotes inside the dict.** The pipeline wraps the text in single quotes on the
   command line, so `{'channel': 'DNA_1'}` reaches sopa as `{channel: DNA_1}` and fails.
-- **`channel` is a marker name** from the marker sheet: channels are renamed before this step.
+- **`channel` is a channel name in the store**: the marker sheet's `marker_name` with
+  preprocessing; with pre-stitched input, the image's own channel names.
 - **No tissue found** leaves 0 patches, and the run stops naming the sample.
 
 % source: https://github.com/prism-oncology/sopa/blob/v2.2.9/sopa/segmentation/_tissue.py#L157-L166
 % source: https://github.com/prism-oncology/sopa/blob/v2.2.9/sopa/segmentation/_tissue.py#L228-L230
 % source: modules/local/utils.nf:4-38
-% source: workflows/histo.nf:70-88
+% source: workflows/histo.nf:62,71-88
 % source: subworkflows/local/segmentation/main.nf:34-40

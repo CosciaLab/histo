@@ -1,9 +1,10 @@
 # Run without internet
 
-Goal: run on a cluster without network access at run time. Every image is staged in advance;
-the pipeline pulls nothing while it runs. Commands:
-[Fetching images](../reference/usage.md#fetching-images) and
-[Staging images into the shared cache](../reference/usage.md#staging-images-into-the-shared-cache).
+Goal: run on a cluster without network access at run time.
+
+Every image is staged in advance; the pipeline pulls nothing while it runs. Commands: [Fetching
+images](../reference/usage.md#fetching-images) and [Staging images into the shared
+cache](../reference/usage.md#staging-images-into-the-shared-cache).
 
 ## Steps
 

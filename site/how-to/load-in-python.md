@@ -1,12 +1,14 @@
 # Load the results in Python
 
-Goal: read a sample's cells, measurements and outlines from `{sample}.zarr`. The full layout is
-in [SpatialData directory](../reference/output.md#spatialdata-directory).
+Goal: read a sample's cells, measurements and outlines from `{sample}.zarr`.
+
+The full layout is in [SpatialData directory](../reference/output.md#spatialdata-directory).
 
 ## Steps
 
 1. Install [spatialdata](https://spatialdata.scverse.org/en/stable/): `pip install spatialdata`.
-2. Read the store and pick a method's table and shapes:
+2. Read the store and pick a method's table and shapes. The snippet assumes the default run,
+   Cellpose cells only:
 
    ```python
    import spatialdata as sd
@@ -20,8 +22,11 @@ in [SpatialData directory](../reference/output.md#spatialdata-directory).
    means = adata[:, adata.var["statistic"] == "mean"].to_df()  # cells × {marker}_mean
    cd3 = adata[:, "CD3_mean"].X
    adata.obs[["cell_area", "slide"]]
-   nucleus = adata.layers["nucleus"]  # with segment_nuclei: same columns, over the nucleus
    outlines = cells.loc[adata.obs_names, "geometry"]
+
+   # only with segment_nuclei: the same columns over the nucleus and the cytoplasm
+   # nucleus = adata.layers["nucleus"]
+   # cytoplasm = adata.layers["cytoplasm"]
    ```
 
 3. Pick the names for your run, with `{m}` the method, `cellpose` or `instanseg`:

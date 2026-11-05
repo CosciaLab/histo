@@ -1,9 +1,10 @@
 # Segment cells on many markers
 
 Goal: let Cellpose see a whole mIF panel through two projected channels, nuclear and cell.
-The method and its defaults are in
-[Two-channel segmentation](../reference/usage.md#two-channel-segmentation-use-projection) and
-[Channel projection](../how-it-works/projection.md).
+
+The method and its defaults are in [Two-channel
+segmentation](../reference/usage.md#two-channel-segmentation-use-projection) and [Channel
+projection](../how-it-works/projection.md).
 
 ## Steps
 
@@ -36,7 +37,8 @@ The method and its defaults are in
 
 - **The `segmentation` column is all or nothing.** Once any row has a value, rows left blank are
   out of the projection, the `dna` channel included. Fill every channel you want.
-- **Without the thresholds**, sopa's defaults tile the whole tissue into cells.
+- **Keep the thresholds** from step 2; see
+  [Two-channel segmentation](../reference/usage.md#two-channel-segmentation-use-projection) for why.
 - **`-resume` after a run deleted the projection** fails; rerun without `-resume`. See
   [-resume and the store](../reference/usage.md#id-resume-and-the-store).
 - At startup, the run stops if `nuclear` or `cell` would be empty.

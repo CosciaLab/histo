@@ -1,8 +1,9 @@
 # Reuse illumination profiles
 
-Goal: give Ashlar profiles from an earlier run, so BaSiCPy does not run again. Within one launch
-directory `-resume` already reuses them; this is for a new run. What BaSiCPy computes:
-[Illumination correction](../how-it-works/basicpy.md).
+Goal: give Ashlar profiles from an earlier run, so BaSiCPy does not run again.
+
+Within one launch directory `-resume` already reuses them; this is for a new run. What BaSiCPy
+computes: [Illumination correction](../how-it-works/basicpy.md).
 
 ## Steps
 

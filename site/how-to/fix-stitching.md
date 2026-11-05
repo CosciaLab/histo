@@ -1,8 +1,10 @@
 # Fix stitching
 
-Goal: change Ashlar's arguments when the stitched image is misaligned, and rerun only what
-depends on it. Symptoms and what to try are in
-[When stitching or registration looks wrong](../reference/usage.md#when-stitching-or-registration-looks-wrong).
+Goal: change Ashlar's arguments when the stitched image is misaligned, and rerun only what depends
+on it.
+
+Symptoms and what to try are in [When stitching or registration looks
+wrong](../reference/usage.md#when-stitching-or-registration-looks-wrong).
 
 ## Steps
 

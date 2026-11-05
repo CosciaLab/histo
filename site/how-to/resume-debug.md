@@ -1,8 +1,10 @@
 # Resume and debug a run
 
-Goal: find why a task failed, fix it, and continue without redoing finished work. Nextflow's own
-account: [cache and resume](https://www.nextflow.io/docs/latest/cache-and-resume.html),
-[`nextflow log`](https://www.nextflow.io/docs/latest/reference/cli/log).
+Goal: find why a task failed, fix it, and continue without redoing finished work.
+
+Nextflow's own account: [cache and
+resume](https://www.nextflow.io/docs/latest/cache-and-resume.html), [`nextflow
+log`](https://www.nextflow.io/docs/latest/reference/cli/log).
 
 ## Steps
 
