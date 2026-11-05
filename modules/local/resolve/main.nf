@@ -3,7 +3,7 @@ process RESOLVE {
     tag "${meta.sample}:${spec.name}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa:2.2.12"
+    container "docker.io/josenimo/sopa:2.3.0"
 
     input:
     // sdata_path is only read; parquets are one spec's patches, staged as 0.parquet, 1.parquet, ...

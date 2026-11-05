@@ -3,7 +3,7 @@ process WRITE_SEGMENTATIONS {
     tag "${meta.sample}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa:2.2.12"
+    container "docker.io/josenimo/sopa:2.3.0"
 
     input:
     // The only task that writes shapes and tables into the store (parallel writers race on its metadata).
