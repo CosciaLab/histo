@@ -4,7 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
-from site_reference import PAGES, REPO, main, render_module_facts, render_parameters, render_sheet
+from site_reference import (
+    PAGES,
+    REPO,
+    TOOL_OVERRIDES,
+    main,
+    render_module_facts,
+    render_parameters,
+    render_sheet,
+)
 
 FIXTURE = Path(__file__).parent / "fixtures" / "site_schema.json"
 
@@ -144,3 +152,50 @@ def test_all_hidden_group_has_no_heading():
     md = render_parameters(schema)
     head, _, tail = md.partition(":::{dropdown} Hidden parameters")
     assert "## Institutional" not in head and "`h`" in tail
+
+
+def test_integral_float_default_renders_as_int():
+    md = render_parameters(
+        {
+            "$defs": {
+                "g": {
+                    "title": "G",
+                    "properties": {
+                        "w": {"type": "integer", "default": 2000.0},
+                        "p": {"type": "number", "default": 99.9},
+                    },
+                }
+            },
+            "allOf": [{"$ref": "#/$defs/g"}],
+        }
+    )
+    assert "`2000`" in md and "2000.0" not in md
+    assert "`99.9`" in md
+
+
+def _facts_row(slug):
+    md = render_module_facts(
+        [REPO / d for d in PAGES[slug]], REPO / "containers.tsv", TOOL_OVERRIDES.get(slug)
+    )
+    return [c.strip() for c in md.splitlines()[2].split("|")[1:-1]]
+
+
+def test_cellpose_page_names_cellpose_and_its_pin():
+    cells = _facts_row("cellpose")
+    assert "Cellpose" in cells[1] and "sopa" not in cells[1]
+    assert cells[2] == "4.2.1.1"
+
+
+def test_instanseg_page_names_instanseg_without_sopa_version():
+    cells = _facts_row("instanseg")
+    assert "InstanSeg" in cells[1] and "sopa" not in cells[1]
+    assert cells[2] == ""  # instanseg is not pinned; the image tag is sopa's version
+
+
+def test_qc_report_page_names_pipeline_scripts_and_keeps_container():
+    md = render_module_facts(
+        [REPO / d for d in PAGES["qc-report"]], REPO / "containers.tsv", TOOL_OVERRIDES["qc-report"]
+    )
+    rows = md.splitlines()[2:-1]
+    assert rows and all("pipeline scripts (`bin/`)" in r and "python_sopa" in r for r in rows)
+    assert "sopa |" not in md and "geopandas" not in md

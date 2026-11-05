@@ -53,6 +53,24 @@ PAGES: dict[str, list[str]] = {
     ],
 }
 
+# Pages whose modules' meta.yml names the wrapper (sopa) or a helper, not the tool the page is about.
+# "package" is the conda name whose pin gives the Version; without a pin the cell stays blank.
+TOOL_OVERRIDES: dict[str, dict[str, str]] = {
+    "cellpose": {
+        "name": "Cellpose",
+        "homepage": "https://www.cellpose.org",
+        "doi": "10.1101/2025.04.28.651001",
+        "package": "cellpose",
+    },
+    "instanseg": {
+        "name": "InstanSeg",
+        "homepage": "https://github.com/instanseg/instanseg",
+        "doi": "10.48550/arXiv.2408.15954",
+        "package": "instanseg",
+    },
+    "qc-report": {"name": "pipeline scripts (`bin/`)"},
+}
+
 
 def _cell(text: object) -> str:
     """One-line table cell: collapse whitespace, escape pipes."""
@@ -70,6 +88,8 @@ def _default(prop: dict) -> str:
         return "none"
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))  # the schema linter writes 2000 as 2000.0
     return str(value)
 
 
@@ -155,31 +175,39 @@ def _conda_packages(conda: str) -> list[tuple[str, str]]:
     return pkgs
 
 
+def _pin(package: str, conda: str) -> str:
+    """The version the conda spec pins for the package, else ""."""
+    m = re.search(rf"(?:^|[,\s]){re.escape(package)}(?:\[[^\]]*\])?==?([^,\s]+)", conda)
+    return m.group(1) if m else ""
+
+
 def _version(tool: str, conda: str, docker_uri: str) -> str:
     """The version the conda spec pins for the tool, else the image tag."""
-    m = re.search(rf"(?:^|[,\s]){re.escape(tool)}(?:\[[^\]]*\])?==?([^,\s]+)", conda)
-    if m:
-        return m.group(1)
+    if pin := _pin(tool, conda):
+        return pin
     tag = docker_uri.rsplit(":", 1)[-1] if ":" in docker_uri else ""
     return tag if re.match(r"v?\d+\.\d", tag) else ""  # hash tags are not versions
 
 
-def render_module_facts(module_dirs: list[Path], containers_tsv: Path) -> str:
-    """Module | Tool | Version | Container | Paper, one row per module dir."""
+def render_module_facts(module_dirs: list[Path], containers_tsv: Path, override: dict | None = None) -> str:
+    """Module | Tool | Version | Container | Paper, one row per module dir; override from TOOL_OVERRIDES."""
     rows = _read_rows(containers_tsv)
     lines = ["| Module | Tool | Version | Container | Paper |", "| --- | --- | --- | --- | --- |"]
     for d in module_dirs:
         rel = "/".join(d.parts[-3:])  # modules/<local|nf-core>/<name>, as containers.tsv writes it
         row = next((r for r in rows if rel in r["modules"].split(",")), {})
-        tool = _tool(d)
-        if not (d / "meta.yml").is_file() and row.get("conda"):
+        tool = dict(override) if override else _tool(d)
+        if not override and not (d / "meta.yml").is_file() and row.get("conda"):
             pkgs = _conda_packages(row["conda"])
             if pkgs:
                 tool["name"] = pkgs[0][0]
         name = tool["name"]
         if tool.get("homepage"):
             name = f"[{name}]({tool['homepage']})"
-        version = _version(tool["name"], row.get("conda", ""), row.get("docker_uri", "")) if row else ""
+        if override:
+            version = _pin(override["package"], row.get("conda", "")) if "package" in override else ""
+        else:
+            version = _version(tool["name"], row.get("conda", ""), row.get("docker_uri", "")) if row else ""
         doi = tool.get("doi")
         paper = f"[{doi}](https://doi.org/{doi})" if doi else ""
         container = f"`{row['docker_uri']}`" if row else "none (runs on the host)"
@@ -205,7 +233,9 @@ def main(repo: Path = REPO) -> None:
         "\n".join(render_sheet(_load(repo / "assets" / f), t) for t, f in sheets)
     )
     for slug, dirs in PAGES.items():
-        facts = render_module_facts([repo / d for d in dirs], repo / "containers.tsv")
+        facts = render_module_facts(
+            [repo / d for d in dirs], repo / "containers.tsv", TOOL_OVERRIDES.get(slug)
+        )
         (out / "modules" / f"{slug}.md").write_text(facts)
 
 
