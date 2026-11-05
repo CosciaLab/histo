@@ -27,17 +27,20 @@ The top of a QC report (cell count, integrity checks, channel table), from
 
 `preprocessing/registration/{sample}.ome.tif` is Ashlar's stitched image, and the file to
 inspect first when segmentation looks wrong. With `use_backsub` or `use_tma_dearray`, the store is
-built from the later image under `background_subtraction/` or `dearray/`. Ashlar writes no marker
-names, so channels are unnamed here; names are added only in the store. The pixel size is in this
-file.
+built from the later image under `background_subtraction/` or `dearray/`. Ashlar writes a
+pyramidal, tiled OME-TIFF and no marker names, so channels are unnamed here; names are added only
+in the store. The pixel size is in this file.
 
-- [QuPath](https://qupath.github.io) opens it; QuPath recommends OME-TIFF.
-- [napari](https://napari.org), with a reader plugin for OME-TIFF.
+- [QuPath](https://qupath.github.io) opens it; QuPath recommends OME-TIFF, and may fail on a TIFF
+  without pyramid levels.
+- [napari](https://napari.org).
 
 % source: docs/output.md#preprocessing
 % source: subworkflows/local/preprocess_images/main.nf:106-130
 % source: docs/decisions.md#channel-names
 % source: docs/decisions.md#pixel-size
+% source: https://github.com/labsyspharm/ashlar#usage
+% source: modules/nf-core/ashlar/main.nf:48
 % source: https://qupath.readthedocs.io/en/stable/docs/intro/formats.html
 
 :::{note} Figure pending
@@ -63,7 +66,7 @@ also holds `<image>_projected`, what Cellpose segmented, to view with the cell o
 % source: https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html
 % source: https://spatialdata.scverse.org/projects/napari/en/stable/generated/napari_spatialdata.Interactive.html
 % source: docs/output.md#spatialdata-directory
-% source: docs/usage.md#two-channel-segmentation-use_projection
+% source: docs/usage.md#two-channel-segmentation-use-projection
 
 :::{note} Figure pending
 napari-spatialdata with `cellpose_cells` over the image of an exemplar-001 store.
@@ -87,13 +90,13 @@ For stitching and registration, use the table in
 | Many tiny cells                                      | No area filter at segmentation: `min_area_pixels2` unset is 0                                                                             | Report "Integrity checks" and "Cell area distribution"                                                              |
 | Last cycle's nuclear stain weaker than the first     | Cells lost between cycles, or photobleaching                                                                                              | Report "Nuclear stain across cycles"                                                                                |
 | Marker columns named `Channel:0:0`, `Channel:0:1`, … | Pre-stitched input whose OME-TIFF has no channel names                                                                                    | Report "Channels"; `var['marker']` of `tables/{m}_table`                                                            |
-| NaN in `cytoplasm_area` or the `cytoplasm` layer     | The cell has no linked nucleus: NaN means not measured                                                                                    | Report "Nuclei per cell"                                                                                            |
+| NaN in `cytoplasm_area` or the `cytoplasm` layer     | No linked nucleus (`cytoplasm_area` NaN), or nuclei fill the cell (layer only): NaN means not measured                                    | Report "Nuclei per cell"                                                                                            |
 | Clusters change between runs                         | Leiden clusters were not reproducible on our test slide                                                                                   | Report "Cell clusters by marker intensity"                                                                          |
 | The store does not match the parameters              | `-resume` back to earlier parameters reuses in-place writes                                                                               | `uns['segmentation']` of `tables/{m}_table`; [-resume and the store](../reference/usage.md#id-resume-and-the-store) |
 
 % source, row by row:
-% thresholds: docs/usage.md#two-channel-segmentation-use_projection, site/how-it-works/cellpose.md#caveats, bin/qc_report.py:1238
-% dominant: docs/usage.md#two-channel-segmentation-use_projection, docs/output.md:250-255
+% thresholds: docs/usage.md#two-channel-segmentation-use-projection, site/how-it-works/cellpose.md#caveats, bin/qc_report.py:1238
+% dominant: docs/usage.md#two-channel-segmentation-use-projection, docs/output.md:250-255
 % TMA core: site/how-it-works/coreograph.md#caveats, docs/output.md:97-107
 % empty patch: site/how-it-works/tiling.md#caveats, bin/qc_report.py:1740-1744
 % tiny cells: ROADMAP.md#known-limitations, bin/qc_report.py:1658-1667,1799, docs/output.md:227-228
@@ -101,4 +104,4 @@ For stitching and registration, use the table in
 % Channel:0:0: docs/decisions.md#channel-names, docs/output.md:50-52, bin/qc_report.py:650-660,738
 % NaN: docs/output.md:168-176, bin/qc_report.py:852
 % clusters: ROADMAP.md#findings, bin/qc_report.py:1482-1487,1573
-% -resume: docs/usage.md#-resume-and-the-store, docs/output.md:163-164
+% -resume: docs/usage.md#id-resume-and-the-store, docs/output.md:163-164

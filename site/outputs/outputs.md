@@ -41,8 +41,8 @@ stores. With `preprocessing_only`, `preprocessing/` and `pipeline_info/` are the
 ```
 
 `{m}` is `cellpose` or `instanseg`, one set per method. Cell ids are the same in the shapes and
-the table. Pre-stitched input keeps the channel names its image carries. The table's columns, layers and NaN rules are in
-[output](../reference/output.md#spatialdata-directory).
+the table. Pre-stitched input keeps the channel names its image carries. The table's columns,
+layers and NaN rules are in [output](../reference/output.md#spatialdata-directory).
 
 % source: docs/output.md#spatialdata-directory
 % source: subworkflows/local/segmentation/main.nf:183
