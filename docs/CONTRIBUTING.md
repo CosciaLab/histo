@@ -206,7 +206,8 @@ npx myst start    # live preview, from site/
   doi.org. Get it with `curl -LH 'Accept: application/x-bibtex' https://doi.org/<doi>`.
 - Parameter rules (**Requires**, **Conflicts**, **Ignored unless**) go in the schema `help_text`;
   `tests/unit/test_schema_rules.py` checks coverage.
-- At release, bump the `-r vX.Y.Z` strings in `site/` (`grep -rn -- '-r v' site`).
+- At release, bump the `-r vX.Y.Z` strings in `site/` (`grep -rn -- '-r v' site`);
+  `tests/unit/test_version_strings.py` fails on a copy that differs from `manifest.version`.
 
 ## Metro map
 
