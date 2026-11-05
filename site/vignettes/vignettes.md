@@ -13,7 +13,7 @@ Complete runs for common cases: inputs, parameters, command, outputs and what to
 % source: docs/output.md#what-runs
 
 Paths are examples; use absolute paths. Before submitting, a `-stub` run checks paths and
-parameters in seconds; see [Running on the cluster](../reference/usage.md#running-on-the-cluster).
+parameters in seconds; see [Check before a long run](../how-to/input-sheets.md#check-before-a-long-run).
 
 % source: docs/usage.md:108
-% source: docs/usage.md:301-306
+% source: site/how-to/input-sheets.md#check-before-a-long-run

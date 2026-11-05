@@ -73,7 +73,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
 
 - `preprocessing/illumination/`
   - `{sample}_cycle{n}-dfp.ome.tif` and `-ffp.ome.tif`, the dark-field and flat-field profiles
-    BaSiCPy fitted for each cycle. Absent for a cycle whose profiles were supplied in the
+    BaSiCPy wrote for each cycle. Absent for a cycle whose profiles were supplied in the
     samplesheet, since nothing was computed.
 - `preprocessing/registration/`
   - `{sample}.ome.tif`, the stitched and registered mosaic from Ashlar. **This is the handoff
@@ -108,9 +108,9 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and outputs the
 
 </details>
 
-The `_backsub` suffix appears only on backsub's own two files. Core identity comes from the
-slide name rather than from the filename it was cut out of, so a slide processed with and without
-background subtraction produces cores with matching names.
+The `_backsub` suffix appears on backsub's own two files and on the store's image element. Core
+identity comes from the slide name rather than from the filename it was cut out of, so a slide
+processed with and without background subtraction produces cores with matching names.
 
 With `preprocessing_only`, these files and `pipeline_info/` are the whole output. There is no
 HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to check stitching.
