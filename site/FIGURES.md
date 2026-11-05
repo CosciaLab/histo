@@ -24,3 +24,6 @@ Paper figures are reused only under CC BY 4.0, checked on the publisher page.
 - how-it-works/projection: the projection preview, nuclear magenta and cell green — `qc/{sample}_projection.png` of an exemplar-001 run with `use_projection`
 - how-it-works/quantification: one cell with whole-cell, nucleus and cytoplasm outlines over a marker, and its table row — exemplar-001 run with both targets
 - how-it-works/qc-report: top of a QC report (cell count, integrity checks, channel table) — `qc/{sample}_cellpose_qc_report.html` of exemplar-001
+- outputs/visual-qc: top of a QC report (cell count, integrity checks, channel table) — `qc/{sample}_cellpose_qc_report.html` of exemplar-001
+- outputs/visual-qc: the stitched OME-TIFF in QuPath, nuclear channel and one marker — `preprocessing/registration/{sample}.ome.tif` of exemplar-001
+- outputs/visual-qc: napari-spatialdata with `cellpose_cells` over the image — `{sample}.zarr` of exemplar-001

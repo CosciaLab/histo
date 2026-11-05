@@ -24,6 +24,11 @@ project:
         - file: how-it-works/quantification.md
         - file: how-it-works/qc-report.md
         - file: how-it-works/modalities.md
+    - title: Outputs
+      children:
+        - file: outputs/outputs.md
+        - file: outputs/what-changes-it.md
+        - file: outputs/visual-qc.md
     - file: changelog.md
     - file: citations.md
 site:
