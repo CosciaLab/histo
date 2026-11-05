@@ -441,6 +441,29 @@ def segmentation_image_element(sdata_path: Path) -> str:
     return element
 
 
+def mean_columns(table: Any) -> tuple[list[str], list[int]]:
+    """Marker names and X column indices of the per-cell means, in var order; never parses var_names."""
+    for col in ("marker", "statistic"):
+        if col not in table["var"]:
+            raise ValueError(f"table has no var/{col}: written before 3.0, rerun the pipeline")
+    markers = [str(m) for m in read_column(table["var"]["marker"])]
+    stats = [str(s) for s in read_column(table["var"]["statistic"])]
+    cols = [i for i, s in enumerate(stats) if s == "mean"]
+    if not cols:
+        raise ValueError(f"table has no 'mean' statistic in var/statistic; found {sorted(set(stats))}")
+    return [markers[i] for i in cols], cols
+
+
+def row_areas(table: Any) -> Any:
+    """obs/cell_area, else obs/nucleus_area (a nuclei-only table has no cell_area)."""
+    for col in ("cell_area", "nucleus_area"):
+        if col in table["obs"]:
+            return read_column(table["obs"][col])
+    raise ValueError(
+        "table has neither obs/cell_area nor obs/nucleus_area: written before 3.0, rerun the pipeline"
+    )
+
+
 def open_table(sdata_path: Path, name: str) -> Any:
     """Open tables/<name>, failing with the name and the tables that do exist."""
     import zarr
@@ -475,10 +498,10 @@ def collect(
     table_name = table
     table = open_table(sdata_path, table)
 
-    channel_names = [str(n) for n in read_column(table["var"]["_index"])]
+    channel_names, mean_cols = mean_columns(table)
     image_labels = image_channel_labels(sdata_path, element)
 
-    areas = read_column(table["obs"]["area"])
+    areas = row_areas(table)
     centroids = np.asarray(table["obsm"]["spatial"][:])
 
     image = zarr.open_array(str(sdata_path / "images" / element / "s0"), mode="r")
@@ -591,8 +614,8 @@ def collect(
                 "nuclear_pattern": nuclear_pattern,
             }
         else:
-            # X is sopa's per-cell mean intensity; 17 MB for 142k cells.
-            x = np.asarray(table["X"][:])
+            # Only the mean columns of X; 17 MB for 142k cells and 20 markers.
+            x = np.asarray(table["X"].oindex[:, mean_cols])
             first_i = channel_names.index(pair[0])
             last_i = channel_names.index(pair[1])
             out["cycle_ratio"] = {

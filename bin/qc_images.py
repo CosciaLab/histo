@@ -661,6 +661,7 @@ def main() -> int:
     import numpy as np
     from qc_metrics import (
         compartments_by_channel,
+        mean_columns,
         open_table,
         read_column,
         read_marker_cycles,
@@ -670,7 +671,7 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     element = segmentation_image_element(args.sdata)
     table = open_table(args.sdata, args.table)
-    channel_names = [str(n) for n in read_column(table["var"]["_index"])]
+    channel_names, mean_cols = mean_columns(table)
     centroids = np.asarray(table["obsm"]["spatial"][:])
     shapes_dir = args.sdata / "shapes"
     shapes = [p.name for p in shapes_dir.glob("*")] if shapes_dir.is_dir() else []
@@ -727,7 +728,7 @@ def main() -> int:
                 + f". Channels present: {channel_names}"
             )
 
-        x = np.asarray(table["X"][:])
+        x = np.asarray(table["X"].oindex[:, mean_cols])
         resolutions = [float(v) for v in args.resolutions.split(",") if v.strip()]
         if len(resolutions) > 8:
             raise ValueError(
