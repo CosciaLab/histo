@@ -5,6 +5,13 @@ on:
     branches: [dev, main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,6 +32,9 @@ jobs:
       - name: Build
         working-directory: site
         run: BASE_URL=/histo npm run build
+      - name: Check internal links
+        working-directory: site
+        run: npm run check
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/_build/html

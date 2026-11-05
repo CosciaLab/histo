@@ -4,8 +4,9 @@
     "private": true,
     "description": "MyST documentation site for CosciaLab/histo",
     "scripts": {
-        "build": "myst build --html --strict",
-        "start": "myst start"
+        "build": "myst build --html --strict --ci",
+        "start": "myst start",
+        "check": "python3 ../tools/site_check_links.py _build/html"
     },
     "dependencies": {
         "mystmd": "1.12.0"

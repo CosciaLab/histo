@@ -112,7 +112,7 @@ Paths must be absolute.
 Required: `input`, `outdir` and, unless `preprocessing_only`, at least one segmentation method.
 Cellpose also needs `cellpose_channels` or `use_projection`; InstanSeg needs
 `instanseg_pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
-startup; see [output.md](output.md#from-1x).
+startup; see [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-1x).
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
