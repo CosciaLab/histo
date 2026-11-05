@@ -3,7 +3,7 @@ process AGGREGATE {
     tag "${meta.sample}:${method}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa:2.2.12"
+    container "docker.io/josenimo/sopa:2.3.0"
 
     input:
     // sdata_path is only read; specs are this method's spec maps. shapes: {method}_cells.parquet,

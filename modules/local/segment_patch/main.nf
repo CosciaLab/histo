@@ -4,7 +4,7 @@ process SEGMENT_PATCH {
 
     conda "${moduleDir}/environment.yml"
     // Weights are baked into the image: no download at run time, and the cluster may be offline.
-    container "docker.io/josenimo/sopa:2.2.12"
+    container "docker.io/josenimo/sopa:2.3.0"
 
     input:
     // sdata_path is only read; spec is a map from segmentationSpecs (modules/local/utils.nf).

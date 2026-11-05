@@ -137,7 +137,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_instanseg`            | `false`              | You want InstanSeg. Needs `instanseg_pixel_size`; channels default from each sheet.                    |
 | `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                 |
 | `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                |
-| `use_gpu`                  | `false`              | On the cluster: one GPU per Cellpose patch. See [GPU segmentation](#gpu-segmentation).                 |
+| `use_gpu`                  | `false`              | On the cluster: one GPU per segmentation patch. See [GPU segmentation](#gpu-segmentation).             |
 | `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                  |
 | `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                  |
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
@@ -287,13 +287,16 @@ a later run deleted ("projection removed by an earlier run"). Rerun those sample
 
 ### GPU segmentation
 
-`use_gpu: true` gives each Cellpose patch task one GPU. It applies to Cellpose only: sopa's
-InstanSeg wrapper fails on CUDA ([ROADMAP](../ROADMAP.md)), so InstanSeg runs on CPU, also in the
-same run, and the log says so.
+`use_gpu: true` gives each Cellpose and InstanSeg patch task one GPU.
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
-sopa image cannot run on the V100s. At most 16 patches run at once, with 1 CPU and 8 GB on
-`size_tiny` and `size_small`, else 2 CPUs and 16 GB. A task fails if CUDA is not usable in it,
-rather than running on CPU. Not on the Mac: Docker there has no GPU.
+sopa image cannot run on the V100s. At most 16 patches per method run at once. Cellpose tasks get
+1 CPU and 8 GB on `size_tiny` and `size_small`, else 2 CPUs and 16 GB; InstanSeg tasks keep their
+CPU sizing. A task fails if CUDA is not usable in it, rather than running on CPU. Not on the Mac:
+Docker there has no GPU.
+
+InstanSeg on GPU takes at most 10 channels, until its GPU memory is measured
+([ROADMAP](../ROADMAP.md)). A run with more, named in `instanseg_channels` or taken from a marker
+sheet, stops at startup: name 10 or fewer, or leave `use_gpu` off.
 
 Validate before submitting — this catches bad paths and parameter types in seconds rather than after
 a queue wait:

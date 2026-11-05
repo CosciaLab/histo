@@ -125,7 +125,7 @@ def segmentationSpecs(Map args) {
                 ].findAll { _k, v -> v != null },
                 method_kwargs_extra: args.instanseg_kwargs,
                 segmentation_kwargs: segmentation_kwargs,
-                gpu: false,
+                gpu: args.use_gpu ? true : false,
             ]
         }
     }
@@ -186,6 +186,11 @@ def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
     pixel_size = toNumber('instanseg_pixel_size', pixel_size)
     def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
     return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
+}
+
+// Stopgap until InstanSeg's GPU memory is measured (ROADMAP): with use_gpu, at most this many channels.
+def instansegGpuMaxChannels() {
+    return 10
 }
 
 // Marker names InstanSeg reads when instanseg_channels is unset: nuclear stains, plus markers

@@ -48,7 +48,7 @@
 ## Patches
 # patch_width_pixel: 2000.0   # Width and height of each segmentation patch, in pixels.
 # patch_overlap_pixel: 100.0  # Overlap between neighbouring patches, in pixels.
-# use_gpu: null               # One GPU per Cellpose patch task.
+# use_gpu: null               # One GPU per Cellpose and InstanSeg patch task.
 
 ## Tissue segmentation
 # use_tissue_segmentation: null     # Whether to run tissue segmentation.

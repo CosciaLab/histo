@@ -31,8 +31,8 @@ outputs, parameters and defaults, and an exemplar-001 figure. Generate what it c
 
 1. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
    patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
-   size-profile stopgap for GPU tasks and the fixed 4 CPUs for segmentation. Crops and configs
-   are ready outside the repo.
+   size-profile stopgap for GPU tasks, InstanSeg's 10-channel GPU cap and the fixed 4 CPUs for
+   segmentation. Crops and configs are ready outside the repo.
 2. **Automatic `patch_width_pixel`.** A first step reads the image size from its metadata and picks
    the width that gives 300–400 patches, capped for resources, logged and overridable. Reverses a
    decision (decisions.md, Parameters): a value derived from the image alone is the same on any
@@ -41,7 +41,7 @@ outputs, parameters and defaults, and an exemplar-001 figure. Generate what it c
 ### 2.4: segmentation defaults
 
 1. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
-   regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.2.12`. Bake both
+   regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.3.0`. Bake both
    in, select with `pretrained_model`, compare on exemplar-001 (or with item 2). ~1 day.
 2. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (item 1). Score
    permutations of the steps before the model: combining (max, sum), smoothing
@@ -162,11 +162,10 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 - **Booleans cannot be set false on the command line.** `--use_qc=false` is a truthy string;
   `--use_qc false` becomes `true`. Both are rejected at startup. Coercion is impossible:
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
-- **`use_gpu` applies to Cellpose only; InstanSeg runs on CPU.** sopa calls `.numpy()` on its
-  CUDA tensor without `.cpu()` (`sopa/segmentation/methods/_instanseg.py`, 2.2.12 and main).
-  Report upstream; once fixed, give InstanSeg the GPU (`conf/gpu.config`) and size patches for
-  GPU memory: an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near 70 GB. Measure GPU
-  peaks and warn against those, not `instansegMemoryGB`.
+- **InstanSeg on GPU is capped at 10 channels.** A stopgap (`instansegGpuMaxChannels`): sopa
+  runs a whole patch at once, an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near
+  70 GB. 2.3 item 1 measures GPU peaks by channels and tile area; replace the cap with a warning
+  or a patch width that fits, and size InstanSeg's GPU tasks (CPUs, host memory) from the same runs.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
   sopa's CLI uses 0. Filtering belongs after aggregation (2.1 item 2). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².

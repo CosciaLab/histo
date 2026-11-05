@@ -20,7 +20,7 @@ SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTAT
 METHOD_BUILDERS = {"cellpose": "cellpose_patch", "instanseg": "instanseg_patch"}
 # The builders name the device choice differently.
 DEVICE_ARGUMENT = {"cellpose": "gpu", "instanseg": "device"}
-# Defaults copied from sopa 2.2.12 cli/segmentation.py, so unset params segment as the CLI does.
+# Defaults copied from sopa 2.3.0 cli/segmentation.py, so unset params segment as the CLI does.
 METHOD_DEFAULTS = {
     # cli/segmentation.py:18-27 (diameter has no default; gpu is set by --device)
     "cellpose": {
