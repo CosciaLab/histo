@@ -59,8 +59,6 @@ and when both segment cells the QC compares them.
 - **One pass per target.** Through sopa, InstanSeg returns one target at a time, so nuclei and
   cells are two passes over every patch.
 - **No CLAHE or smoothing** unless set: sopa's defaults for InstanSeg leave its input as it is.
-- **Memory per task** is computed from the patch: 2 GB + megapixels × max(1.3, 0.3 × channels),
-  counted at 0.5 µm/px. Above 64 GB the run warns and names a `patch_width_pixel` that fits.
 
 % source: bin/segment_patch.py:33-45
 % source: https://github.com/instanseg/instanseg#readme
@@ -69,7 +67,6 @@ and when both segment cells the QC compares them.
 % source: subworkflows/local/segmentation/main.nf:41-69
 % source: docs/superpowers/specs/2026-11-02-nuclei-cells-design.md
 % source: docs/decisions.md#segmentation
-% source: docs/usage.md#choosing-patch_width_pixel
 
 What steers it:
 
@@ -93,18 +90,16 @@ What steers it:
 
 - **`instanseg_pixel_size` is required.** Without it InstanSeg does not rescale, and the run can
   succeed with few or no cells; the pipeline stops at startup instead.
-- **Memory grows with channels.** At the default 2000 px and 0.65 µm/px a task asks for 13 GB with
-  5 channels and 78 GB with 37. Name fewer `instanseg_channels`, or use smaller patches.
+- **Memory grows with patch area × channels**; see
+  [Choosing `patch_width_pixel`](../reference/usage.md#choosing-patch-width-pixel).
 - **At most 10 channels on GPU**, checked at startup, until InstanSeg's GPU memory is measured.
-  Before 3.0.0 (unreleased), `use_gpu` ran InstanSeg on CPU.
 - **Pre-stitched input needs `instanseg_channels`**: the default channels come from the marker
   sheet, which such input does not have.
 
 % source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:646-655
 % source: docs/usage.md#choosing-patch_width_pixel
 % source: ROADMAP.md#known-limitations
-% source: CHANGELOG.md:25-28
-% source: CHANGELOG.md:73
+% source: CHANGELOG.md:27-28
 
 ## Read more
 

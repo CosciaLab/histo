@@ -1,12 +1,5 @@
 # Quantification
 
-:::{note}
-Statistics beyond the mean and the shape features are new in 3.0.0, not yet released. v2.0.0
-measures the mean only and has one `area` column.
-:::
-
-% source: CHANGELOG.md:6-23
-
 ## The idea
 
 Each cell becomes one row of a table. For every marker, the pipeline takes all the pixels inside

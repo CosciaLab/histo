@@ -36,8 +36,8 @@ with metrics as support; there was no ground truth.
 
 - **Maximum, not mean.** Mean dims markers found on one cell type: Cellpose-SAM then missed a
   whole lymphocyte cluster (72 % of nuclei inside a cell, against 95 % with maximum).
-- **Projection beats DNA alone.** On exemplar-001, at Cellpose's own thresholds, nuclei inside a cell rose from 86 % to 99 %,
-  and CD45-positive pixels inside a cell from 65 % to 84 %.
+- **Projection beats DNA alone.** On exemplar-001, at Cellpose's own thresholds, nuclei inside a
+  cell rose from 86 % to 99 %, and CD45-positive pixels inside a cell from 65 % to 84 %.
 - **Zeros are left out of the percentiles.** Ashlar pads unregistered areas with zeros; counting
   them put the floor below the background, and one low-range marker then lit up the glass.
 - **Nuclear is the first `dna` channel**: Ashlar's reference, the best registered, and free of
@@ -84,16 +84,11 @@ What steers it:
 
 ## Caveats
 
-- **Set the Cellpose thresholds when projecting.** sopa's defaults tile the whole tissue into
-  cells whatever the projection shows; see
+- **Set the Cellpose thresholds when projecting**, and check `dominant` and the preview first
+  when cells look wrong; see
   [Two-channel segmentation](../reference/usage.md#two-channel-segmentation-use-projection).
-- **One marker can swamp a channel.** A diffuse, bright cytoplasm marker can make Cellpose miss
-  whole groups of cells. Check `dominant` and the preview first when cells look wrong, and leave
-  the marker out with the `segmentation` column.
-- **`-resume` after the projection was deleted** fails with "projection removed by an earlier
-  run". Rerun without `-resume`, or set `keep_projection`; see
+- **`-resume` after the projection was deleted** fails; see
   [-resume and the store](../reference/usage.md#id-resume-and-the-store).
-- **On hazy raw images**, `projection_low_percentile: 50` removes the haze from the cell channel.
 
 % source: docs/usage.md#two-channel-segmentation-use_projection
 % source: docs/usage.md#-resume-and-the-store
@@ -103,4 +98,5 @@ What steers it:
 
 - How the defaults were chosen:
   [decisions.md](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#channel-projection)
-  and `tools/benchmark_projection.py`.
+  and the
+  [benchmark script](https://github.com/CosciaLab/histo/blob/dev/tools/benchmark_projection.py).

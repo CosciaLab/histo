@@ -83,7 +83,6 @@ decides whether channel names come from the marker sheet.
 
 % source: docs/decisions.md#pixel-size
 % source: docs/usage.md#-resume-and-the-store
-% source: CLAUDE.md#6-testing
 % source: docs/decisions.md#channel-names
 % source: docs/output.md#spatialdata-directory
 

@@ -16,11 +16,11 @@ nothing but their geometry. Linking pairs them by overlap:
 % source: docs/decisions.md#segmentation
 
 :::{figure} ../images/how-it-works/linking.svg
-:alt: Left, a cell with a nucleus inside it; the cell area around the nucleus is the cytoplasm. Right, a cell with a nucleus mostly outside it; the nucleus is not linked and the cell has no cytoplasm.
+:alt: Left, a cell with a nucleus inside it; the cell area around the nucleus is the cytoplasm. Right, a cell with a nucleus mostly outside it; the nucleus is not linked, the cell has no nucleus and no cytoplasm is defined.
 
 Left: the nucleus lies inside the cell, so it is linked, and the rest of the cell is cytoplasm.
-Right: less than half of the nucleus lies inside, so it is not linked; the cell has no nucleus
-compartment and no cytoplasm.
+Right: less than half of the nucleus lies inside, so it is not linked; the cell has no nucleus,
+so no cytoplasm is defined.
 :::
 
 ## Why this pipeline uses it
@@ -47,8 +47,8 @@ compartments. Linking happens after [resolve](tiling.md), because only resolved 
   cytoplasm into table layers.
 - Invalid polygons are repaired with `make_valid` for linking only, and counted in the log. The
   stored shapes are what the method produced.
-- The QC report counts cells by number of nuclei (0, 1, 2+), unlinked nuclei, and cells without
-  cytoplasm.
+- The QC report counts cells by number of nuclei (0, 1, 2+), unlinked nuclei, and cells their
+  nuclei fill (cytoplasm area 0).
 
 % source: subworkflows/local/segmentation/main.nf:120-148
 % source: bin/link_compartments.py:61-79
@@ -74,12 +74,11 @@ What steers it:
   `cellpose_channels` (or the projection's `nuclear`); InstanSeg on `dna` channels unless
   `instanseg_channels` is set.
 - **Areas may differ slightly** between linking and the stored shapes, where a polygon needed
-  repair. Repairing once, at resolve, is planned.
+  repair.
 - **Two methods with two targets** cost four segmentations.
 
 % source: docs/decisions.md#segmentation
 % source: docs/usage.md#methods-and-targets
-% source: ROADMAP.md#from-20
 
 ## Read more
 

@@ -80,18 +80,15 @@ What steers it:
 
 ## Caveats
 
-- **sopa's thresholds tile the tissue into cells.** `flow_threshold` 2, `cellprob_threshold` -6
-  and CLAHE cover 94 to 96 % of a test crop with cells, with or without projection. Cellpose's own
-  0.4 and 0, with CLAHE off, follow the membranes. They are documented, not defaulted, so runs
-  without projection do not change; see
+- **sopa's thresholds tile the tissue into cells**; Cellpose's own follow the membranes. They are
+  documented, not defaulted, so runs without projection do not change; see
   [Two-channel segmentation](../reference/usage.md#two-channel-segmentation-use-projection).
 - **Slow without a GPU.** Cellpose-SAM took about 24 s per 1200 px crop on an Apple GPU, against
   3 s for Cyto3.
-- **Two channels, not three.** The pipeline gives Cellpose a cell and a nuclear channel. Splitting
-  the cell channel into membrane and cytoplasm is planned, but the Cellpose docs say a third
-  channel needs retraining.
-- **`cpsam_v2` is not available yet.** Cellpose 4.2.1.1 defaults to it, but sopa passes `cpsam`,
-  and only those weights are in the image.
+- **Two channels.** Membrane and cytoplasm markers share the `cell` channel; the Cellpose docs say
+  a third channel needs retraining.
+- **`cpsam_v2` is not used.** Cellpose 4.2.1.1 defaults to it, but sopa passes `cpsam`, the only
+  weights in the image.
 - **A `cellpose_kwargs` key that a parameter already sets** (e.g. `diameter`, `channels`) fails
   the patch task, naming it.
 

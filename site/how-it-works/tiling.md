@@ -79,10 +79,8 @@ What steers it:
 ## Caveats
 
 - **`patch_width_pixel` is not set for you.** It changes results at patch boundaries, so an
-  automatic value would segment the same slide differently on different hardware. The
-  default suits TMA cores and small slides; one patch means no parallelism at all.
-- **The default is below sopa's 5000 px** to keep InstanSeg's memory down: its memory grows with
-  patch area times channels.
+  automatic value would segment the same slide differently on different hardware.
+- **The default is below sopa's 5000 px** to keep InstanSeg's memory down.
 - **An empty patch inside tissue is a failure.** The QC report's "Cells per patch" map shows the
   grid; empty patches at the slide edge are background.
 - **A cell wider than the overlap** may lie whole in no patch.
