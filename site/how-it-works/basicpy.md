@@ -17,8 +17,8 @@ between tiles end up [@doi:10.1038/ncomms14836].
 % source: doi:10.1038/ncomms14836
 
 BaSiC needs far fewer images than earlier methods that work from the data alone: it improves
-image quality from as few as five, and a whole-slide scan typically has 50–200 tiles. BaSiCPy is
-the Python package built on the original BaSiC tool.
+image quality from as few as five. BaSiCPy is the Python package built on the original BaSiC
+tool.
 
 % source: doi:10.1038/ncomms14836
 % source: https://github.com/peng-lab/BaSiCPy#readme
@@ -76,15 +76,18 @@ What steers it:
 ## Caveats
 
 - **The dark-field is not fitted.** The script's `--darkfield` flag is off by default and the
-  pipeline passes no arguments.
+  pipeline passes no arguments. A `-dfp` file is still written, published under
+  `preprocessing/illumination/` and passed to Ashlar, but it holds no fitted dark-field.
 - **Structure in the same place in every tile looks like shading.** BaSiC assumes the tissue
   differs from tile to tile; the authors advise checking the estimated profile by eye.
-- **No Mac runs.** BaSiCPy needs AVX, which Docker under Rosetta does not offer; see
-  [On the Mac](https://github.com/CosciaLab/histo/blob/dev/docs/CONTRIBUTING.md#on-the-mac).
+- **Not on Apple Silicon.** Docker's Rosetta emulation offers no AVX, which BaSiCPy needs.
 - **No conda.** The module stops under `-profile conda` or `mamba`; use a container.
 
 % source: bin/basicpy_main.py:108-115
+% source: bin/basicpy_main.py:211
+% source: bin/basicpy_main.py:323-335
 % source: conf/modules.config:15-24
+% source: subworkflows/local/preprocess_images/main.nf:28-52
 % source: doi:10.1038/ncomms14836
 % source: docs/CONTRIBUTING.md#on-the-mac
 % source: modules/nf-core/basicpy/main.nf:20

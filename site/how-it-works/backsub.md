@@ -26,23 +26,15 @@ One marker channel before and after subtraction, with its autofluorescence chann
 WSI background-subtracted exemplar run.
 :::
 
-## Why this pipeline uses it
-
-Background subtraction is one of the optional steps of the mcmicro preprocessing half, off by
-default. On a TMA it runs per core, after dearraying, so each core keeps its unsubtracted image
-and the QC report can compare before and after.
-
-% source: README.md#what-this-is
-% source: README.md#steps
-% source: CHANGELOG.md:367-368
-
 ## In this pipeline
 
 ```{include} ../_generated/modules/backsub.md
 
 ```
 
-- Runs once per sample after Ashlar, or once per core after Coreograph.
+- An optional step of the preprocessing half taken from nf-core/mcmicro, off by default.
+- Runs once per sample after Ashlar, or once per core after Coreograph, so each core keeps its
+  unsubtracted image and the QC report can compare before and after.
 - backsub receives the marker sheet as written; columns it does not use pass through.
 - Its own marker sheet replaces the input one for everything downstream: removed channels are
   gone and `channel_number` is renumbered.
@@ -50,8 +42,9 @@ and the QC report can compare before and after.
 - Outputs are `{sample}_backsub.ome.tif` and `.csv` under
   `preprocessing/background_subtraction/`; see [output](../reference/output.md#preprocessing).
 
+% source: README.md#what-this-is
 % source: subworkflows/local/preprocess_images/main.nf:111-137
-% source: CHANGELOG.md:362-365
+% source: CHANGELOG.md:362-368
 % source: docs/output.md#preprocessing
 
 What steers it:
@@ -60,17 +53,15 @@ What steers it:
 - [`backsub_args`](../reference/parameters.md#backsub_args): extra arguments passed through to
   backsub.
 - The [marker sheet](../reference/samplesheet.md#marker-sheet) columns `exposure`,
-  `background` and `remove`; see [Inputs](../reference/usage.md#inputs) for the rules.
+  `background` and `remove`.
 
-% source: nextflow_schema.json (preprocessing group)
+% source: nextflow_schema.json:72-83
 % source: docs/usage.md#inputs
 
 ## Caveats
 
-- **The sheet is checked at startup.** Every channel needs an `exposure`; `background` must name
-  a channel whose `channel_role` is `autofluorescence`.
-- **`remove` has limits.** At least one `dna` channel must stay, and a removed channel cannot be
-  a segmentation channel.
+- **The marker sheet is checked at startup**; see [Inputs](../reference/usage.md#inputs) for
+  the `exposure`, `background` and `remove` rules.
 - **Subtracting images is not the only option.** backsub's authors encourage subtracting
   autofluorescence after quantification instead, when the corrected image is not needed for
   viewing or segmentation.

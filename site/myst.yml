@@ -10,7 +10,7 @@ project:
     - file: reference/output.md
     - title: How it works
       children:
-        - file: how-it-works/index.md
+        - file: how-it-works/how-it-works.md
         - file: how-it-works/basicpy.md
         - file: how-it-works/ashlar.md
         - file: how-it-works/coreograph.md

@@ -74,17 +74,17 @@ What steers it:
 - [`use_preprocessing`](../reference/parameters.md#use_preprocessing) and
   [`preprocessing_only`](../reference/parameters.md#preprocessing_only).
 
-% source: nextflow_schema.json (preprocessing group)
+% source: nextflow_schema.json:47-71
+% source: nextflow_schema.json:480-485
 % source: conf/modules.config:26-35
 
 ## Caveats
 
-- **The alignment channel must be `dna` in every cycle.** `-c` is an index within each cycle;
-  if it lands on a non-`dna` channel in any cycle, the run stops at startup.
+- **The alignment channel must be `dna` in every cycle**; see [Inputs](../reference/usage.md#inputs).
 - **A poor alignment does not stop the run.** Tiles whose alignment was rejected are placed by
   the stage model, and the mosaic is written anyway. Check the QC report section.
-- **One job per slide.** On a TMA, Ashlar registers the whole slide (about 1000 tiles × 7
-  cycles) before dearraying, so one failure loses every core.
+- **One job per slide.** On a TMA, Ashlar registers the whole slide before dearraying, so one
+  failure loses every core.
 - **No conda.** The fork is not on bioconda; use Singularity, Apptainer or Docker.
 
 % source: docs/usage.md#inputs

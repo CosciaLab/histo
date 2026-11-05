@@ -80,10 +80,13 @@ What steers it:
   scores against.
 - [`coreograph_args`](../reference/parameters.md#coreograph_args): run Coreograph exactly as
   given; the sweep is skipped.
-- [`skip_reference_dna_check`](../reference/parameters.md#skip_reference_dna_check): run even
-  when the dearray channel is not `dna`.
+- [`skip_reference_dna_check`](../reference/parameters.md#skip_reference_dna_check): with
+  `coreograph_args`, run even when its `--channel` is not `dna`.
 
-% source: nextflow_schema.json (preprocessing group)
+% source: nextflow_schema.json:47-52
+% source: nextflow_schema.json:59-64
+% source: nextflow_schema.json:84-118
+% source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:476-488
 
 ## Caveats
 
@@ -91,12 +94,13 @@ What steers it:
   at the sweep overlays and the TMA map even when the run succeeds.
 - **One layout per run.** Every slide is scored against the same expected count and diameter;
   run arrays with different layouts separately.
-- **The dearray channel must be `dna`**, or the run stops at startup.
-- **No Mac runs.** Coreograph fails under Rosetta (no AVX); see
-  [On the Mac](https://github.com/CosciaLab/histo/blob/dev/docs/CONTRIBUTING.md#on-the-mac).
+- **With `coreograph_args`, its `--channel` must be `dna`**, or the run stops at startup. The
+  sweep picks the first `dna` channel itself.
+- **Not on Apple Silicon.** Coreograph fails under Docker's Rosetta emulation, which offers no AVX.
 
 % source: docs/usage.md#tma-dearray
 % source: docs/usage.md#inputs
+% source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:476-488
 % source: docs/output.md#preprocessing
 % source: docs/CONTRIBUTING.md#on-the-mac
 
