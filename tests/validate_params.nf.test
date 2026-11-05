@@ -254,4 +254,45 @@ nextflow_function {
             assert function.success
         }
     }
+
+    test("default statistics are accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'mean,median,std' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("statistics without mean are rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'median,std' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("quantification_statistics must include mean") }
+        }
+    }
+
+    test("duplicate statistics are rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'mean,mean' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("quantification_statistics lists mean twice") }
+        }
+    }
 }

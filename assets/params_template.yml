@@ -399,18 +399,27 @@
 ## =============================================================================
 ## Aggregation
 ## =============================================================================
-## Per-cell channel intensities
+## Per-cell marker statistics and morphology
 
 ## -----------------------------------------------------------------------------
 ## expand_radius_ratio
 ## -----------------------------------------------------------------------------
 ##     Expand cell polygons by `expand_radius_ratio * mean_radius` when
-##     averaging channel intensities, for X only; the nucleus and cytoplasm
+##     measuring channel intensities, for X only; the nucleus and cytoplasm
 ##     layers, area and centroids use the unexpanded shapes. Helps capture
 ##     membrane stainings at the cell boundary.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # expand_radius_ratio: null
+
+## -----------------------------------------------------------------------------
+## quantification_statistics
+## -----------------------------------------------------------------------------
+##     Per-marker statistics, comma-separated, no spaces: mean, median, std,
+##     min, max, q25, q75, q90. mean is required.
+##     Type: string
+## -----------------------------------------------------------------------------
+# quantification_statistics: "mean,median,std"
 
 
 ## =============================================================================
