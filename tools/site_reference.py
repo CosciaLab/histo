@@ -94,14 +94,15 @@ def render_parameters(schema: dict) -> str:
     hidden: list[tuple[str, dict]] = []
     for entry in schema["allOf"]:
         group = defs[entry["$ref"].rsplit("/", 1)[-1]]
+        shown = []
+        for name, prop in group["properties"].items():
+            (hidden if prop.get("hidden") else shown).append((name, prop))
+        if not shown:  # an all-hidden group would render an empty section
+            continue
         out += [f"## {group['title']}", ""]
         if group.get("description"):
             out += [group["description"].strip(), ""]
-        for name, prop in group["properties"].items():
-            if prop.get("hidden"):
-                hidden.append((name, prop))
-            else:
-                out.append(_render_parameter(name, prop))
+        out += [_render_parameter(n, p) for n, p in shown]
     if hidden:
         out += [":::{dropdown} Hidden parameters", ""]
         out += [_render_parameter(n, p) for n, p in hidden]
@@ -144,12 +145,23 @@ def _tool(module_dir: Path) -> dict:
     return {"name": module_dir.name}
 
 
+def _conda_packages(conda: str) -> list[tuple[str, str]]:
+    """(name, version) per conda entry, skipping python/pip and stripping extras."""
+    pkgs = []
+    for entry in conda.split(","):
+        m = re.match(r"^([A-Za-z0-9._-]+)(?:\[[^\]]*\])?==?(.+)$", entry.strip())
+        if m and m.group(1) not in ("python", "pip"):
+            pkgs.append((m.group(1), m.group(2)))
+    return pkgs
+
+
 def _version(tool: str, conda: str, docker_uri: str) -> str:
     """The version the conda spec pins for the tool, else the image tag."""
     m = re.search(rf"(?:^|[,\s]){re.escape(tool)}(?:\[[^\]]*\])?==?([^,\s]+)", conda)
     if m:
         return m.group(1)
-    return docker_uri.rsplit(":", 1)[-1] if ":" in docker_uri else ""
+    tag = docker_uri.rsplit(":", 1)[-1] if ":" in docker_uri else ""
+    return tag if re.match(r"v?\d+\.\d", tag) else ""  # hash tags are not versions
 
 
 def render_module_facts(module_dirs: list[Path], containers_tsv: Path) -> str:
@@ -160,13 +172,17 @@ def render_module_facts(module_dirs: list[Path], containers_tsv: Path) -> str:
         rel = "/".join(d.parts[-3:])  # modules/<local|nf-core>/<name>, as containers.tsv writes it
         row = next((r for r in rows if rel in r["modules"].split(",")), {})
         tool = _tool(d)
+        if not (d / "meta.yml").is_file() and row.get("conda"):
+            pkgs = _conda_packages(row["conda"])
+            if pkgs:
+                tool["name"] = pkgs[0][0]
         name = tool["name"]
         if tool.get("homepage"):
             name = f"[{name}]({tool['homepage']})"
         version = _version(tool["name"], row.get("conda", ""), row.get("docker_uri", "")) if row else ""
         doi = tool.get("doi")
         paper = f"[{doi}](https://doi.org/{doi})" if doi else ""
-        container = f"`{row['docker_uri']}`" if row and row.get("docker_uri") else ""
+        container = f"`{row['docker_uri']}`" if row else "none (runs on the host)"
         lines.append(f"| {d.name.upper()} | {_cell(name)} | {_cell(version)} | {container} | {paper} |")
     lines.append("")
     return "\n".join(lines)

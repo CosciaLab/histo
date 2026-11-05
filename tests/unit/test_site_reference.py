@@ -92,3 +92,55 @@ def test_main_on_real_repo(tmp_path):
     assert "Cycle" in sheets and "Stitched" in sheets and "Marker" in sheets
     for slug in PAGES:
         assert (out / "modules" / f"{slug}.md").is_file()
+
+
+def test_no_meta_tool_and_version_come_from_conda():
+    cells = [
+        c.strip()
+        for c in render_module_facts([REPO / "modules/local/to_spatialdata"], REPO / "containers.tsv")
+        .splitlines()[2]
+        .split("|")[1:-1]
+    ]
+    assert cells[:3] == ["TO_SPATIALDATA", "sopa", "2.2.9"]
+
+
+def test_no_meta_no_conda_uses_dir_name_and_image_tag():
+    cells = [
+        c.strip()
+        for c in render_module_facts([REPO / "modules/local/coreograph_detect"], REPO / "containers.tsv")
+        .splitlines()[2]
+        .split("|")[1:-1]
+    ]
+    assert cells[:3] == ["COREOGRAPH_DETECT", "coreograph_detect", "2.4.6"]
+
+
+def test_hash_image_tag_is_not_a_version():
+    from site_reference import _version
+
+    assert _version("x", "", "registry/img:54a97bc5a187152d") == ""
+    assert _version("x", "", "registry/img:v0.5.1") == "v0.5.1"
+
+
+def test_module_without_container_row_runs_on_host():
+    cells = [
+        c.strip()
+        for c in render_module_facts([REPO / "modules/local/publish_spatialdata"], REPO / "containers.tsv")
+        .splitlines()[2]
+        .split("|")[1:-1]
+    ]
+    assert cells == ["PUBLISH_SPATIALDATA", "publish_spatialdata", "", "none (runs on the host)", ""]
+
+
+def test_all_hidden_group_has_no_heading():
+    schema = {
+        "$defs": {
+            "inst": {
+                "title": "Institutional config options",
+                "properties": {"h": {"hidden": True, "type": "string"}},
+            }
+        },
+        "allOf": [{"$ref": "#/$defs/inst"}],
+    }
+    md = render_parameters(schema)
+    head, _, tail = md.partition(":::{dropdown} Hidden parameters")
+    assert "## Institutional" not in head and "`h`" in tail
