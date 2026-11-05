@@ -7,8 +7,8 @@ dropbox folder; results appear in your `output` folder. Images stay where they a
 
 - **Settings:** an optional `<name>_params.yml` next to the samplesheet takes this site's
   [parameters](reference/parameters.md). Without it, the lab defaults are used.
-- **Resources:** `size:` in the params file (`tiny`, `small`, `medium` or `large`) sets how many
-  cluster resources the run gets.
+- **Resources:** `size:` in the params file (`tiny`, `small` or `medium`) sets how many cluster
+  resources the run gets. For larger images, ask Jose.
 - **Not accepted** in the params file, because the dropbox sets them: `input`, `outdir`, every
   path-type parameter, `custom_config_*`, and `pretrained_model`, `publish_dir_mode`, `email`,
   `email_on_fail`, `plaintext_email`, `pipelines_testdata_base_path`, `config_profile_name`,
@@ -19,6 +19,7 @@ dropbox folder; results appear in your `output` folder. Images stay where they a
 
 % source: histo-dropbox docs/USER_GUIDE.md
 % source: histo-dropbox config/blocked_params.yml
+% source: conf/sizes.config
 
 A `<name>_STATUS.txt` appears next to the samplesheet within a few minutes. Its first line:
 

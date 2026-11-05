@@ -14,7 +14,7 @@ The run stops at startup when these do not hold:
 - **Method × target.** Unless `preprocessing_only`, at least one of `use_cellpose` and
   `use_instanseg`, and one of `segment_cells` and `segment_nuclei`. See
   [Choose methods and targets](../how-to/segmentation-choices.md).
-- **Cellpose channels.** Either [`cellpose_channels`](#cellpose_channels) or
+- **Cellpose channels.** `use_cellpose` needs [`cellpose_channels`](#cellpose_channels) or
   [`use_projection`](#use_projection), not both. `use_projection` needs `use_cellpose` and
   `use_preprocessing`; `keep_projection` needs `use_projection`.
 - **InstanSeg.** Needs [`instanseg_pixel_size`](#instanseg_pixel_size); without
@@ -24,6 +24,7 @@ The run stops at startup when these do not hold:
 - **Booleans on the command line:** see [Parameters](usage.md#parameters).
 
 % source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:648-704
+% source: modules/local/utils.nf:89
 % source: modules/local/utils.nf:142
 
 Each parameter below carries these as a **Requires**, **Conflicts** or **Ignored unless** line.
