@@ -160,15 +160,17 @@ window grows to its pixel bounds, so a giant shape enlarges only its own. Each s
 whole, so medians and SDs are exact and `tile_size` does not change results.
 
 **The statistic menu is `mean`, `median`, `std`, `min`, `max`, `q25`, `q75`, `q90`; the default
-leaves out `min`, `max` and `q99`.** No benchmark ranks statistics for phenotyping, and the mean
-is the baseline. In a 50 px cell q99 is the max; min is mostly background and max a hot pixel
-or a bright neighbour. They are QC signals, so opt-in. `mean` is required, as QC clusters on it.
+is `mean,median,std`.** No benchmark ranks statistics for phenotyping, and the mean is the
+baseline. `q99` is not offered: in a 50 px cell it is the max. Min is mostly background and max
+a hot pixel or a bright neighbour, so both are QC signals, opt-in. `mean` is required, as QC
+clusters on it.
 
 **Morphology is computed on the polygons**, exactly, with no raster. Circularity depends on how
 the polygon was made (sopa smooths) and is unstable below ~30 px², so compare it within one
 method only.
 
-**Pixel units.** Areas and lengths are px and px², as `area` was. µm is on the ROADMAP's longer term, if at all.
+**Pixel units.** Areas and lengths are px and px², as `area` was. Pixel size in the Zarr is
+deferred (ROADMAP).
 
 ## Containers
 
