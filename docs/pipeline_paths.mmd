@@ -1,90 +1,86 @@
 %%metro title: CosciaLab/histo: three paths through the pipeline
 %%metro style: light
-%%metro line: mif | mIF slide, both methods, cells and nuclei | #2a78d6
-%%metro line: backsub | WSI, background subtracted, Cellpose cells | #eb6834
-%%metro line: tma | TMA, dearrayed, InstanSeg cells and nuclei | #1baf7a
+%%metro line: backsub | WSI: background subtracted, Cellpose cells | #eb6834
+%%metro line: mif | mIF slide: Cellpose + InstanSeg, cells + nuclei | #2a78d6
+%%metro line: tma | TMA: dearrayed, InstanSeg cells + nuclei | #1baf7a
+%%metro grid: preprocessing | 0,0
+%%metro grid: store | 1,0
+%%metro grid: segmentation | 2,0
+%%metro grid: output | 2,1
+%%metro grid: qc | 1,1
+%%metro legend: bl
 
 graph LR
     subgraph preprocessing [Preprocessing]
-        BASICPY([Illumination correction])
-        ASHLAR([Stitching and registration])
+        BASICPY([Illumination (BaSiCPy)])
+        ASHLAR([Stitch + register (Ashlar)])
         BACKSUB([Background subtraction])
-        COREOGRAPH_DETECT([Core detection sweep])
-        COREOGRAPH_SELECT([Pick downsample factor])
-        COREOGRAPH([TMA dearray])
+        COREOGRAPH([TMA dearray (Coreograph)])
+        _MIF([ ])
 
         BASICPY -->|mif, backsub, tma| ASHLAR
         ASHLAR -->|backsub| BACKSUB
-        ASHLAR -->|tma| COREOGRAPH_DETECT
-        COREOGRAPH_DETECT -->|tma| COREOGRAPH_SELECT
-        COREOGRAPH_SELECT -->|tma| COREOGRAPH
+        ASHLAR -->|tma| COREOGRAPH
+        ASHLAR -->|mif| _MIF
     end
 
-    subgraph store [SpatialData store]
-        TO_SPATIALDATA([Convert to SpatialData])
-        SET_CHANNEL_NAMES([Name channels])
-        MAKE_IMAGE_PATCHES([Cut into patches])
-
-        TO_SPATIALDATA -->|mif, backsub, tma| SET_CHANNEL_NAMES
-        SET_CHANNEL_NAMES -->|mif, backsub, tma| MAKE_IMAGE_PATCHES
+    subgraph store [SpatialData]
+        TO_SPATIALDATA([SpatialData + patches])
     end
 
     subgraph segmentation [Segmentation]
-        SEGMENT_PATCH_CELLPOSE([Cellpose])
-        SEGMENT_PATCH_INSTANSEG([InstanSeg])
-        RESOLVE([Join patches])
-        LINK_COMPARTMENTS([Link nuclei and cells])
-        AGGREGATE([Quantify markers])
-        WRITE_SEGMENTATIONS([Write outlines])
+        SEGMENT_PATCH_CELLPOSE([Segment: Cellpose-SAM])
+        SEGMENT_PATCH_INSTANSEG([Segment: InstanSeg])
+        LINK_COMPARTMENTS([Link nucleus ↔ cell])
+        AGGREGATE([Quantify per cell])
 
-        SEGMENT_PATCH_CELLPOSE -->|mif, backsub| RESOLVE
-        SEGMENT_PATCH_INSTANSEG -->|mif, tma| RESOLVE
-        RESOLVE -->|mif, tma| LINK_COMPARTMENTS
-        RESOLVE -->|backsub| AGGREGATE
+        SEGMENT_PATCH_CELLPOSE -->|mif| LINK_COMPARTMENTS
+        SEGMENT_PATCH_CELLPOSE -->|backsub| AGGREGATE
+        SEGMENT_PATCH_INSTANSEG -->|mif, tma| LINK_COMPARTMENTS
         LINK_COMPARTMENTS -->|mif, tma| AGGREGATE
-        AGGREGATE -->|mif, backsub, tma| WRITE_SEGMENTATIONS
     end
 
     subgraph output [Output]
-        MERGE_SPATIALDATA([Merge cores])
-        PUBLISH_SPATIALDATA([Publish store])
+        %%metro direction: RL
+        %%metro entry: top | mif, backsub, tma
+        MERGE_SPATIALDATA([Merge cores per slide])
+        PUBLISH_SPATIALDATA([Publish SpatialData])
 
         MERGE_SPATIALDATA -->|tma| PUBLISH_SPATIALDATA
     end
 
     subgraph qc [Quality control]
-        QC_METRICS([QC metrics])
-        QC_IMAGES([QC images])
+        %%metro direction: RL
+        %%metro entry: top | mif, backsub, tma
+        QC_METRICS([QC metrics + images])
         QC_REPORT([QC report])
-        MERGE_REPORT([Slide report])
-        COMPARE_SEGMENTATIONS([Compare methods])
+        COMPARE_SEGMENTATIONS([Compare segmentations])
+        MERGE_REPORT([Merge QC reports per slide])
 
         QC_METRICS -->|mif, backsub, tma| QC_REPORT
-        QC_IMAGES -->|mif, backsub, tma| QC_REPORT
+        QC_METRICS -->|mif| COMPARE_SEGMENTATIONS
         QC_METRICS -->|tma| MERGE_REPORT
     end
 
-    %% Between the sections
-    ASHLAR -->|mif| TO_SPATIALDATA
+    _MIF -->|mif| TO_SPATIALDATA
     BACKSUB -->|backsub| TO_SPATIALDATA
     COREOGRAPH -->|tma| TO_SPATIALDATA
-    MAKE_IMAGE_PATCHES -->|mif, backsub| SEGMENT_PATCH_CELLPOSE
-    MAKE_IMAGE_PATCHES -->|mif, tma| SEGMENT_PATCH_INSTANSEG
-    WRITE_SEGMENTATIONS -->|mif, backsub| PUBLISH_SPATIALDATA
-    WRITE_SEGMENTATIONS -->|tma| MERGE_SPATIALDATA
-    WRITE_SEGMENTATIONS -->|mif, backsub, tma| QC_METRICS
-    WRITE_SEGMENTATIONS -->|mif, backsub, tma| QC_IMAGES
-    WRITE_SEGMENTATIONS -->|mif| COMPARE_SEGMENTATIONS
+    TO_SPATIALDATA -->|mif, backsub| SEGMENT_PATCH_CELLPOSE
+    TO_SPATIALDATA -->|mif, tma| SEGMENT_PATCH_INSTANSEG
+    AGGREGATE -->|mif, backsub| PUBLISH_SPATIALDATA
+    AGGREGATE -->|tma| MERGE_SPATIALDATA
+    AGGREGATE -->|mif, backsub, tma| QC_METRICS
 
-    %% One edge is missing on purpose. Wherever backsub runs, the pre-subtraction
-    %% image also reaches QC_METRICS, so the comparison before and after
-    %% subtraction can be made. Adding `ASHLAR -->|backsub| QC_METRICS` aborts
-    %% nf-metro 1.1.0's renderer with a CurveInvariantError, "a route hanging in
-    %% open space", so it is described in docs/CONTRIBUTING.md instead. The same
-    %% holds for ASHLAR's QC directory, which reaches QC_REPORT and MERGE_REPORT.
+    %% Stations group processes, so the map reads at a glance:
+    %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
+    %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
+    %%   AGGREGATE        RESOLVE, AGGREGATE, WRITE_SEGMENTATIONS
+    %%   QC_METRICS       QC_METRICS, QC_IMAGES
+    %% _MIF is a hidden waypoint that keeps the mIF line straight; without it
+    %% nf-metro 1.1.0 draws a doubled detour under BACKSUB.
+    %%
+    %% Edges left out, described in docs/CONTRIBUTING.md#what-the-map-leaves-out:
+    %% the pre-subtraction image and Ashlar's QC directory reaching QC. COMPARE_SEGMENTATIONS
+    %% reads the store; it hangs off QC_METRICS only to stay inside the QC section.
     %%
     %% The segmentation on each line is an example: any methods and targets fit any line.
-    %% A TMA run with backsub is a fourth combination and is not drawn: it would run
-    %% COREOGRAPH then BACKSUB, per core. COREOGRAPH precedes BACKSUB in the
-    %% subworkflow so that each core is subtracted on its own and keeps an
-    %% unsubtracted twin of matching shape for QC to compare against.

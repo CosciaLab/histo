@@ -220,7 +220,7 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 ```bash
 pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
 nf-metro validate docs/pipeline_paths.mmd
-nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --font-scale 1.4
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
@@ -232,7 +232,8 @@ difference is visible. Reading it is a human step and deliberately not automated
 The station order was taken from `nextflow run . -stub -with-dag` exports of all three paths
 rather than read off the source, so the map reflects the graph Nextflow actually built.
 `nf-metro convert` turns such an export straight into a map, which is worth doing when the
-pipeline changes shape.
+pipeline changes shape. Stations then group related processes, as listed at the end of the
+`.mmd`, so the map stays readable.
 
 Read a converted export rather than trusting it. Nextflow's DAG draws an edge per channel
 consumer, so a channel that two processes read from produces edges to both even when one of them
