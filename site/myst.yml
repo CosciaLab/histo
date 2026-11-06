@@ -7,57 +7,54 @@ project:
     - references.bib
   toc:
     - file: index.md
-    - file: getting-started.md
-    - title: Vignettes
+    - title: Getting started
       children:
-        - file: vignettes/vignettes.md
-        - file: vignettes/mif-slide.md
-        - file: vignettes/wsi-backsub.md
-        - file: vignettes/tma.md
-        - file: vignettes/prestitched.md
-        - file: vignettes/stitching-only.md
-    - title: How-to guides
+        - file: getting-started/introduction.md
+        - file: getting-started/background.md
+        - file: getting-started/step-by-step.md
+        - file: getting-started/usage-guide.md
+    - title: Inputs
       children:
-        - file: how-to/how-to.md
-        - file: how-to/input-sheets.md
-        - file: how-to/segmentation-choices.md
-        - file: how-to/use-projection.md
-        - file: how-to/patch-width.md
-        - file: how-to/gpu.md
-        - file: how-to/tissue-segmentation.md
-        - file: how-to/illumination-profiles.md
-        - file: how-to/fix-stitching.md
-        - file: how-to/resume-debug.md
-        - file: how-to/offline-containers.md
-        - file: how-to/load-in-python.md
-    - title: How it works
-      children:
-        - file: how-it-works/how-it-works.md
-        - file: how-it-works/basicpy.md
-        - file: how-it-works/ashlar.md
-        - file: how-it-works/coreograph.md
-        - file: how-it-works/backsub.md
-        - file: how-it-works/spatialdata.md
-        - file: how-it-works/tiling.md
-        - file: how-it-works/cellpose.md
-        - file: how-it-works/instanseg.md
-        - file: how-it-works/projection.md
-        - file: how-it-works/linking.md
-        - file: how-it-works/quantification.md
-        - file: how-it-works/qc-report.md
-        - file: how-it-works/modalities.md
+        - file: inputs/inputs.md
+        - file: inputs/samplesheet.md
+        - file: inputs/markers.md
+        - file: inputs/parameters.md
+        - file: inputs/parameters-full.md
     - title: Outputs
       children:
         - file: outputs/outputs.md
-        - file: outputs/what-changes-it.md
-        - file: outputs/visual-qc.md
+        - file: outputs/preprocessing.md
+        - file: outputs/qc.md
+        - file: outputs/reports.md
+        - file: outputs/zarr.md
+    - title: Tutorials
+      children:
+        - file: tutorials/tutorials.md
+        - file: tutorials/exemplar-001.md
+        - file: tutorials/tma.md
+        - file: tutorials/wsi-backsub.md
+        - file: tutorials/multiple-segmentations.md
+        - file: tutorials/stitching-only.md
+        - file: tutorials/prestitched.md
+    - title: Modules
+      children:
+        - file: modules/basicpy.md
+        - file: modules/ashlar.md
+        - file: modules/coreograph.md
+        - file: modules/backsub.md
+        - file: modules/spatialdata.md
+        - file: modules/tiling.md
+        - file: modules/cellpose.md
+        - file: modules/instanseg.md
+        - file: modules/projection.md
+        - file: modules/linking.md
+        - file: modules/quantification.md
+        - file: modules/qc-report.md
     - file: mdc.md
     - title: Reference
       children:
         - file: reference/usage.md
         - file: reference/output.md
-        - file: reference/parameters.md
-        - file: reference/samplesheet.md
     - file: changelog.md
     - file: citations.md
 site:

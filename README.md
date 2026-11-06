@@ -68,7 +68,7 @@ Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at
 
 | Doc                                                                      | For         | Contents                                           |
 | ------------------------------------------------------------------------ | ----------- | -------------------------------------------------- |
-| [Website](https://coscialab.github.io/histo/)                            | users       | Guides, vignettes, parameters, how it works        |
+| [Website](https://coscialab.github.io/histo/)                            | users       | Guides, tutorials, inputs, outputs, modules        |
 | [docs/usage.md](docs/usage.md)                                           | users       | Inputs, choosing parameters, profiles, the cluster |
 | [assets/params_template_compact.yml](assets/params_template_compact.yml) | users       | Every parameter on one line, to edit               |
 | [assets/params_template.yml](assets/params_template.yml)                 | users       | Every parameter with its full description          |

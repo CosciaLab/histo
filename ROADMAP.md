@@ -23,7 +23,7 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 1. **Figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
    screenshots.
-2. **Odon.** Document it on the visual-QC page.
+2. **Odon.** Document it under Viewers in `site/outputs/reports.md`.
 3. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
    (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
    `docs/output.md` calls the profiles "fitted".

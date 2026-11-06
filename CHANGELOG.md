@@ -15,8 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Documentation website (MyST, GitHub Pages): vignettes, how-to guides, how-it-works pages,
-  outputs and visual QC, and a parameter reference generated from the schema. Parameter rules
+- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
+  reports, tutorials on the exemplar data, one page per module, and a parameter reference
+  generated from the schema. Parameter rules
   (requires, conflicts, ignored unless) are in the schema `help_text`.
 - `quantification_statistics` (default `mean,median,std`; also `min`, `max`, `q25`, `q75`,
   `q90`) sets the statistics per marker. `mean` is required.
