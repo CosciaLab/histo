@@ -2,7 +2,7 @@ name: Docs site
 on:
   pull_request:
   push:
-    branches: [dev, main]
+    branches: [dev, main, feat/docs-site]
   workflow_dispatch:
 
 permissions:
@@ -35,7 +35,7 @@ jobs:
       - name: Check internal links
         working-directory: site
         run: npm run check
-      - if: github.ref == 'refs/heads/main'
+      - if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/docs-site')
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site/_build/html
@@ -60,8 +60,9 @@ jobs:
         working-directory: site
         run: BASE_URL=/histo npx myst build --html --check-links
 
+  # Temporary preview deploy from feat/docs-site; revert before merging.
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/docs-site')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
