@@ -6,12 +6,12 @@
 
 graph LR
     subgraph preprocessing [Preprocessing]
-        BASICPY([BASICPY])
-        ASHLAR([ASHLAR])
-        BACKSUB([BACKSUB])
-        COREOGRAPH_DETECT([COREOGRAPH_DETECT])
-        COREOGRAPH_SELECT([COREOGRAPH_SELECT])
-        COREOGRAPH([COREOGRAPH])
+        BASICPY([Illumination correction])
+        ASHLAR([Stitching and registration])
+        BACKSUB([Background subtraction])
+        COREOGRAPH_DETECT([Core detection sweep])
+        COREOGRAPH_SELECT([Pick downsample factor])
+        COREOGRAPH([TMA dearray])
 
         BASICPY -->|mif, backsub, tma| ASHLAR
         ASHLAR -->|backsub| BACKSUB
@@ -21,21 +21,21 @@ graph LR
     end
 
     subgraph store [SpatialData store]
-        TO_SPATIALDATA([TO_SPATIALDATA])
-        SET_CHANNEL_NAMES([SET_CHANNEL_NAMES])
-        MAKE_IMAGE_PATCHES([MAKE_IMAGE_PATCHES])
+        TO_SPATIALDATA([Convert to SpatialData])
+        SET_CHANNEL_NAMES([Name channels])
+        MAKE_IMAGE_PATCHES([Cut into patches])
 
         TO_SPATIALDATA -->|mif, backsub, tma| SET_CHANNEL_NAMES
         SET_CHANNEL_NAMES -->|mif, backsub, tma| MAKE_IMAGE_PATCHES
     end
 
     subgraph segmentation [Segmentation]
-        SEGMENT_PATCH_CELLPOSE([SEGMENT_PATCH_CELLPOSE])
-        SEGMENT_PATCH_INSTANSEG([SEGMENT_PATCH_INSTANSEG])
-        RESOLVE([RESOLVE])
-        LINK_COMPARTMENTS([LINK_COMPARTMENTS])
-        AGGREGATE([AGGREGATE])
-        WRITE_SEGMENTATIONS([WRITE_SEGMENTATIONS])
+        SEGMENT_PATCH_CELLPOSE([Cellpose])
+        SEGMENT_PATCH_INSTANSEG([InstanSeg])
+        RESOLVE([Join patches])
+        LINK_COMPARTMENTS([Link nuclei and cells])
+        AGGREGATE([Quantify markers])
+        WRITE_SEGMENTATIONS([Write outlines])
 
         SEGMENT_PATCH_CELLPOSE -->|mif, backsub| RESOLVE
         SEGMENT_PATCH_INSTANSEG -->|mif, tma| RESOLVE
@@ -46,18 +46,18 @@ graph LR
     end
 
     subgraph output [Output]
-        MERGE_SPATIALDATA([MERGE_SPATIALDATA])
-        PUBLISH_SPATIALDATA([PUBLISH_SPATIALDATA])
+        MERGE_SPATIALDATA([Merge cores])
+        PUBLISH_SPATIALDATA([Publish store])
 
         MERGE_SPATIALDATA -->|tma| PUBLISH_SPATIALDATA
     end
 
     subgraph qc [Quality control]
-        QC_METRICS([QC_METRICS])
-        QC_IMAGES([QC_IMAGES])
-        QC_REPORT([QC_REPORT])
-        MERGE_REPORT([MERGE_REPORT])
-        COMPARE_SEGMENTATIONS([COMPARE_SEGMENTATIONS])
+        QC_METRICS([QC metrics])
+        QC_IMAGES([QC images])
+        QC_REPORT([QC report])
+        MERGE_REPORT([Slide report])
+        COMPARE_SEGMENTATIONS([Compare methods])
 
         QC_METRICS -->|mif, backsub, tma| QC_REPORT
         QC_IMAGES -->|mif, backsub, tma| QC_REPORT
