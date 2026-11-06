@@ -220,7 +220,7 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 ```bash
 pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
 nf-metro validate docs/pipeline_paths.mmd
-nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --font-scale 1.4
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --diamond-style symmetric
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves

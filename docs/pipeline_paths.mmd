@@ -1,13 +1,14 @@
 %%metro title: CosciaLab/histo: three paths through the pipeline
 %%metro style: light
-%%metro line: backsub | WSI: background subtracted, Cellpose cells | #eb6834
-%%metro line: mif | mIF slide: Cellpose + InstanSeg, cells + nuclei | #2a78d6
 %%metro line: tma | TMA: dearrayed, InstanSeg cells + nuclei | #1baf7a
+%%metro line: mif | mIF slide: Cellpose + InstanSeg, cells + nuclei | #2a78d6
+%%metro line: backsub | WSI: background subtracted, Cellpose cells | #eb6834
 %%metro grid: preprocessing | 0,0
 %%metro grid: store | 1,0
 %%metro grid: segmentation | 2,0
-%%metro grid: output | 2,1
-%%metro grid: qc | 1,1
+%%metro grid: output | 3,0
+%%metro grid: qc | 2,1,1,2
+%%metro line_spread: centered
 %%metro legend: bl
 
 graph LR
@@ -18,10 +19,10 @@ graph LR
         COREOGRAPH([TMA dearray (Coreograph)])
         _MIF([ ])
 
-        BASICPY -->|mif, backsub, tma| ASHLAR
+        BASICPY -->|backsub, mif, tma| ASHLAR
         ASHLAR -->|backsub| BACKSUB
-        ASHLAR -->|tma| COREOGRAPH
         ASHLAR -->|mif| _MIF
+        ASHLAR -->|tma| COREOGRAPH
     end
 
     subgraph store [SpatialData]
@@ -29,8 +30,9 @@ graph LR
     end
 
     subgraph segmentation [Segmentation]
-        SEGMENT_PATCH_CELLPOSE([Segment: Cellpose-SAM])
-        SEGMENT_PATCH_INSTANSEG([Segment: InstanSeg])
+        %%metro exit: right | backsub, mif, tma
+        SEGMENT_PATCH_CELLPOSE([Cellpose-SAM])
+        SEGMENT_PATCH_INSTANSEG([InstanSeg])
         LINK_COMPARTMENTS([Link nucleus ↔ cell])
         AGGREGATE([Quantify per cell])
 
@@ -41,8 +43,9 @@ graph LR
     end
 
     subgraph output [Output]
-        %%metro direction: RL
-        %%metro entry: top | mif, backsub, tma
+        %%metro direction: TB
+        %%metro entry: left | backsub, mif, tma
+        %%metro exit: bottom | backsub, mif, tma
         MERGE_SPATIALDATA([Merge cores per slide])
         PUBLISH_SPATIALDATA([Publish SpatialData])
 
@@ -51,36 +54,38 @@ graph LR
 
     subgraph qc [Quality control]
         %%metro direction: RL
-        %%metro entry: top | mif, backsub, tma
+        %%metro entry: top | backsub, mif, tma
         QC_METRICS([QC metrics + images])
         QC_REPORT([QC report])
         COMPARE_SEGMENTATIONS([Compare segmentations])
         MERGE_REPORT([Merge QC reports per slide])
 
-        QC_METRICS -->|mif, backsub, tma| QC_REPORT
-        QC_METRICS -->|mif| COMPARE_SEGMENTATIONS
-        QC_METRICS -->|tma| MERGE_REPORT
+        QC_METRICS -->|backsub, mif, tma| QC_REPORT
+        QC_REPORT -->|mif| COMPARE_SEGMENTATIONS
+        QC_REPORT -->|tma| MERGE_REPORT
     end
 
-    _MIF -->|mif| TO_SPATIALDATA
     BACKSUB -->|backsub| TO_SPATIALDATA
+    _MIF -->|mif| TO_SPATIALDATA
     COREOGRAPH -->|tma| TO_SPATIALDATA
-    TO_SPATIALDATA -->|mif, backsub| SEGMENT_PATCH_CELLPOSE
+    TO_SPATIALDATA -->|backsub, mif| SEGMENT_PATCH_CELLPOSE
     TO_SPATIALDATA -->|mif, tma| SEGMENT_PATCH_INSTANSEG
-    AGGREGATE -->|mif, backsub| PUBLISH_SPATIALDATA
+    AGGREGATE -->|backsub, mif| PUBLISH_SPATIALDATA
     AGGREGATE -->|tma| MERGE_SPATIALDATA
-    AGGREGATE -->|mif, backsub, tma| QC_METRICS
+    PUBLISH_SPATIALDATA -->|backsub, mif, tma| QC_METRICS
 
+    %% A serpentine: the top row runs left to right, Output turns down the right edge,
+    %% QC runs right to left along the bottom (the nf-core/rnaseq pattern).
+    %%
     %% Stations group processes, so the map reads at a glance:
     %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
     %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
     %%   AGGREGATE        RESOLVE, AGGREGATE, WRITE_SEGMENTATIONS
     %%   QC_METRICS       QC_METRICS, QC_IMAGES
-    %% _MIF is a hidden waypoint that keeps the mIF line straight; without it
-    %% nf-metro 1.1.0 draws a doubled detour under BACKSUB.
+    %% _MIF is a hidden waypoint that keeps the mIF line straight past BACKSUB.
     %%
-    %% Edges left out, described in docs/CONTRIBUTING.md#what-the-map-leaves-out:
-    %% the pre-subtraction image and Ashlar's QC directory reaching QC. COMPARE_SEGMENTATIONS
-    %% reads the store; it hangs off QC_METRICS only to stay inside the QC section.
-    %%
+    %% Schematic, not wiring: QC reads the store alongside publishing, not after it;
+    %% COMPARE_SEGMENTATIONS and MERGE_REPORT read the store and the QC metrics.
+    %% Each line takes one path (except mIF's two methods), so no colour runs twice.
+    %% Edges left out are described in docs/CONTRIBUTING.md#what-the-map-leaves-out.
     %% The segmentation on each line is an example: any methods and targets fit any line.
