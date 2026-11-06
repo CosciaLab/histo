@@ -10,6 +10,7 @@ affiliated with or endorsed by nf-core.
 % source: README.md#steps
 
 :::{figure} ../docs/images/pipeline_paths.svg
+:class: col-page-right
 :alt: Metro map of three example paths through the pipeline, from illumination correction to the QC report
 Three example paths through the pipeline: a cyclic mIF slide, a whole slide with background
 subtraction, and a tissue microarray. [Open the map at full size](../docs/images/pipeline_paths.svg).
