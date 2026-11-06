@@ -1,18 +1,18 @@
 %%metro title: CosciaLab/histo
 %%metro style: light
-%%metro line: wsi | Whole slide | #2a78d6
-%%metro line: tma | Tissue microarray | #1baf7a
+%%metro line: wsi | Whole slide | #0072B2
+%%metro line: tma | Tissue microarray | #D55E00
 %%metro marker: BACKSUB | circle, #cccccc
 %%metro marker: PROJECT_CHANNELS | circle, #cccccc
 %%metro marker: LINK_COMPARTMENTS | circle, #cccccc
 %%metro marker: COMPARE_SEGMENTATIONS | circle, #cccccc
 %%metro marker_legend: circle, #cccccc | Optional step
-%%metro legend: bl
 %%metro grid: preprocessing | 0,0
 %%metro grid: store | 1,0
 %%metro grid: segmentation | 2,0
 %%metro grid: output | 2,1
-%%metro grid: qc | 2,2
+%%metro grid: qc | 0,1,1,2
+%%metro legend: bl
 
 graph LR
     subgraph preprocessing [Preprocessing]
@@ -47,6 +47,8 @@ graph LR
 
     subgraph output [Output]
         %%metro direction: RL
+        %%metro entry: right | wsi, tma
+        %%metro exit: left | wsi, tma
         MERGE_SPATIALDATA([Merge cores per slide])
         PUBLISH_SPATIALDATA([Publish SpatialData])
 
@@ -54,11 +56,11 @@ graph LR
     end
 
     subgraph qc [Quality control]
-
-        QC_METRICS([QC metrics + images])
+        %%metro direction: RL
+        QC_METRICS([QC metrics])
         QC_REPORT([QC report])
-        COMPARE_SEGMENTATIONS([Compare segmentations])
-        MERGE_REPORT([Slide QC report])
+        COMPARE_SEGMENTATIONS([Compare methods])
+        MERGE_REPORT([Slide report])
 
         QC_METRICS -->|wsi, tma| QC_REPORT
         QC_REPORT -->|wsi, tma| COMPARE_SEGMENTATIONS
@@ -72,7 +74,7 @@ graph LR
     AGGREGATE -->|tma| MERGE_SPATIALDATA
     PUBLISH_SPATIALDATA -->|wsi, tma| QC_METRICS
 
-    %% Two lines, three rows: left to right, back right to left, then left to right again.
+    %% Two lines, two rows: left to right, then back right to left through Output and QC.
     %% Grey stations are optional steps. Grouped stations:
     %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
     %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
