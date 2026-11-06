@@ -6,7 +6,7 @@ The MDC dropbox runs the pipeline on the cluster for you. Drop a `<name>_samples
 dropbox folder; results appear in your `output` folder. Images stay where they are.
 
 - **Settings:** an optional `<name>_params.yml` next to the samplesheet takes this site's
-  [parameters](reference/parameters.md). Without it, the lab defaults are used.
+  [parameters](inputs/parameters.md). Without it, the lab defaults are used.
 - **Resources:** `size:` in the params file (`tiny`, `small` or `medium`) sets how many cluster
   resources the run gets. For larger images, ask Jose.
 - **Not accepted** in the params file, because the dropbox sets them: `input`, `outdir`, every
@@ -39,7 +39,7 @@ or ask Jose.
 ## Running it yourself
 
 On the MDC cluster add `slurm,mdc` to the profiles, e.g.
-`-profile singularity,size_small,slurm,mdc`. See [Profiles](reference/usage.md#profiles).
+`-profile singularity,size_small,slurm,mdc`. See [Profiles](getting-started/usage-guide.md#profiles).
 
 % source: docs/usage.md#profiles
 % source: conf/mdc.config
