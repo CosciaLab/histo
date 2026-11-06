@@ -27,7 +27,7 @@ def test_run_commands_use_manifest_version():
         f"{p.relative_to(REPO)}:{n}": m
         for p in _doc_files()
         for n, line in enumerate(p.read_text().splitlines(), 1)
-        for m in re.findall(r"-r (v\d+\.\d+\.\d+\S*)", line)
+        for m in re.findall(r"-r (v\d+\.\d+\.\d+[\w.+-]*)", line)
     }
     assert found, "no -r vX.Y.Z found; did the docs move?"
     stale = {k: v for k, v in found.items() if v != f"v{version}"}
