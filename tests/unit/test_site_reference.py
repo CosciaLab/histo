@@ -10,6 +10,7 @@ from site_reference import (
     TOOL_OVERRIDES,
     main,
     render_module_facts,
+    render_csv_table,
     render_parameters,
     render_sheet,
 )
@@ -34,10 +35,25 @@ def test_missing_default_says_none_not_python_none(schema):
     assert "none" in md
 
 
-def test_hidden_parameters_in_dropdown_only(schema):
+def _one(prop):
+    schema = {"$defs": {"g": {"title": "G", "properties": {"x": prop}}}, "allOf": [{"$ref": "#/$defs/g"}]}
+    return render_parameters(schema)
+
+
+def test_type_and_default_on_one_line():
+    md = _one({"type": "string", "default": "max", "enum": ["max", "mean"]})
+    assert "*string · default `max` · one of `max`, `mean`*" in md
+
+
+def test_null_boolean_default_is_false():
+    assert "*boolean · default `false`*" in _one({"type": "boolean"})
+
+
+def test_hidden_parameters_in_table_without_headings(schema):
     md = render_parameters(schema)
-    head, _, tail = md.partition(":::{dropdown} Hidden parameters")
-    assert "`hidden_flag`" not in head and "`hidden_flag`" in tail
+    head, _, tail = md.partition("## Advanced and nf-core parameters")
+    assert "`hidden_flag`" not in head and "| `hidden_flag` |" in tail
+    assert "### " not in tail and "(hidden_flag)=" not in md
 
 
 def test_help_text_rendered(schema):
@@ -86,7 +102,7 @@ def test_pages_point_at_existing_modules():
 def test_main_on_real_repo(tmp_path):
     import shutil
 
-    for sub in ("assets", "modules"):
+    for sub in ("assets", "modules", "tests/exemplar_data"):
         shutil.copytree(REPO / sub, tmp_path / sub)
     shutil.copy(REPO / "nextflow_schema.json", tmp_path)
     shutil.copy(REPO / "containers.tsv", tmp_path)
@@ -96,8 +112,10 @@ def test_main_on_real_repo(tmp_path):
     for group in json.loads((REPO / "nextflow_schema.json").read_text())["$defs"].values():
         for name in group["properties"]:
             assert f"`{name}`" in params
-    sheets = (out / "samplesheet.md").read_text()
-    assert "Cycle" in sheets and "Stitched" in sheets and "Marker" in sheets
+    for sheet in ("cycle", "stitched", "marker"):
+        assert (out / "sheets" / f"{sheet}.md").read_text().startswith("### ")
+    table = (out / "exemplar" / "markers_exemplar002.md").read_text()
+    assert table.startswith("| channel_number |") and "| AF488 |" in table
     for slug in PAGES:
         assert (out / "modules" / f"{slug}.md").is_file()
 
@@ -150,7 +168,7 @@ def test_all_hidden_group_has_no_heading():
         "allOf": [{"$ref": "#/$defs/inst"}],
     }
     md = render_parameters(schema)
-    head, _, tail = md.partition(":::{dropdown} Hidden parameters")
+    head, _, tail = md.partition("## Advanced and nf-core parameters")
     assert "## Institutional" not in head and "`h`" in tail
 
 
@@ -199,3 +217,9 @@ def test_qc_report_page_names_pipeline_scripts_and_keeps_container():
     rows = md.splitlines()[2:-1]
     assert rows and all("pipeline scripts (`bin/`)" in r and "python_sopa" in r for r in rows)
     assert "sopa |" not in md and "geopandas" not in md
+
+
+def test_csv_table_keeps_empty_cells(tmp_path):
+    f = tmp_path / "m.csv"
+    f.write_text("a,b,c\n1,,x\n\n")
+    assert render_csv_table(f) == "| a | b | c |\n| --- | --- | --- |\n| 1 |  | x |\n"

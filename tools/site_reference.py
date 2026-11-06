@@ -17,7 +17,7 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[1]
 
-# Slug of a how-it-works page -> module dirs (relative to the repo root) whose facts it shows.
+# Slug of a module page -> module dirs (relative to the repo root) whose facts it shows.
 PAGES: dict[str, list[str]] = {
     "basicpy": ["modules/nf-core/basicpy"],
     "ashlar": ["modules/nf-core/ashlar"],
@@ -85,7 +85,8 @@ def _type(prop: dict) -> str:
 def _default(prop: dict) -> str:
     value = prop.get("default")
     if value is None:
-        return "none"
+        # nf-core leaves boolean defaults null, which the pipeline reads as false
+        return "false" if _type(prop) == "boolean" else "none"
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, float) and value.is_integer():
@@ -93,13 +94,17 @@ def _default(prop: dict) -> str:
     return str(value)
 
 
+def _summary(prop: dict) -> str:
+    """Type, default and allowed values on one line."""
+    line = f"*{_type(prop)} · default `{_default(prop)}`"
+    if "enum" in prop:
+        line += " · one of " + ", ".join(f"`{v}`" for v in prop["enum"])
+    return line + "*"
+
+
 def _render_parameter(name: str, prop: dict) -> str:
     # MyST has no {#id} heading syntax; a (name)= target gives the heading its anchor.
-    lines = [f"({name})=", f"### `{name}`", "", "Type", f": `{_type(prop)}`", "", "Default"]
-    lines += [f": `{_default(prop)}`", ""]
-    if "enum" in prop:
-        values = ", ".join(f"`{v}`" for v in prop["enum"])
-        lines += ["Allowed", f": {values}", ""]
+    lines = [f"({name})=", f"### `{name}`", "", _summary(prop), ""]
     if prop.get("description"):
         lines += [prop["description"].strip(), ""]
     if prop.get("help_text"):
@@ -108,7 +113,10 @@ def _render_parameter(name: str, prop: dict) -> str:
 
 
 def render_parameters(schema: dict) -> str:
-    """One section per parameter group, in allOf order; hidden parameters go in one dropdown."""
+    """One section per parameter group, in allOf order; hidden parameters in one table at the end.
+
+    A table rather than headings, so hidden parameters stay out of the page's table of contents.
+    """
     defs = schema["$defs"]
     out: list[str] = []
     hidden: list[tuple[str, dict]] = []
@@ -124,17 +132,31 @@ def render_parameters(schema: dict) -> str:
             out += [group["description"].strip(), ""]
         out += [_render_parameter(n, p) for n, p in shown]
     if hidden:
-        out += [":::{dropdown} Hidden parameters", ""]
-        out += [_render_parameter(n, p) for n, p in hidden]
-        out += [":::", ""]
+        out += ["## Advanced and nf-core parameters", ""]
+        out += ["Rarely changed; most are set by profiles or institutional configs.", ""]
+        out += ["| Parameter | Type | Default | Description |", "| --- | --- | --- | --- |"]
+        for n, p in hidden:
+            desc = _cell(p.get("description", ""))
+            out.append(f"| `{n}` | {_cell(_type(p))} | `{_default(p)}` | {desc} |")
+        out.append("")
     return "\n".join(out)
 
 
-def render_sheet(schema: dict, title: str) -> str:
+def render_csv_table(path: Path) -> str:
+    """A CSV file as a plain Markdown table; empty cells stay empty."""
+    with path.open(newline="") as fh:
+        rows = list(csv.reader(fh))
+    header, body = rows[0], [r for r in rows[1:] if any(r)]
+    lines = ["| " + " | ".join(_cell(c) for c in header) + " |", "|" + " --- |" * len(header)]
+    lines += ["| " + " | ".join(_cell(c) for c in r) + " |" for r in body]
+    return "\n".join(lines) + "\n"
+
+
+def render_sheet(schema: dict, title: str, level: int = 2) -> str:
     """A Column | Required | Type | Description table from an array schema's items."""
     items = schema["items"]
     required = set(items.get("required", []))
-    lines = [f"## {title}", ""]
+    lines = [f"{'#' * level} {title}", ""]
     if schema.get("description"):
         lines += [schema["description"].strip(), ""]
     lines += ["| Column | Required | Type | Description |", "| --- | --- | --- | --- |"]
@@ -224,14 +246,18 @@ def main(repo: Path = REPO) -> None:
     out = repo / "site" / "_generated"
     (out / "modules").mkdir(parents=True, exist_ok=True)
     (out / "parameters.md").write_text(render_parameters(_load(repo / "nextflow_schema.json")))
+    # One file per sheet, so each inputs page includes only its own under its own heading.
     sheets = [
-        ("Cycle sheet", "schema_input_cycle.json"),
-        ("Stitched-image sheet", "schema_input.json"),
-        ("Marker sheet", "schema_marker.json"),
+        ("cycle", "Cycle sheet columns", "schema_input_cycle.json"),
+        ("stitched", "Stitched-image sheet columns", "schema_input.json"),
+        ("marker", "Marker sheet columns", "schema_marker.json"),
     ]
-    (out / "samplesheet.md").write_text(
-        "\n".join(render_sheet(_load(repo / "assets" / f), t) for t, f in sheets)
-    )
+    (out / "sheets").mkdir(exist_ok=True)
+    for slug, title, f in sheets:
+        (out / "sheets" / f"{slug}.md").write_text(render_sheet(_load(repo / "assets" / f), title, 3))
+    (out / "exemplar").mkdir(exist_ok=True)
+    for sheet in sorted((repo / "tests" / "exemplar_data").glob("markers_exemplar*.csv")):
+        (out / "exemplar" / f"{sheet.stem}.md").write_text(render_csv_table(sheet))
     for slug, dirs in PAGES.items():
         facts = render_module_facts(
             [repo / d for d in dirs], repo / "containers.tsv", TOOL_OVERRIDES.get(slug)
