@@ -1,28 +1,30 @@
-%%metro title: CosciaLab/histo: three paths through the pipeline
+%%metro title: CosciaLab/histo
 %%metro style: light
-%%metro line: tma | TMA: dearrayed, InstanSeg cells + nuclei | #1baf7a
-%%metro line: mif | mIF slide: Cellpose + InstanSeg, cells + nuclei | #2a78d6
-%%metro line: backsub | WSI: background subtracted, Cellpose cells | #eb6834
+%%metro line: wsi | Whole slide | #2a78d6
+%%metro line: tma | Tissue microarray | #1baf7a
+%%metro marker: BACKSUB | circle, #cccccc
+%%metro marker: PROJECT_CHANNELS | circle, #cccccc
+%%metro marker: LINK_COMPARTMENTS | circle, #cccccc
+%%metro marker: COMPARE_SEGMENTATIONS | circle, #cccccc
+%%metro marker_legend: circle, #cccccc | Optional step
+%%metro legend: bl
 %%metro grid: preprocessing | 0,0
 %%metro grid: store | 1,0
 %%metro grid: segmentation | 2,0
-%%metro grid: output | 3,0
-%%metro grid: qc | 2,1,1,2
-%%metro line_spread: centered
-%%metro legend: bl
+%%metro grid: output | 2,1
+%%metro grid: qc | 2,2
 
 graph LR
     subgraph preprocessing [Preprocessing]
         BASICPY([Illumination (BaSiCPy)])
         ASHLAR([Stitch + register (Ashlar)])
-        BACKSUB([Background subtraction])
         COREOGRAPH([TMA dearray (Coreograph)])
-        _MIF([ ])
+        BACKSUB([Background subtraction])
 
-        BASICPY -->|backsub, mif, tma| ASHLAR
-        ASHLAR -->|backsub| BACKSUB
-        ASHLAR -->|mif| _MIF
+        BASICPY -->|wsi, tma| ASHLAR
         ASHLAR -->|tma| COREOGRAPH
+        ASHLAR -->|wsi| BACKSUB
+        COREOGRAPH -->|tma| BACKSUB
     end
 
     subgraph store [SpatialData]
@@ -30,22 +32,21 @@ graph LR
     end
 
     subgraph segmentation [Segmentation]
-        %%metro exit: right | backsub, mif, tma
+
+        PROJECT_CHANNELS([Channel projection])
         SEGMENT_PATCH_CELLPOSE([Cellpose-SAM])
         SEGMENT_PATCH_INSTANSEG([InstanSeg])
         LINK_COMPARTMENTS([Link nucleus ↔ cell])
         AGGREGATE([Quantify per cell])
 
-        SEGMENT_PATCH_CELLPOSE -->|mif| LINK_COMPARTMENTS
-        SEGMENT_PATCH_CELLPOSE -->|backsub| AGGREGATE
-        SEGMENT_PATCH_INSTANSEG -->|mif, tma| LINK_COMPARTMENTS
-        LINK_COMPARTMENTS -->|mif, tma| AGGREGATE
+        PROJECT_CHANNELS -->|wsi, tma| SEGMENT_PATCH_CELLPOSE
+        SEGMENT_PATCH_CELLPOSE -->|wsi, tma| LINK_COMPARTMENTS
+        SEGMENT_PATCH_INSTANSEG -->|wsi, tma| LINK_COMPARTMENTS
+        LINK_COMPARTMENTS -->|wsi, tma| AGGREGATE
     end
 
     subgraph output [Output]
-        %%metro direction: TB
-        %%metro entry: left | backsub, mif, tma
-        %%metro exit: bottom | backsub, mif, tma
+        %%metro direction: RL
         MERGE_SPATIALDATA([Merge cores per slide])
         PUBLISH_SPATIALDATA([Publish SpatialData])
 
@@ -53,39 +54,29 @@ graph LR
     end
 
     subgraph qc [Quality control]
-        %%metro direction: RL
-        %%metro entry: top | backsub, mif, tma
+
         QC_METRICS([QC metrics + images])
         QC_REPORT([QC report])
         COMPARE_SEGMENTATIONS([Compare segmentations])
-        MERGE_REPORT([Merge QC reports per slide])
+        MERGE_REPORT([Slide QC report])
 
-        QC_METRICS -->|backsub, mif, tma| QC_REPORT
-        QC_REPORT -->|mif| COMPARE_SEGMENTATIONS
-        QC_REPORT -->|tma| MERGE_REPORT
+        QC_METRICS -->|wsi, tma| QC_REPORT
+        QC_REPORT -->|wsi, tma| COMPARE_SEGMENTATIONS
+        COMPARE_SEGMENTATIONS -->|tma| MERGE_REPORT
     end
 
-    BACKSUB -->|backsub| TO_SPATIALDATA
-    _MIF -->|mif| TO_SPATIALDATA
-    COREOGRAPH -->|tma| TO_SPATIALDATA
-    TO_SPATIALDATA -->|backsub, mif| SEGMENT_PATCH_CELLPOSE
-    TO_SPATIALDATA -->|mif, tma| SEGMENT_PATCH_INSTANSEG
-    AGGREGATE -->|backsub, mif| PUBLISH_SPATIALDATA
+    BACKSUB -->|wsi, tma| TO_SPATIALDATA
+    TO_SPATIALDATA -->|wsi, tma| PROJECT_CHANNELS
+    TO_SPATIALDATA -->|wsi, tma| SEGMENT_PATCH_INSTANSEG
+    AGGREGATE -->|wsi| PUBLISH_SPATIALDATA
     AGGREGATE -->|tma| MERGE_SPATIALDATA
-    PUBLISH_SPATIALDATA -->|backsub, mif, tma| QC_METRICS
+    PUBLISH_SPATIALDATA -->|wsi, tma| QC_METRICS
 
-    %% A serpentine: the top row runs left to right, Output turns down the right edge,
-    %% QC runs right to left along the bottom (the nf-core/rnaseq pattern).
-    %%
-    %% Stations group processes, so the map reads at a glance:
+    %% Two lines, three rows: left to right, back right to left, then left to right again.
+    %% Grey stations are optional steps. Grouped stations:
     %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
     %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
     %%   AGGREGATE        RESOLVE, AGGREGATE, WRITE_SEGMENTATIONS
     %%   QC_METRICS       QC_METRICS, QC_IMAGES
-    %% _MIF is a hidden waypoint that keeps the mIF line straight past BACKSUB.
-    %%
-    %% Schematic, not wiring: QC reads the store alongside publishing, not after it;
-    %% COMPARE_SEGMENTATIONS and MERGE_REPORT read the store and the QC metrics.
-    %% Each line takes one path (except mIF's two methods), so no colour runs twice.
+    %% Schematic, not wiring: QC reads the store alongside publishing, not after it.
     %% Edges left out are described in docs/CONTRIBUTING.md#what-the-map-leaves-out.
-    %% The segmentation on each line is an example: any methods and targets fit any line.

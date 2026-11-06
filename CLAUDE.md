@@ -34,7 +34,7 @@ guidelines anyway, so modules or the pipeline can go upstream later.
 - Never hand-edit `assets/params_template*.yml`; a prek hook regenerates them from the schema.
 - Optional steps are schema booleans with `default: false`.
 - After rewiring the graph, run
-  `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --diamond-style symmetric` and have a human
+  `nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --y-spacing 76` and have a human
   look at it. See [CONTRIBUTING](docs/CONTRIBUTING.md#metro-map).
 
 ## 4. Modules

@@ -6,7 +6,7 @@ This document describes the output produced by the pipeline.
 
 ## What runs
 
-The three routes drawn as the metro map in the [README](https://github.com/CosciaLab/histo/blob/dev/README.md#steps). Everything else is
+Three example routes; the metro map in the [README](https://github.com/CosciaLab/histo/blob/dev/README.md#steps) draws the whole-slide and TMA ones. Everything else is
 off by default. Each column's segmentation is an example: any methods and targets fit any route.
 
 Read down a column to get one run's process list, in order. The QC steps and

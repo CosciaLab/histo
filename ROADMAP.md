@@ -181,9 +181,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
   55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Make it a pure function; test it.
-- **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
-  but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
-  then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
+- **nf-metro.** The map needs 2.1.0, pinned only in CONTRIBUTING. Decide whether the
+  pre-subtraction edge into QC belongs on the map.
 - **Offer upstream to sopa** (decisions.md, Segmentation): `--image-key` for staining
   segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize.
 

@@ -211,16 +211,17 @@ npx myst start    # live preview, from site/
 
 ## Metro map
 
-`docs/images/pipeline_paths.svg` draws three paths; variations are listed in
+`docs/images/pipeline_paths.svg` draws the whole-slide and TMA paths; grey stations are
+optional steps. Variations are listed in
 [output.md](output.md#what-runs).
 
 The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered with
 [nf-metro](https://github.com/seqeralabs/nf-metro):
 
 ```bash
-pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
+pip install nf-metro==2.1.0   # 1.1.0 aborts on the turns between rows
 nf-metro validate docs/pipeline_paths.mmd
-nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --diamond-style symmetric
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive --y-spacing 76   # spacing sets the 1:2.2 ratio
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
@@ -249,11 +250,10 @@ One edge is deliberately absent. The pre-subtraction image also reaches `QC_METR
 how the report compares channel statistics before and after subtraction. It exists whenever
 `use_backsub` is set, on both the WSI and the TMA line: `COREOGRAPH` runs before `BACKSUB`, so a
 dearrayed core is subtracted individually and its own unsubtracted twin is what QC compares it
-against. Drawing this edge aborts nf-metro 1.1.0's renderer with a `CurveInvariantError`, so it
-is described here instead.
+against. The map leaves it out to stay readable.
 
 For the same reason a second edge is absent: `ASHLAR` also sends its QC directory to
-`QC_REPORT` (mIF and WSI lines) and to `MERGE_REPORT` (TMA line, per slide).
+`QC_REPORT` and, per TMA slide, to `MERGE_REPORT`.
 
 That ordering is the reason the TMA column of [What runs](output.md#what-runs) lists `COREOGRAPH`
 before `BACKSUB`. The two orders

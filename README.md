@@ -30,7 +30,7 @@ nf-core. It follows nf-core conventions for reproducibility and to keep upstream
 
 ## Steps
 
-![Metro map of three paths through the pipeline](docs/images/pipeline_paths.svg)
+![Metro map of the whole-slide and TMA paths through the pipeline](docs/images/pipeline_paths.svg)
 
 Preprocessing (from mcmicro):
 
