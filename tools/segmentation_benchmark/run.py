@@ -28,24 +28,28 @@ SCOPES = {
     "tissuenet": ["tissuenet"],
     "all": ["crossplatform", "tonsil", "tissuenet"],
 }
-_methods: dict = {}
+_models: dict = {}
 
 
-def segment(image: np.ndarray, channels: list[str], setting: pd.Series, gpu: bool) -> np.ndarray:
-    """Cellpose-SAM through sopa's own patch function; built once per channel set."""
-    key = tuple(channels)
-    if key not in _methods:
-        from sopa.segmentation.methods import cellpose_patch
+def segment(image: np.ndarray, channels: list[str], setting: pd.Series, gpu: bool) -> np.ndarray:  # noqa: ARG001
+    """Cellpose-SAM, loaded once per task; sopa's callable reloads the model per call, this mirrors its eval."""
+    if gpu not in _models:
+        import warnings
 
-        _methods[key] = cellpose_patch(
-            diameter=30,
-            channels=channels,
-            pretrained_model="cpsam_v2",
-            flow_threshold=float(setting["flow_threshold"]),
-            cellprob_threshold=float(setting["cellprob_threshold"]),
-            gpu=gpu,
+        from sopa.segmentation.methods._cellpose import load_cellpose_model
+
+        warnings.filterwarnings("ignore", message="You are using `torch.load` with `weights_only=False`")
+        _models[gpu] = load_cellpose_model(
+            model_type="cyto3", pretrained_model="cpsam_v2", gpu=gpu, cellpose_model_kwargs=None
         )
-    return np.asarray(_methods[key](image))
+    mask, *_ = _models[gpu].eval(
+        image,
+        diameter=30,
+        channels=None,  # cellpose 4 ignores channel names, as in sopa
+        flow_threshold=float(setting["flow_threshold"]),
+        cellprob_threshold=float(setting["cellprob_threshold"]),
+    )
+    return np.asarray(mask)
 
 
 def prepare_input(image: np.ndarray, crop: pd.Series, setting: pd.Series) -> tuple[np.ndarray, list[str]]:
