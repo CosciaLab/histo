@@ -112,7 +112,7 @@ Paths must be absolute.
 Required: `input`, `outdir` and, unless `preprocessing_only`, at least one segmentation method.
 Cellpose also needs `cellpose_channels` or `use_projection`; InstanSeg needs
 `instanseg_pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
-startup; see [output.md](output.md#from-1x).
+startup; see [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-1x).
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
 means use the default.** `--use_backsub` switches it on. To switch something off, leave it out, or
@@ -143,9 +143,9 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
 
 Every parameter and its default is in two generated files.
-[assets/params_template_compact.yml](../assets/params_template_compact.yml) has one line each:
+[assets/params_template_compact.yml](https://github.com/CosciaLab/histo/blob/dev/assets/params_template_compact.yml) has one line each:
 copy it to `params.yml` and uncomment what you change.
-[assets/params_template.yml](../assets/params_template.yml) has the full descriptions. `null` in
+[assets/params_template.yml](https://github.com/CosciaLab/histo/blob/dev/assets/params_template.yml) has the full descriptions. `null` in
 either means off or unset. `--help` prints the same list.
 
 ### Methods and targets
@@ -212,7 +212,7 @@ magenta and cell in green. In the JSON, a marker under `dominant` swamps the oth
 bright cytoplasm marker can make Cellpose miss whole groups of cells. Leave it out with the
 `segmentation` column. `keep_projection: true` also keeps it at full resolution in the store,
 as `<image>_projected`, to view with the cell boundaries. How the defaults were chosen is in
-[decisions.md](decisions.md).
+[decisions.md](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md).
 
 ## Profiles
 
@@ -295,7 +295,7 @@ CPU sizing. A task fails if CUDA is not usable in it, rather than running on CPU
 Docker there has no GPU.
 
 InstanSeg on GPU takes at most 10 channels, until its GPU memory is measured
-([ROADMAP](../ROADMAP.md)). A run with more, named in `instanseg_channels` or taken from a marker
+([ROADMAP](https://github.com/CosciaLab/histo/blob/dev/ROADMAP.md)). A run with more, named in `instanseg_channels` or taken from a marker
 sheet, stops at startup: name 10 or fewer, or leave `use_gpu` off.
 
 Validate before submitting — this catches bad paths and parameter types in seconds rather than after

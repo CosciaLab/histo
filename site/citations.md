@@ -1,0 +1,3 @@
+```{include} ../CITATIONS.md
+
+```
