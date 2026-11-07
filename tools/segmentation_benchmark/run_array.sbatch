@@ -7,7 +7,7 @@
 #SBATCH --constraint=ceph
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=TIME
+#SBATCH --time=04:00:00  # generous; tighten after the timing job
 #SBATCH --output=logs/%A_%a.out
 # Submit from a directory where logs/ exists. Needs SIF, DATA, OUT and REPO in the environment.
 set -euo pipefail

@@ -14,7 +14,7 @@ Data never enters the repo.
    `rsync -a $BENCH/data/ cluster:$SCRATCH/bench/data/` and
    `rsync -a --exclude .git ./ cluster:$SCRATCH/bench/repo/`
 3. Timing job first (today's cells/raw setting, 20 crops); `--time` on the command line
-   overrides the placeholder, extra arguments go to `run.py`. It writes `results/18.partial.csv`,
+   overrides the 4 h default, extra arguments go to `run.py`. It writes `results/18.partial.csv`,
    which the full array ignores:
    `sbatch --array=18 --time=01:00:00 tools/segmentation_benchmark/run_array.sbatch --limit-crops 20`
    Use its seconds to set `--time` in the sbatch.
