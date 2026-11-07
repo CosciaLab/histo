@@ -587,10 +587,11 @@
 ## -----------------------------------------------------------------------------
 ## pretrained_model
 ## -----------------------------------------------------------------------------
-##     Cellpose `pretrained_model` parameter
+##     Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or
+##     a path
 ##     Type: string
 ## -----------------------------------------------------------------------------
-# pretrained_model: null
+# pretrained_model: "cpsam_v2"
 
 ## -----------------------------------------------------------------------------
 ## cellpose_kwargs

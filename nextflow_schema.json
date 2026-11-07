@@ -416,7 +416,8 @@
                 },
                 "pretrained_model": {
                     "type": "string",
-                    "description": "Cellpose `pretrained_model` parameter"
+                    "default": "cpsam_v2",
+                    "description": "Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or a path"
                 },
                 "cellpose_kwargs": {
                     "type": "string",

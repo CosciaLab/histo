@@ -107,7 +107,8 @@ fails the task, since cellpose falls back to CPU silently.
 
 **Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
 Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so
-images are not rescaled.
+images are not rescaled. `cpsam_v2` is the default, following the cellpose developers; it is not
+benchmarked against `cpsam`.
 
 ## Segmentation
 

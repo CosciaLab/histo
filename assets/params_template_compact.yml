@@ -81,12 +81,12 @@
 # segment_nuclei: null  # Segment nuclei with each enabled method: shapes `{method}_nuclei`.
 
 ## Cellpose
-# use_cellpose: null        # Segment with Cellpose.
-# cellpose_channels: null   # Channel(s) to segment with Cellpose.
-# flow_threshold: null      # Cellpose `flow_threshold` parameter.
-# cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
-# pretrained_model: null    # Cellpose `pretrained_model` parameter.
-# cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
+# use_cellpose: null            # Segment with Cellpose.
+# cellpose_channels: null       # Channel(s) to segment with Cellpose.
+# flow_threshold: null          # Cellpose `flow_threshold` parameter.
+# cellprob_threshold: null      # Cellpose `cellprob_threshold` parameter.
+# pretrained_model: "cpsam_v2"  # Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or a path.
+# cellpose_kwargs: null         # Additional cellpose parameters as a python dict string.
 
 ## InstanSeg
 # use_instanseg: null         # Segment with InstanSeg.
