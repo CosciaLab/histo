@@ -204,3 +204,14 @@ def test_tonsil_dna_is_brightest_in_nuclei():
     nuclei[10:20, 10:20] = 1
     image[2][nuclei > 0] += 20
     assert tonsil_nuclear_channel(image, nuclei) == 2
+
+
+def test_dapi_from_composite_ignores_cyan():
+    from segmentation_benchmark.prepare import dapi_from_composite
+
+    rng = np.random.default_rng(0)
+    image = rng.random((3, 40, 40)).astype(np.float32)
+    rgb = np.zeros((40, 40, 3))
+    rgb[..., 2] = image[1] + image[2]  # channel 1 is blue, channel 2 is cyan (G and B)
+    rgb[..., 1] = image[2]
+    assert dapi_from_composite(image, rgb) == (1, "")

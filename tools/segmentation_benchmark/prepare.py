@@ -10,12 +10,14 @@ Findings from inspecting the data (Cross-platform = Aleynick et al. 2023, Sci Da
   share is reported. The dataset's own *_Mask_Png.png draws cells with a 1-px gap, so it
   matches our fill in the interior only (see the report for agreement numbers).
 - Vectra crop TIFFs are (8, 400, 400) float32 with no channel names; the xlsx lists markers by
-  colour in an order that is not the file order. DAPI is the channel that equals the crop's
-  *_Dapi_Png.png (index 5 on all of P01); other channels are named ch<i>. Pixel size 0.5 um.
+  colour in an order that is not the file order. DAPI is blue in every panel, so it is the
+  channel best correlated with the pure-blue part (B - max(R, G)) of the crop's own
+  *_Cell_Png.png composite; *_Dapi_Png.png is only a cross-check (fallback if no composite).
+  Other channels are named ch<i>. P05's CD40L is poor quality per the xlsx; kept. 0.5 um/px.
 - CODEX crop TIFFs are (T, 4, 400, 400) uint16, T cycles x 4 channels; flattening t*4+c gives
   the "Channel Name" order of the xlsx Markers sheet. We keep DAPI1 (index 0) and the real
   markers and drop Blank/Empty channels and the repeat DAPI cycles, so "every non-DNA channel"
-  holds. Pixel size 0.3774 um.
+  holds (accepted: a user's marker sheet would do the same). Pixel size 0.3774 um.
 - Tonsil (Zenodo 22107836): (7, 100, 100) uint16, DAPI is index 6 on all 10 crops (checked by
   `tonsil_nuclear_channel`); nuclei ids are a subset of cell ids. Pixel size unknown.
 - TissueNet is not read here yet; its reader is added once the zip is available.
@@ -37,6 +39,8 @@ from skimage.draw import polygon
 PIXEL_SIZE_UM = {"Vectra": 0.5, "CODEX": 0.3774}  # paper Table 2
 POLYGON_TYPES = ("POLYGON", "FREEHAND", "TRACED")
 DAPI_MIN_CORR = 0.9
+DAPI_MIN_BLUE_CORR = 0.5
+DAPI_MIN_MARGIN = 0.1
 COLUMNS = [
     "dataset", "crop", "platform", "tissue", "pixel_size_um", "channels", "nuclear",
     "height", "width", "montage", "n_cells", "n_nuclei",
@@ -123,20 +127,63 @@ def _codex_channels(img: np.ndarray, folder: str, panels: dict, skipped: list):
     return img[keep], [names[i] for i in keep], 0
 
 
-def _vectra_nuclear(img: np.ndarray, dapi_png: Path | None) -> int | None:
-    """The channel that equals the dataset's own DAPI render; None if none correlates."""
-    if dapi_png is None:
-        return None
+def _load_png(path: Path | None) -> np.ndarray | None:
     from PIL import Image
 
+    if path is None:
+        return None
     try:  # PIL sniffs content: some *_Png.png files are really TIFFs
-        ref = np.asarray(Image.open(dapi_png), dtype=float)
+        return np.asarray(Image.open(path))
     except OSError:  # a file still downloading
         return None
-    ref = ref if ref.ndim == 2 else ref[..., :3].mean(-1)
-    corr = [np.corrcoef(ch.ravel(), ref.ravel())[0, 1] for ch in img]
-    best = int(np.nanargmax(corr))
-    return best if corr[best] >= DAPI_MIN_CORR else None
+
+
+def _correlations(image: np.ndarray, ref: np.ndarray) -> np.ndarray:
+    """Pearson r of each channel with `ref`, at ref's resolution."""
+    from PIL import Image
+
+    out = []
+    for ch in image:
+        if ch.shape != ref.shape:
+            ch = np.asarray(Image.fromarray(ch.astype(np.float32)).resize(ref.shape[::-1]))
+        out.append(np.corrcoef(ch.ravel(), ref.ravel())[0, 1])
+    return np.nan_to_num(np.array(out), nan=-1.0)
+
+
+def dapi_from_composite(image: np.ndarray, rgb: np.ndarray) -> tuple[int | None, str]:
+    """DAPI is blue in every Vectra panel: pick the channel best matching the pure-blue part."""
+    rgb = rgb[..., :3].astype(float)
+    blue = np.clip(rgb[..., 2] - np.maximum(rgb[..., 0], rgb[..., 1]), 0, None)  # cyan/white are not DAPI
+    corr = _correlations(image, blue)
+    order = np.argsort(-corr)
+    if corr[order[0]] < DAPI_MIN_BLUE_CORR:
+        return None, f"best blue correlation {corr[order[0]]:.2f} < {DAPI_MIN_BLUE_CORR}"
+    if corr[order[0]] - corr[order[1]] < DAPI_MIN_MARGIN:
+        return (
+            None,
+            f"top two blue correlations within {DAPI_MIN_MARGIN} ({corr[order[0]]:.2f}, {corr[order[1]]:.2f})",
+        )
+    return int(order[0]), ""
+
+
+def _vectra_nuclear(img: np.ndarray, folder: Path, skipped: list) -> tuple[int | None, str]:
+    """(DAPI index, check). The composite decides; the DAPI render, when present, only checks."""
+    dapi = _load_png(_one(folder, "*Dapi_Png.png", skipped))
+    by_dapi = None
+    if dapi is not None:
+        dapi = dapi if dapi.ndim == 2 else dapi[..., :3].mean(-1)
+        corr = _correlations(img, dapi.astype(float))
+        by_dapi = int(np.argmax(corr)) if corr.max() >= DAPI_MIN_CORR else None
+    composite = _load_png(_one(folder, "*-Crop_Cell_Png.png", skipped))
+    if composite is None or composite.ndim != 3:
+        return by_dapi, "dapi-png only" if by_dapi is not None else "none"
+    index, why = dapi_from_composite(img, composite)
+    if index is None:
+        skipped.append((folder.name, f"DAPI not identified from composite: {why}"))
+        return None, "none"
+    if by_dapi is None:
+        return index, "composite only"
+    return index, "agree" if by_dapi == index else "disagree"
 
 
 def read_crossplatform(root: Path, skipped: list | None = None):
@@ -166,9 +213,9 @@ def read_crossplatform(root: Path, skipped: list | None = None):
                 continue
             img, names, nuclear = out
         else:
-            nuclear = _vectra_nuclear(img, _one(folder, "*Dapi_Png.png", skipped))
+            nuclear, check = _vectra_nuclear(img, folder, skipped)
             if nuclear is None:
-                skipped.append((folder.name, "DAPI channel not identified (no *_Dapi_Png.png match)"))
+                skipped.append((folder.name, "DAPI channel not identified"))
                 continue
             names = [f"ch{i}" for i in range(len(img))]
             names[nuclear] = "DAPI"
@@ -183,6 +230,7 @@ def read_crossplatform(root: Path, skipped: list | None = None):
             "n_cells": 0 if cells is None else int(cells.max()),
             "n_nuclei": 0 if nuclei is None else int(nuclei.max()),
             "overlap_cells": overlap_c, "overlap_nuclei": overlap_n,
+            "dapi_check": check if platform == "Vectra" else "n/a",
         }  # fmt: skip
         if row["tissue"] == "unknown":
             skipped.append((folder.name, "tissue not found in xlsx (kept as unknown)"))
@@ -205,7 +253,7 @@ def read_tonsil(root: Path):
             "pixel_size_um": np.nan, "channels": "|".join(names), "nuclear": nuclear,
             "height": img.shape[1], "width": img.shape[2],
             "n_cells": len(np.unique(cells)) - 1, "n_nuclei": len(np.unique(nuclei)) - 1,
-            "overlap_cells": 0.0, "overlap_nuclei": 0.0,
+            "overlap_cells": 0.0, "overlap_nuclei": 0.0, "dapi_check": "n/a",
         }  # fmt: skip
         yield row, img, cells, nuclei
 
@@ -265,6 +313,7 @@ def main() -> None:
             max_overlap_cells=("overlap_cells", "max"), max_overlap_nuclei=("overlap_nuclei", "max"),
         ).to_string()
     )  # fmt: skip
+    print(f"Vectra DAPI check: {dict(table.loc[table['platform'] == 'Vectra', 'dapi_check'].value_counts())}")
     print(f"montage crops: {table.loc[table['montage'], ['dataset', 'crop']].values.tolist()}")
 
 
