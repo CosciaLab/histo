@@ -331,3 +331,69 @@ def test_no_crops_is_an_error(bench):
     with pytest.raises(SystemExit, match="setting 3"):
         run.run(data, 3, out, dataset="tissuenet")
     assert not (out / "results" / "3.csv").exists()
+
+
+def fake_results(tmp_path, f1_by_setting):
+    """results/<N>.csv from {index: {dataset: [f1, ...]}}; returns (results, data, out) dirs."""
+    results = tmp_path / "out" / "results"
+    results.mkdir(parents=True)
+    for index, by_dataset in f1_by_setting.items():
+        rows = [
+            {
+                "index": index,
+                "target": "cells",
+                "dataset": dataset,
+                "crop": f"c{i}",
+                "platform": "Vectra",
+                "n_true": 5,
+                "n_pred": 5,
+                "f1": f1,
+                "mean_ap": f1 / 2,
+                "seconds": 1.0,
+            }
+            for dataset, values in by_dataset.items()
+            for i, f1 in enumerate(values)
+        ]
+        pd.DataFrame(rows).to_csv(results / f"{index}.csv", index=False)
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "crops.csv").write_text("dataset,crop,platform,nuclear,montage\n")
+    return results, data, tmp_path / "report"
+
+
+def test_summary_ranks_by_crossplatform_f1(tmp_path):
+    import json
+
+    from segmentation_benchmark import report
+
+    results, data, out = fake_results(
+        tmp_path,
+        {
+            0: {"crossplatform": [0.5, 0.5], "tissuenet": [0.9]},
+            1: {"crossplatform": [0.6, 0.6], "tissuenet": [0.8]},
+            2: {"crossplatform": [0.9, 0.9], "tissuenet": [0.1]},
+        },
+    )
+    report.build_report(results, data, out)
+    headline = json.loads((out / "headline.json").read_text())
+    assert headline["cells_raw"]["best"]["index"] == 2
+    assert headline["cells_raw"]["best"]["f1_by_dataset"]["tissuenet"] == pytest.approx(0.1)
+
+
+def test_nan_crops_are_counted_and_excluded(tmp_path):
+    from segmentation_benchmark import report
+
+    results, data, out = fake_results(tmp_path, {0: {"crossplatform": [0.8, float("nan"), 0.6]}})
+    report.build_report(results, data, out)
+    row = pd.read_csv(out / "summary.csv").query("`index` == 0 and dataset == 'crossplatform'").iloc[0]
+    assert (row["n_crops"], row["n_nan"]) == (3, 1)
+    assert row["mean_f1"] == pytest.approx(0.7)
+
+
+def test_partial_results_are_ignored(tmp_path):
+    from segmentation_benchmark import report
+
+    results, data, out = fake_results(tmp_path, {0: {"crossplatform": [0.8]}})
+    (results / "1.partial.csv").write_text("garbage")
+    report.build_report(results, data, out)
+    assert set(pd.read_csv(out / "summary.csv")["index"]) == {0}

@@ -22,7 +22,8 @@ Data never enters the repo.
    `export SIF=... DATA=$SCRATCH/bench/data OUT=$SCRATCH/bench/out REPO=$SCRATCH/bench/repo`
    `sbatch --array=0-167%8 tools/segmentation_benchmark/run_array.sbatch`
    Set the partition line in the script first. Finished settings are skipped on resubmit.
-5. Copy back and report: `rsync -a cluster:$SCRATCH/bench/out/{results,labels} $BENCH/out/`
+5. Copy back and report: `rsync -a cluster:$SCRATCH/bench/out/{results,labels} $BENCH/out/`, then
+   `python tools/segmentation_benchmark/report.py --results $BENCH/out/results --data $BENCH/data --out $BENCH/out/report`
 
 ## Data layout
 
