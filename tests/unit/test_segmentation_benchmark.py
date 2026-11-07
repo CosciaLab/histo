@@ -245,3 +245,73 @@ def test_tissuenet_meta_maps_one_to_one_after_headers(tmp_path):
     np.savez(path, X=x, y=y, meta=meta[:-1])
     with pytest.raises(ValueError, match="tiles"):
         list(read_tissuenet(path))
+
+
+# --- run.py ---------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def bench(tmp_path, monkeypatch):
+    """Tiny data dir (one crop per dataset, cells+nuclei masks) and run.segment returning truth."""
+    import tifffile
+    from segmentation_benchmark import run
+
+    data = tmp_path / "data"
+    rows = []
+    for dataset, nch in [("crossplatform", 3), ("tonsil", 3), ("tissuenet", 2)]:
+        d = data / "crops" / dataset / "c1"
+        d.mkdir(parents=True)
+        rng = np.random.default_rng(0)
+        tifffile.imwrite(d / "image.tif", rng.integers(0, 1000, (nch, 40, 40)).astype(np.uint16))
+        lab = np.zeros((40, 40), np.uint32)
+        square(lab, 1, 2, 2)
+        square(lab, 2, 20, 20)
+        tifffile.imwrite(d / "cells.tif", lab)
+        tifffile.imwrite(d / "nuclei.tif", lab)
+        rows.append((dataset, "c1", "p", "t", 0.5, "a|b|c", 0, 40, 40, True, 2, 2))
+    cols = "dataset crop platform tissue pixel_size_um channels nuclear height width montage n_cells n_nuclei"
+    pd.DataFrame(rows, columns=cols.split()).to_csv(data / "crops.csv", index=False)
+
+    calls = []
+
+    def fake(image, channels, _setting, _gpu):
+        calls.append(channels)
+        return tifffile.imread(data / "crops" / "tonsil" / "c1" / "cells.tif")[
+            : image.shape[1], : image.shape[2]
+        ]
+
+    monkeypatch.setattr(run, "segment", fake)
+    return run, data, tmp_path / "out", calls
+
+
+def test_skips_existing_result(bench):
+    run, data, out, calls = bench
+    (out / "results").mkdir(parents=True)
+    (out / "results" / "3.csv").write_text("x\n")
+    run.run(data, 3, out)
+    assert calls == []
+
+
+def test_overwrites_stale_tmp_and_writes_atomically(bench):
+    run, data, out, _ = bench
+    (out / "results").mkdir(parents=True)
+    (out / "results" / "3.csv.tmp").write_text("stale")
+    run.run(data, 3, out)  # cells, raw: crossplatform + tonsil
+    df = pd.read_csv(out / "results" / "3.csv")
+    assert len(df) == 2 and (df["f1"] == 1.0).all()
+    assert not (out / "results" / "3.csv.tmp").exists()
+    assert (out / "labels" / "3" / "tonsil__c1.tif").exists()
+
+
+def test_scope_selects_crops(bench):
+    run, data, out, _ = bench
+    run.run(data, 150, out)  # cells, tissuenet
+    assert set(pd.read_csv(out / "results" / "150.csv")["dataset"]) == {"tissuenet"}
+    run.run(data, 160, out)  # nuclei, all
+    assert set(pd.read_csv(out / "results" / "160.csv")["dataset"]) == {
+        "crossplatform",
+        "tonsil",
+        "tissuenet",
+    }
+    run.run(data, 3, out)
+    assert "tissuenet" not in set(pd.read_csv(out / "results" / "3.csv")["dataset"])
