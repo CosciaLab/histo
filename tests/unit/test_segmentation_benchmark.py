@@ -397,3 +397,29 @@ def test_partial_results_are_ignored(tmp_path):
     (results / "1.partial.csv").write_text("garbage")
     report.build_report(results, data, out)
     assert set(pd.read_csv(out / "summary.csv")["index"]) == {0}
+
+
+def test_missing_setting_is_listed_and_flagged(tmp_path):
+    import json
+
+    from segmentation_benchmark import report
+
+    results, data, out = fake_results(
+        tmp_path, {i: {"crossplatform": [0.5 + i / 100]} for i in (0, 2, 18)}
+    )  # setting 1 is absent; 18 is today
+    report.build_report(results, data, out)
+    head = json.loads((out / "headline.json").read_text())
+    assert 1 in head["missing_settings"] and 0 not in head["missing_settings"]
+    assert 1 in head["cells_raw"]["missing_settings"] and head["cells_raw"]["today_missing"] is False
+    assert (out / "effects_clip_limit.png").exists()
+
+
+def test_missing_today_is_flagged(tmp_path):
+    import json
+
+    from segmentation_benchmark import report
+
+    results, data, out = fake_results(tmp_path, {0: {"crossplatform": [0.5]}, 1: {"crossplatform": [0.6]}})
+    report.build_report(results, data, out)
+    head = json.loads((out / "headline.json").read_text())
+    assert head["cells_raw"]["today_missing"] is True and head["cells_raw"]["today"] is None

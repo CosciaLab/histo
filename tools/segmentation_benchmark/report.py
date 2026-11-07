@@ -97,9 +97,14 @@ def _num(value) -> float | None:
 
 def headline(summary: pd.DataFrame, settings: pd.DataFrame) -> tuple[dict, dict]:
     """headline.json content and the best/today index of each block that has results."""
-    out, picks = {}, {}
+    found = set(summary["index"])
+    missing = sorted(set(settings["index"]) - found)
+    if missing:
+        print(f"WARNING: {len(missing)} settings have no results: {missing}", file=sys.stderr)
+    out, picks = {"missing_settings": missing}, {}
     for name, (target, scope, dataset) in BLOCKS.items():
         block = settings[(settings["target"] == target) & (settings["scope"] == scope)]["index"]
+        block_missing = sorted(set(block) - found)
         ranked = summary[
             summary["index"].isin(block) & (summary["dataset"] == dataset) & summary["mean_f1"].notna()
         ]
@@ -108,11 +113,21 @@ def headline(summary: pd.DataFrame, settings: pd.DataFrame) -> tuple[dict, dict]
             continue
         best = int(ranked.loc[ranked["mean_f1"].idxmax(), "index"])
         today = today_index(settings, target, scope)
+        if block_missing:
+            print(f"WARNING {name}: {len(block_missing)} of {len(block)} settings missing", file=sys.stderr)
+        if today in block_missing:
+            print(f"WARNING {name}: today's setting {today} has no results", file=sys.stderr)
         best_row, today_row = _row(summary, settings, best, dataset), _row(summary, settings, today, dataset)
         diff = None
         if today_row and best_row["mean_f1"] is not None and today_row["mean_f1"] is not None:
             diff = best_row["mean_f1"] - today_row["mean_f1"]
-        out[name] = {"best": best_row, "today": today_row, "f1_difference": diff}
+        out[name] = {
+            "best": best_row,
+            "today": today_row,
+            "f1_difference": diff,
+            "today_missing": today in block_missing,
+            "missing_settings": block_missing,
+        }
         picks[name] = (best, today)
     return out, picks
 
@@ -161,7 +176,7 @@ def effect_ranges(table: pd.DataFrame) -> dict[str, pd.Series]:
     return {f: table.groupby(f)["mean_f1"].mean() for f in FACTORS if table[f].nunique() > 1}
 
 
-def plot_effects(table: pd.DataFrame, today: pd.Series, out: Path) -> dict[str, pd.Series]:
+def plot_effects(table: pd.DataFrame, today: pd.Series, out: Path, note: str = "") -> dict[str, pd.Series]:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
@@ -183,9 +198,7 @@ def plot_effects(table: pd.DataFrame, today: pd.Series, out: Path) -> dict[str, 
                 linewidths=0,
                 zorder=2,
             )
-            ax.scatter(
-                i, level_means[level], s=220, color=TODAY_COLOR, edgecolor="white", linewidths=2, zorder=3
-            )
+            ax.scatter(i, level_means[level], s=220, color=INK, edgecolor="white", linewidths=2, zorder=3)
             ax.annotate(
                 f"{level_means[level]:.3f}",
                 (i, level_means[level]),
@@ -209,16 +222,18 @@ def plot_effects(table: pd.DataFrame, today: pd.Series, out: Path) -> dict[str, 
         ax.grid(axis="x", visible=False)
         handles = [
             Line2D([], [], marker="o", ls="", color=POINT, markersize=7, label="one setting"),
-            Line2D([], [], marker="o", ls="", color=TODAY_COLOR, markersize=13, label="mean over settings"),
+            Line2D([], [], marker="o", ls="", color=INK, markersize=13, label="mean over settings"),
         ]
         fig.legend(handles=handles, loc="lower center", ncol=2, fontsize=14)
+        if note:
+            fig.text(0.01, 0.01, note, fontsize=12, color=BEST_COLOR, fontweight="bold")
         fig.tight_layout(rect=(0, 0.07, 1, 1))
         fig.savefig(out / f"effects_{factor}.png", dpi=200)
         plt.close(fig)
     return means
 
 
-def plot_interaction(table: pd.DataFrame, means: dict[str, pd.Series], out: Path) -> None:
+def plot_interaction(table: pd.DataFrame, means: dict[str, pd.Series], out: Path, note: str = "") -> None:
     import matplotlib.pyplot as plt
     from matplotlib.colors import LinearSegmentedColormap
 
@@ -245,7 +260,9 @@ def plot_interaction(table: pd.DataFrame, means: dict[str, pd.Series], out: Path
     for s in ax.spines.values():
         s.set_visible(False)
     fig.colorbar(im, ax=ax, label=f"Mean {F1_LABEL}")
-    fig.tight_layout()
+    if note:
+        fig.text(0.01, 0.01, note, fontsize=12, color=BEST_COLOR, fontweight="bold")
+    fig.tight_layout(rect=(0, 0.04 if note else 0, 1, 1))
     fig.savefig(out / "interaction.png", dpi=200)
     plt.close(fig)
 
@@ -261,9 +278,15 @@ def plot_platforms(df: pd.DataFrame, picks: dict, out: Path) -> None:
             continue
         best, today = picks[name]
         sub = df[df["group"] == group]
-        vals = {k: sub[sub["index"] == i]["f1"] for k, i in (("today", today), ("best", best))}
-        if vals["best"].notna().any() or vals["today"].notna().any():
-            rows.append((group, vals, int(vals["best"].notna().sum())))
+        both = (
+            sub[sub["index"] == today]
+            .set_index(["dataset", "crop"])["f1"]
+            .to_frame("today")
+            .join(sub[sub["index"] == best].set_index(["dataset", "crop"])["f1"].rename("best"), how="inner")
+            .dropna()  # only crops scored by both settings, so the bars compare like with like
+        )
+        if len(both):
+            rows.append((group, both, len(both)))
     if not rows:
         print("platforms.png: no data, skipped", file=sys.stderr)
         return
@@ -284,7 +307,13 @@ def plot_platforms(df: pd.DataFrame, picks: dict, out: Path) -> None:
     ax.set_title("Best vs today: mean F1 per platform and dataset")
     ax.grid(axis="x", visible=False)
     ax.legend(loc="upper right", ncol=2, fontsize=15)
-    fig.text(0.01, 0.01, "TissueNet: best of its own settings (144-155).", fontsize=12, color=INK_2)
+    fig.text(
+        0.01,
+        0.01,
+        "n = crops scored by both settings. TissueNet: best of its own settings (144-155).",
+        fontsize=12,
+        color=INK_2,
+    )
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     fig.savefig(out / "platforms.png", dpi=200)
     plt.close(fig)
@@ -335,17 +364,25 @@ def plot_montages(df: pd.DataFrame, picks: dict, data: Path, results: Path, out:
             continue
         rgb = _crop_preview(data, crop)
         sub = df[(df["dataset"] == crop["dataset"]) & (df["crop"] == crop["crop"])].set_index("index")["f1"]
-        panels = [("Ground truth", tifffile.imread(truth_path))]
+        panels = [("Ground truth\n(reference)", tifffile.imread(truth_path))]
         for label, i in (("Today", today), ("Best", best)):
             f1 = sub.get(i, np.nan)
-            panels.append((f"{label} (setting {i}), F1 {f1:.2f}", tifffile.imread(paths[i])))
+            shown = "n/a" if pd.isna(f1) else f"{f1:.2f}"
+            panels.append((f"{label} (setting {i})\nF1 (IoU 0.5) {shown}", tifffile.imread(paths[i])))
         fig, axes = plt.subplots(1, 3, figsize=(16, 5.8))
         for ax, (title, labels) in zip(axes, panels, strict=True):
             ax.imshow(_outline(rgb, labels), interpolation="nearest")
             ax.set_title(title, fontsize=16)
             ax.axis("off")
         fig.suptitle(f"{crop['dataset']} {crop['crop']}", fontsize=18, fontweight="bold")
-        fig.tight_layout()
+        fig.text(
+            0.01,
+            0.01,
+            "Preview: today's projection settings. Nuclei magenta, cells green.",
+            fontsize=12,
+            color=INK_2,
+        )
+        fig.tight_layout(rect=(0, 0.03, 1, 0.94))
         fig.savefig(out / f"montage_{key}.png", dpi=150)
         plt.close(fig)
 
@@ -370,8 +407,11 @@ def build_report(results: Path, data: Path, out: Path) -> None:
         today_row = _level_table(
             settings.set_index("index").loc[[today_index(settings, "cells", "raw")]]
         ).iloc[0]
-        means = plot_effects(table, today_row, out)
-        plot_interaction(table, means, out)
+        n_total = int(((settings["target"] == "cells") & (settings["scope"] == "raw")).sum())
+        n_found = int(table["index"].nunique())
+        note = f"Incomplete: {n_found} of {n_total} settings" if n_found < n_total else ""
+        means = plot_effects(table, today_row, out, note)
+        plot_interaction(table, means, out, note)
     plot_platforms(df, picks, out)
     plot_montages(df, picks, data, results, out)
     print(f"report written to {out}")
