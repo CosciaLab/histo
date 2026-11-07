@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
+import pandas as pd
+import pytest
+from segmentation_benchmark import settings
 from segmentation_benchmark.scoring import score
+from segmentation_benchmark.settings import TODAY, build_settings, today_index
 
 
 def square(labels, value, y, x, size=10):
@@ -53,3 +59,29 @@ def test_exact_half_iou_matches_once():
     p[0:20, 10:20] = 2  # each IoU exactly 0.5
     s = score(t, p)
     assert (s["tp"], s["fp"], s["fn"]) == (1, 1, 0)
+
+
+def test_layout():
+    s = build_settings()
+    assert len(s) == 168 and list(s["index"]) == list(range(168))
+    assert (s[:144]["scope"] == "raw").all() and (s[144:156]["scope"] == "tissuenet").all()
+    assert (s[156:]["target"] == "nuclei").all() and (s[156:]["scope"] == "all").all()
+
+
+def test_today_is_in_every_block():
+    s = build_settings()
+    for target, scope in [("cells", "raw"), ("cells", "tissuenet"), ("nuclei", "all")]:
+        row = s.loc[today_index(s, target, scope)]
+        assert (row["gaussian_sigma"], row["clip_limit"], row["flow_threshold"]) == (1, 0.2, 2)
+
+
+def test_today_index_raises_when_absent():
+    s = build_settings()
+    s = s[s["clip_limit"] != TODAY["clip_limit"]]
+    with pytest.raises(ValueError, match="cells.*raw"):
+        today_index(s, "cells", "raw")
+
+
+def test_committed_csv_matches():
+    committed = pd.read_csv(Path(settings.__file__).with_name("settings.csv"))
+    pd.testing.assert_frame_equal(committed, build_settings(), check_dtype=False)
