@@ -19,4 +19,4 @@ set -euo pipefail
 
 apptainer exec --nv --bind "$DATA" --bind "$OUT" --bind "$REPO" "$SIF" \
     python "$REPO/tools/segmentation_benchmark/run.py" \
-    --data "$DATA" --setting-index "$SLURM_ARRAY_TASK_ID" --out "$OUT" --gpu
+    --data "$DATA" --setting-index "$SLURM_ARRAY_TASK_ID" --out "$OUT" --gpu "$@"
