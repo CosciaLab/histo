@@ -174,21 +174,33 @@ def dapi_from_composite(image: np.ndarray, rgb: np.ndarray) -> tuple[int | None,
 def _vectra_nuclear(img: np.ndarray, folder: Path, skipped: list) -> tuple[int | None, str]:
     """(DAPI index, check). The composite decides; the DAPI render, when present, only checks."""
     dapi = _load_png(_one(folder, "*Dapi_Png.png", skipped))
-    by_dapi = None
+    by_dapi, corr = None, None
     if dapi is not None:
         dapi = dapi if dapi.ndim == 2 else dapi[..., :3].mean(-1)
         corr = _correlations(img, dapi.astype(float))
         by_dapi = int(np.argmax(corr)) if corr.max() >= DAPI_MIN_CORR else None
     composite = _load_png(_one(folder, "*-Crop_Cell_Png.png", skipped))
     if composite is None or composite.ndim != 3:
-        return by_dapi, "dapi-png only" if by_dapi is not None else "none"
+        if by_dapi is None:
+            skipped.append((folder.name, "DAPI not identified: no usable composite or DAPI PNG"))
+            return None, "none"
+        return by_dapi, "dapi-png only"
     index, why = dapi_from_composite(img, composite)
     if index is None:
         skipped.append((folder.name, f"DAPI not identified from composite: {why}"))
         return None, "none"
     if by_dapi is None:
         return index, "composite only"
-    return index, "agree" if by_dapi == index else "disagree"
+    if by_dapi != index:  # trust neither
+        skipped.append(
+            (
+                folder.name,
+                f"DAPI methods disagree: composite ch{index} (DAPI-PNG r={corr[index]:.2f}), "
+                f"DAPI PNG ch{by_dapi} (r={corr[by_dapi]:.2f})",
+            )
+        )
+        return None, "disagree"
+    return index, "agree"
 
 
 def read_crossplatform(root: Path, skipped: list | None = None):
@@ -220,7 +232,6 @@ def read_crossplatform(root: Path, skipped: list | None = None):
         else:
             nuclear, check = _vectra_nuclear(img, folder, skipped)
             if nuclear is None:
-                skipped.append((folder.name, "DAPI channel not identified"))
                 continue
             names = [f"ch{i}" for i in range(len(img))]
             names[nuclear] = "DAPI"

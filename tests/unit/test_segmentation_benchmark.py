@@ -423,3 +423,22 @@ def test_missing_today_is_flagged(tmp_path):
     report.build_report(results, data, out)
     head = json.loads((out / "headline.json").read_text())
     assert head["cells_raw"]["today_missing"] is True and head["cells_raw"]["today"] is None
+
+
+def test_vectra_dapi_methods_disagree_skips_crop(tmp_path):
+    from PIL import Image
+    from segmentation_benchmark.prepare import _vectra_nuclear
+
+    rng = np.random.default_rng(0)
+    img = rng.random((3, 40, 40)).astype(np.float32)
+    rgb = np.zeros((40, 40, 3), np.uint8)
+    rgb[..., 2] = (img[1] * 255).astype(np.uint8)  # composite says channel 1
+    Image.fromarray(rgb).save(tmp_path / "x-Crop_Cell_Png.png")
+    dapi = (img[2] * 255).astype(np.uint8)  # DAPI render says channel 2
+    Image.fromarray(dapi).save(tmp_path / "x-Crop_Dapi_Png.png")
+    skipped = []
+    assert _vectra_nuclear(img, tmp_path, skipped) == (None, "disagree")
+    assert "ch1" in skipped[0][1] and "ch2" in skipped[0][1]
+
+    Image.fromarray((img[1] * 255).astype(np.uint8)).save(tmp_path / "x-Crop_Dapi_Png.png")
+    assert _vectra_nuclear(img, tmp_path, []) == (1, "agree")
