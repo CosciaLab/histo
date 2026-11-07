@@ -85,3 +85,76 @@ def test_today_index_raises_when_absent():
 def test_committed_csv_matches():
     committed = pd.read_csv(Path(settings.__file__).with_name("settings.csv"))
     pd.testing.assert_frame_equal(committed, build_settings(), check_dtype=False)
+
+
+# Preprocessing ----------------------------------------------------------------------------
+
+NAMES = ["DNA_1", "CD45", "ECAD", "FLAT"]
+
+
+def raw_image():
+    rng = np.random.default_rng(0)
+    data = rng.integers(0, 1000, size=(4, 64, 64), dtype=np.uint16)
+    data[3] = 5  # constant channel
+    return data
+
+
+@pytest.mark.parametrize("method", ["max", "mean"])
+@pytest.mark.parametrize("sigma", [0, 1])
+def test_project_matches_pipeline(tmp_path, monkeypatch, method, sigma):
+    import project_channels
+    import spatialdata as sd
+    from segmentation_benchmark.preprocess import project
+    from spatialdata.models import Image2DModel
+
+    data = raw_image()
+    # One level, one chunk, no tissue shapes: the pipeline's percentiles come from the full image.
+    image = Image2DModel.parse(data, dims=("c", "y", "x"), c_coords=NAMES, chunks=(1, 64, 64))
+    path = tmp_path / "sample.zarr"
+    sd.SpatialData(images={"sample": image}).write(path)
+    rows = ["channel_number,cycle_number,marker_name,channel_role,segmentation", "1,1,DNA_1,dna,nuclear"]
+    rows += [f"{i},1,{n},marker,cell" for i, n in enumerate(NAMES[1:], start=2)]
+    sheet = tmp_path / "markers.csv"
+    sheet.write_text("\n".join(rows) + "\n")
+
+    monkeypatch.chdir(tmp_path)
+    project_channels.project(path, sheet, method=method, low=1, high=99.9, sigma=sigma, prefix="s")
+    out = sd.read_zarr(path)["sample_projected"]
+    level = next(iter(out.values())) if hasattr(out, "children") else out
+    expected = np.asarray(level.sel(c=["cell", "nuclear"]).data)
+
+    np.testing.assert_array_equal(project(data, 0, method, 1, sigma), expected)
+
+
+def test_flat_marker_left_out_all_flat_gives_zeros():
+    from segmentation_benchmark.preprocess import project
+
+    data = raw_image()
+    with_flat = project(data, 0, "max", 1, 1)
+    without = project(data[:3], 0, "max", 1, 1)
+    np.testing.assert_array_equal(with_flat, without)
+
+    all_flat = np.stack([data[0], data[3], data[3]])
+    out = project(all_flat, 0, "max", 1, 1)
+    assert out.shape == (2, 64, 64) and out.dtype == np.uint16
+    assert not out[0].any() and out[1].any()
+
+
+def test_pad_round_trip():
+    from segmentation_benchmark.preprocess import pad_to, unpad
+
+    image = np.random.default_rng(0).random((2, 100, 100)).astype(np.float32)
+    padded, shape = pad_to(image)
+    assert padded.shape == (2, 256, 256) and shape == (100, 100)
+    np.testing.assert_array_equal(padded[:, :100, :100], image)
+
+    big = np.zeros((2, 300, 40), np.float32)
+    assert pad_to(big)[0].shape == (2, 300, 256)
+
+    labels = np.zeros((256, 256), int)
+    labels[10:20, 10:20] = 7
+    labels[50:60, 50:60] = 9
+    labels[200:210, 200:210] = 11  # in the padding, cropped away
+    out = unpad(labels, shape)
+    assert out.shape == (100, 100)
+    assert sorted(np.unique(out)) == [0, 1, 2]

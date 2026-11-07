@@ -33,6 +33,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "bin"))
 
 from project_channels import combine, percentile_bounds, rescale  # noqa: E402
+from segmentation_benchmark.preprocess import sopa_preprocess  # noqa: E402
 
 PREVIEW_CROP = 400
 
@@ -73,19 +74,6 @@ def project_crop(
         x = rescale(planes[m], *bounds[m])
         stack.append(gaussian_filter(x, sigma) if sigma > 0 else x)
     return (combine(np.stack(stack), method) * 65535 + 0.5).astype(np.uint16)
-
-
-def sopa_preprocess(image: Any, gaussian_sigma: float, clip_limit: float) -> Any:
-    """sopa.segmentation.stainings._run_patch, before the model."""
-    import numpy as np
-    from scipy.ndimage import gaussian_filter
-    from skimage import exposure
-
-    if gaussian_sigma > 0:
-        image = np.stack([gaussian_filter(c, sigma=gaussian_sigma) for c in image])
-    if clip_limit > 0:
-        image = np.stack([exposure.equalize_adapthist(c, clip_limit=clip_limit) for c in image])
-    return image
 
 
 def segment(image: Any, n_channels: int, diameter: float, flow: float, cellprob: float, gpu: bool) -> Any:
