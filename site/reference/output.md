@@ -1,0 +1,3 @@
+```{include} ../../docs/output.md
+
+```

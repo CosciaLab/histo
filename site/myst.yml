@@ -1,0 +1,63 @@
+version: 1
+project:
+  title: CosciaLab/histo
+  github: https://github.com/CosciaLab/histo
+  # Local entries for every cited DOI, so the build does not fetch from doi.org.
+  bibliography:
+    - references.bib
+  toc:
+    - file: index.md
+    - title: Getting started
+      children:
+        - file: getting-started/introduction.md
+        - file: getting-started/background.md
+        - file: getting-started/step-by-step.md
+        - file: getting-started/usage-guide.md
+    - title: Inputs
+      children:
+        - file: inputs/inputs.md
+        - file: inputs/samplesheet.md
+        - file: inputs/markers.md
+        - file: inputs/parameters.md
+        - file: inputs/parameters-full.md
+    - title: Outputs
+      children:
+        - file: outputs/outputs.md
+        - file: outputs/preprocessing.md
+        - file: outputs/qc.md
+        - file: outputs/reports.md
+        - file: outputs/zarr.md
+    - title: Tutorials
+      children:
+        - file: tutorials/tutorials.md
+        - file: tutorials/exemplar-001.md
+        - file: tutorials/tma.md
+        - file: tutorials/wsi-backsub.md
+        - file: tutorials/multiple-segmentations.md
+        - file: tutorials/stitching-only.md
+        - file: tutorials/prestitched.md
+    - title: Modules
+      children:
+        - file: modules/basicpy.md
+        - file: modules/ashlar.md
+        - file: modules/coreograph.md
+        - file: modules/backsub.md
+        - file: modules/spatialdata.md
+        - file: modules/tiling.md
+        - file: modules/cellpose.md
+        - file: modules/instanseg.md
+        - file: modules/projection.md
+        - file: modules/linking.md
+        - file: modules/quantification.md
+        - file: modules/qc-report.md
+    - file: mdc.md
+    - title: Reference
+      children:
+        - file: reference/usage.md
+        - file: reference/output.md
+    - file: changelog.md
+    - file: citations.md
+site:
+  template: book-theme
+  options:
+    logo_text: histo

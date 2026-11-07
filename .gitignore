@@ -46,3 +46,6 @@ fixture/
 # local run and CI resolve the same versions, and this is a test environment rather
 # than a library, so pinning is the point.
 .venv/
+site/_build/
+site/_generated/
+site/node_modules/

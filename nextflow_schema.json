@@ -48,57 +48,63 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below. When false, each samplesheet row is an already stitched OME-TIFF, such as a dearrayed core re-entering the pipeline.",
+                    "help_text": "**Requires:** `instanseg_channels` when `use_instanseg` is true and this is false. **Conflicts:** `preprocessing_only`, `use_projection` and `use_tma_dearray` when this is false.",
                     "fa_icon": "fas fa-toggle-on"
                 },
                 "preprocessing_only": {
                     "type": "boolean",
-                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report. Ashlar's own QC is still written when use_qc is true. Requires use_preprocessing; no segmentation method is needed."
+                    "description": "Stop after preprocessing: keep the stitched images under preprocessing/ and skip segmentation, quantification and the QC report. Ashlar's own QC is still written when use_qc is true. Requires use_preprocessing; no segmentation method is needed.",
+                    "help_text": "**Requires:** `use_preprocessing`."
                 },
                 "skip_reference_dna_check": {
                     "type": "boolean",
                     "fa_icon": "fas fa-toggle-off",
-                    "description": "Run even when Ashlar's alignment channel or Coreograph's dearray channel is not a dna channel in the marker sheet. A warning is logged instead of stopping."
+                    "description": "Run even when Ashlar's alignment channel or Coreograph's dearray channel is not a dna channel in the marker sheet. A warning is logged instead of stopping.",
+                    "help_text": "**Ignored unless:** `use_preprocessing` is true."
                 },
                 "ashlar_args": {
                     "type": "string",
                     "default": "--maximum-shift 30",
                     "description": "Extra command-line arguments passed through to Ashlar.",
-                    "help_text": "Ashlar runs from the josenimo/ashlar image, which adds rotation correction between cycles; `-c -1` aligns each cycle on its own last channel. Do not pass `--qc-output` or `--report`: the pipeline adds them when use_qc is true.",
+                    "help_text": "Ashlar runs from the josenimo/ashlar image, which adds rotation correction between cycles; `-c -1` aligns each cycle on its own last channel. Do not pass `--qc-output` or `--report`: the pipeline adds them when use_qc is true.\n\n**Requires:** `-c` (a within-cycle channel index, default 0, -1 for the last) to be a `dna` channel in every cycle of the marker sheet, unless `skip_reference_dna_check` is true.",
                     "fa_icon": "fas fa-terminal"
                 },
                 "use_backsub": {
                     "type": "boolean",
                     "description": "Subtract background channels after stitching. Requires exposure and background columns in the marker sheet.",
+                    "help_text": "**Conflicts:** `cellpose_channels` or `instanseg_channels` naming a channel marked `remove` in the marker sheet.",
                     "fa_icon": "fas fa-toggle-on"
                 },
                 "backsub_args": {
                     "type": "string",
                     "description": "Extra command-line arguments passed through to backsub.",
+                    "help_text": "**Ignored unless:** `use_backsub` is true.",
                     "fa_icon": "fas fa-terminal"
                 },
                 "use_tma_dearray": {
                     "type": "boolean",
                     "description": "Split a tissue microarray into individual cores with UNetCoreograph. Each core then runs the downstream half as an independent sample, and the results are merged per slide at the end. Requires use_preprocessing.",
+                    "help_text": "**Requires:** `use_preprocessing`, and `tma_expected_cores` and `tma_core_diameter_mm` unless `coreograph_args` is set.",
                     "fa_icon": "fas fa-th"
                 },
                 "tma_expected_cores": {
                     "type": "integer",
                     "minimum": 1,
                     "description": "Total number of cores expected on the slide. Required with use_tma_dearray unless coreograph_args is set.",
-                    "help_text": "Count the cores you expect to find, not rows times columns: arrays have empty or lost positions. The pipeline tries several Coreograph downsample factors and keeps the one whose cores best match this count and tma_core_diameter_mm. Every slide in the run is scored against the same values, so run arrays of different layouts separately.",
+                    "help_text": "Count the cores you expect to find, not rows times columns: arrays have empty or lost positions. The pipeline tries several Coreograph downsample factors and keeps the one whose cores best match this count and tma_core_diameter_mm. Every slide in the run is scored against the same values, so run arrays of different layouts separately.\n\n**Requires:** `tma_core_diameter_mm`. **Ignored unless:** `use_tma_dearray` is true and `coreograph_args` is unset.",
                     "fa_icon": "fas fa-hashtag"
                 },
                 "tma_core_diameter_mm": {
                     "type": "number",
                     "exclusiveMinimum": 0,
                     "description": "Expected core diameter in mm. Required with use_tma_dearray unless coreograph_args is set.",
-                    "help_text": "Used with tma_expected_cores to choose Coreograph's downsample factor. The pixel size is read from the image's OME-XML.",
+                    "help_text": "Used with tma_expected_cores to choose Coreograph's downsample factor. The pixel size is read from the image's OME-XML.\n\n**Requires:** `tma_expected_cores`. **Ignored unless:** `use_tma_dearray` is true and `coreograph_args` is unset.",
                     "fa_icon": "fas fa-ruler"
                 },
                 "coreograph_args": {
                     "type": "string",
                     "description": "Command-line arguments for UNetCoreograph. Setting this skips the downsample sweep.",
-                    "help_text": "Leave unset to let the pipeline choose --downsampleFactor from tma_expected_cores and tma_core_diameter_mm (it then runs on the marker sheet's first dna channel with --buffer 2 --sensitivity 0.3). Set it, for example to '--downsampleFactor 4 --channel 0 --buffer 2', to run Coreograph exactly as given.",
+                    "help_text": "Leave unset to let the pipeline choose --downsampleFactor from tma_expected_cores and tma_core_diameter_mm (it then runs on the marker sheet's first dna channel with --buffer 2 --sensitivity 0.3). Set it, for example to '--downsampleFactor 4 --channel 0 --buffer 2', to run Coreograph exactly as given.\n\n**Requires:** a `--channel` index (default 0) that is a `dna` channel in the marker sheet, unless `skip_reference_dna_check` is true. **Ignored unless:** `use_tma_dearray` is true.",
                     "fa_icon": "fas fa-terminal"
                 }
             }
@@ -248,7 +254,8 @@
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "One GPU per Cellpose and InstanSeg patch task. Cluster only; InstanSeg then takes at most 10 channels."
+                    "description": "One GPU per Cellpose and InstanSeg patch task. Cluster only; InstanSeg then takes at most 10 channels.",
+                    "help_text": "**Conflicts:** `use_instanseg` on more than 10 channels."
                 }
             },
             "fa_icon": "far fa-square"
@@ -306,7 +313,8 @@
                     "type": "string",
                     "default": "mean,median,std",
                     "pattern": "^(mean|median|std|min|max|q25|q75|q90)(,(mean|median|std|min|max|q25|q75|q90))*$",
-                    "description": "Per-marker statistics, comma-separated, no spaces: mean, median, std, min, max, q25, q75, q90. mean is required."
+                    "description": "Per-marker statistics, comma-separated, no spaces: mean, median, std, min, max, q25, q75, q90. mean is required.",
+                    "help_text": "**Requires:** `mean` in the list, each statistic once."
                 }
             },
             "fa_icon": "fas fa-calculator"
@@ -340,11 +348,13 @@
             "properties": {
                 "use_projection": {
                     "type": "boolean",
-                    "description": "Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose. Requires use_cellpose and use_preprocessing; leave cellpose_channels unset."
+                    "description": "Project the marker sheet's channels into a nuclear and a cell (membrane and cytoplasm) channel and segment those with Cellpose. Requires use_cellpose and use_preprocessing; leave cellpose_channels unset.",
+                    "help_text": "**Requires:** `use_cellpose` and `use_preprocessing`. **Conflicts:** `cellpose_channels`, and `keep_projection` when this is false."
                 },
                 "keep_projection": {
                     "type": "boolean",
-                    "description": "Keep the projected nuclear and cell image in the published store as `<image>_projected`. Requires use_projection."
+                    "description": "Keep the projected nuclear and cell image in the published store as `<image>_projected`. Requires use_projection.",
+                    "help_text": "**Requires:** `use_projection`."
                 },
                 "projection_method": {
                     "type": "string",
@@ -383,11 +393,13 @@
                 "segment_cells": {
                     "type": "boolean",
                     "description": "Segment whole cells with each enabled method: shapes `{method}_cells`. Set false for nuclei only.",
+                    "help_text": "**Requires:** `segment_cells` or `segment_nuclei`, unless `preprocessing_only` is true.",
                     "default": true
                 },
                 "segment_nuclei": {
                     "type": "boolean",
-                    "description": "Segment nuclei with each enabled method: shapes `{method}_nuclei`. With segment_cells, nuclei are linked to cells and the cytoplasm is derived."
+                    "description": "Segment nuclei with each enabled method: shapes `{method}_nuclei`. With segment_cells, nuclei are linked to cells and the cytoplasm is derived.",
+                    "help_text": "**Requires:** `segment_cells` or `segment_nuclei`, unless `preprocessing_only` is true."
                 }
             },
             "fa_icon": "fas fa-bullseye"
@@ -400,11 +412,13 @@
             "properties": {
                 "use_cellpose": {
                     "type": "boolean",
-                    "description": "Segment with Cellpose. May be combined with use_instanseg."
+                    "description": "Segment with Cellpose. May be combined with use_instanseg.",
+                    "help_text": "**Requires:** `cellpose_channels` unless `use_projection` is true, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true."
                 },
                 "cellpose_channels": {
                     "type": ["string", "integer"],
-                    "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters. The last is the nuclear channel, which segment_nuclei uses."
+                    "description": "Channel(s) to segment with Cellpose. Use marker names from the marker sheet, e.g. \"DNA_1\". If multiple, separate by space, comma or pipe characters. The last is the nuclear channel, which segment_nuclei uses.",
+                    "help_text": "**Conflicts:** `use_projection`, and channels marked `remove` in the marker sheet with `use_backsub`."
                 },
                 "flow_threshold": {
                     "type": "number",
@@ -433,7 +447,8 @@
             "properties": {
                 "use_instanseg": {
                     "type": "boolean",
-                    "description": "Segment with InstanSeg. May be combined with use_cellpose."
+                    "description": "Segment with InstanSeg. May be combined with use_cellpose.",
+                    "help_text": "**Requires:** `instanseg_pixel_size`, `instanseg_channels` when `use_preprocessing` is false, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true. **Conflicts:** `use_gpu` on more than 10 channels."
                 },
                 "instanseg_model_type": {
                     "type": "string",
@@ -441,11 +456,13 @@
                 },
                 "instanseg_pixel_size": {
                     "type": "number",
-                    "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells"
+                    "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells",
+                    "help_text": "**Ignored unless:** `use_instanseg` is true."
                 },
                 "instanseg_channels": {
                     "type": ["string", "integer"],
-                    "description": "Channel(s) to segment with InstanSeg. Unset takes them from each sample's marker sheet: `dna` and `marker` channels for `cells`, `dna` only for `nuclei`; autofluorescence, blank and removed channels are left out. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters."
+                    "description": "Channel(s) to segment with InstanSeg. Unset takes them from each sample's marker sheet: `dna` and `marker` channels for `cells`, `dna` only for `nuclei`; autofluorescence, blank and removed channels are left out. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters.",
+                    "help_text": "**Conflicts:** more than 10 channels with `use_gpu`, and channels marked `remove` in the marker sheet with `use_backsub`."
                 },
                 "instanseg_kwargs": {
                     "type": "string",

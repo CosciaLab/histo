@@ -17,7 +17,8 @@ a GitHub issue; contact the maintainer if you want to use it.
 ## Testing
 
 Four tiers, cheapest first. CI runs unit tests and `--tag stub,validation`; neither needs a
-container. `tests/nextflow.config` caps tasks at 2 CPUs and 6 GB to fit the GitHub runner.
+container. `tests/nextflow.config` caps tasks at 2 CPUs and 6 GB to fit the GitHub runner. The docs site
+build and link check also run in CI (see [Docs site](#docs-site)).
 
 ### Before committing
 
@@ -186,18 +187,43 @@ So a real run on the Mac is possible only for the partial path: a stitched image
 with illumination profiles from a cluster run, then Cellpose or InstanSeg, without dearraying.
 Expect small numerical differences (no AVX). The cluster is the reference.
 
+## Docs site
+
+The site in `site/` is built with MyST and deployed to GitHub Pages from `main`; CI builds it
+and checks links on every PR.
+
+```bash
+uv run tools/site_reference.py && cd site && npm ci && BASE_URL=/histo npm run build && npm run check
+npx myst start    # live preview, from site/
+```
+
+- Reference pages come from the schema, `meta.yml` and `containers.tsv`. Do not edit
+  `site/_generated/`.
+- Every factual paragraph has a `% source:` comment.
+- Filenames are unique: MyST flattens URLs. Section landing pages are `<section>/<section>.md`.
+- Paper figures only under CC BY, with the licence in the caption and a row in `site/FIGURES.md`.
+- Each cited DOI needs an entry in `site/references.bib`; the build does not fetch from
+  doi.org. Get it with `curl -LH 'Accept: application/x-bibtex' https://doi.org/<doi>`.
+- Parameter rules (**Requires**, **Conflicts**, **Ignored unless**) go in the schema `help_text`;
+  `tests/unit/test_schema_rules.py` checks coverage.
+- At release, bump the `-r vX.Y.Z` strings in `site/` (`grep -rn -- '-r v' site`);
+  `tests/unit/test_version_strings.py` fails on a copy that differs from `manifest.version`.
+
 ## Metro map
 
-`docs/images/pipeline_paths.svg` draws three paths; variations are listed in
+`docs/images/pipeline_paths.svg` draws the whole-slide and TMA paths; grey stations are
+optional steps. Variations are listed in
 [output.md](output.md#what-runs).
 
 The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered with
 [nf-metro](https://github.com/seqeralabs/nf-metro):
 
 ```bash
-pip install nf-metro==1.1.0   # 2.1.0 fails on this map; see ROADMAP
+pip install nf-metro==2.1.0   # 1.1.0 aborts on the turns between rows
 nf-metro validate docs/pipeline_paths.mmd
-nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate
+nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive \
+    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 85 --y-spacing 200 --section-y-gap 50 \
+    --diamond-style symmetric --height 1036   # --height pads to 1:2.2
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
@@ -209,7 +235,8 @@ difference is visible. Reading it is a human step and deliberately not automated
 The station order was taken from `nextflow run . -stub -with-dag` exports of all three paths
 rather than read off the source, so the map reflects the graph Nextflow actually built.
 `nf-metro convert` turns such an export straight into a map, which is worth doing when the
-pipeline changes shape.
+pipeline changes shape. Stations then group related processes, as listed at the end of the
+`.mmd`, so the map stays readable.
 
 Read a converted export rather than trusting it. Nextflow's DAG draws an edge per channel
 consumer, so a channel that two processes read from produces edges to both even when one of them
@@ -225,11 +252,10 @@ One edge is deliberately absent. The pre-subtraction image also reaches `QC_METR
 how the report compares channel statistics before and after subtraction. It exists whenever
 `use_backsub` is set, on both the WSI and the TMA line: `COREOGRAPH` runs before `BACKSUB`, so a
 dearrayed core is subtracted individually and its own unsubtracted twin is what QC compares it
-against. Drawing this edge aborts nf-metro 1.1.0's renderer with a `CurveInvariantError`, so it
-is described here instead.
+against. The map leaves it out to stay readable.
 
 For the same reason a second edge is absent: `ASHLAR` also sends its QC directory to
-`QC_REPORT` (mIF and WSI lines) and to `MERGE_REPORT` (TMA line, per slide).
+`QC_REPORT` and, per TMA slide, to `MERGE_REPORT`.
 
 That ordering is the reason the TMA column of [What runs](output.md#what-runs) lists `COREOGRAPH`
 before `BACKSUB`. The two orders

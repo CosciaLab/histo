@@ -19,10 +19,15 @@ logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
 
 ### 3.1: documentation website
 
-For curious users: one page per module with what it does and why, its tool and version, inputs,
-outputs, parameters and defaults, and an exemplar-001 figure. Generate what it can from
-`meta.yml` and the schema so it cannot drift. The repo is public, so GitHub Pages can host it.
-1–2 weeks.
+The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What remains:
+
+1. **Figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
+   screenshots.
+2. **Odon.** Document it under Viewers in `site/outputs/reports.md`.
+3. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
+   (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
+   `docs/output.md` calls the profiles "fitted".
+4. **Pages.** Set GitHub Pages source to "GitHub Actions" in the repo settings (one-time, owner).
 
 ### 3.2: tiling and resources
 
@@ -176,9 +181,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
   55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Make it a pure function; test it.
-- **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
-  but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
-  then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
+- **nf-metro.** The map needs 2.1.0, pinned only in CONTRIBUTING. Decide whether the
+  pre-subtraction edge into QC belongs on the map.
 - **Offer upstream to sopa** (decisions.md, Segmentation): `--image-key` for staining
   segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize.
 
