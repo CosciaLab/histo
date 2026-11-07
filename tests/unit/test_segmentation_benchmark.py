@@ -158,3 +158,49 @@ def test_pad_round_trip():
     out = unpad(labels, shape)
     assert out.shape == (100, 100)
     assert sorted(np.unique(out)) == [0, 1, 2]
+
+
+def _square_roi(y, x, size=10):
+    import roifile
+
+    pts = np.array([[x, y], [x + size, y], [x + size, y + size], [x, y + size]])
+    return roifile.ImagejRoi.frompoints(pts)
+
+
+def test_polygon_rois_rasterise():
+    from segmentation_benchmark.prepare import rois_to_labels
+
+    labels, overlap = rois_to_labels([_square_roi(0, 0), _square_roi(30, 30)], (50, 50))
+    assert sorted(np.unique(labels)) == [0, 1, 2]
+    assert (labels == 1).sum() == (labels == 2).sum() > 50
+    assert overlap == 0
+
+
+def test_overlap_goes_to_later_roi_and_is_reported():
+    from segmentation_benchmark.prepare import rois_to_labels
+
+    labels, overlap = rois_to_labels([_square_roi(0, 0), _square_roi(5, 5)], (50, 50))
+    assert overlap > 0
+    assert labels[7, 7] == 2
+
+
+def test_unsupported_roi_names_type():
+    import roifile
+    from segmentation_benchmark.prepare import rois_to_labels
+
+    roi = _square_roi(0, 0)
+    roi.roitype = roifile.ROI_TYPE.OVAL
+    with pytest.raises(ValueError, match="OVAL"):
+        rois_to_labels([roi], (50, 50))
+
+
+def test_tonsil_dna_is_brightest_in_nuclei():
+    from segmentation_benchmark.prepare import tonsil_nuclear_channel
+
+    rng = np.random.default_rng(0)
+    image = rng.random((3, 40, 40)) + 5  # channel 0 is brighter overall, but flat
+    image[0] += 10
+    nuclei = np.zeros((40, 40), int)
+    nuclei[10:20, 10:20] = 1
+    image[2][nuclei > 0] += 20
+    assert tonsil_nuclear_channel(image, nuclei) == 2
