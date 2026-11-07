@@ -315,3 +315,19 @@ def test_scope_selects_crops(bench):
     }
     run.run(data, 3, out)
     assert "tissuenet" not in set(pd.read_csv(out / "results" / "3.csv")["dataset"])
+
+
+def test_partial_run_is_kept_out_of_results(bench):
+    run, data, out, _ = bench
+    run.run(data, 3, out, limit_crops=1)
+    assert not (out / "results" / "3.csv").exists()
+    assert len(pd.read_csv(out / "results" / "3.partial.csv")) == 1
+    run.run(data, 3, out)  # the full run still happens
+    assert len(pd.read_csv(out / "results" / "3.csv")) == 2
+
+
+def test_no_crops_is_an_error(bench):
+    run, data, out, _ = bench
+    with pytest.raises(SystemExit, match="setting 3"):
+        run.run(data, 3, out, dataset="tissuenet")
+    assert not (out / "results" / "3.csv").exists()

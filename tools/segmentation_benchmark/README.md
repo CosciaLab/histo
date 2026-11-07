@@ -15,6 +15,7 @@ Data never enters the repo.
    `rsync -a --exclude .git ./ cluster:$SCRATCH/bench/repo/`
 3. Timing job first (today's cells/raw setting, 20 crops), then set `--time` in the sbatch:
    `sbatch --array=18 ...` with `--limit-crops 20` added to the `run.py` call.
+   It writes `results/18.partial.csv`, which the full array ignores.
 4. Full array:
    `export SIF=... DATA=$SCRATCH/bench/data OUT=$SCRATCH/bench/out REPO=$SCRATCH/bench/repo`
    `sbatch --array=0-167%8 tools/segmentation_benchmark/run_array.sbatch`

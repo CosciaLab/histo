@@ -31,7 +31,7 @@ SCOPES = {
 _models: dict = {}
 
 
-def segment(image: np.ndarray, channels: list[str], setting: pd.Series, gpu: bool) -> np.ndarray:  # noqa: ARG001
+def segment(image: np.ndarray, _channels: list[str], setting: pd.Series, gpu: bool) -> np.ndarray:
     """Cellpose-SAM, loaded once per task; sopa's callable reloads the model per call, this mirrors its eval."""
     if gpu not in _models:
         import warnings
@@ -80,8 +80,9 @@ def run(
     limit_crops: int | None = None,
     dataset: str | None = None,
 ) -> None:
-    final = out / "results" / f"{index}.csv"
-    if final.exists():
+    partial = bool(limit_crops or dataset)  # partial runs must never look complete
+    final = out / "results" / (f"{index}.partial.csv" if partial else f"{index}.csv")
+    if not partial and final.exists():
         print(f"setting {index}: {final} exists, skipping", flush=True)
         return
     setting = build_settings().set_index("index").loc[index]
@@ -97,6 +98,10 @@ def run(
     crops = crops[has_mask]
     if limit_crops:
         crops = crops.head(limit_crops)
+    if crops.empty:
+        raise SystemExit(
+            f"setting {index}: no crops for scope {setting['scope']!r} and target {setting['target']!r} in {data}"
+        )
 
     rows, start = [], time.time()
     for _, crop in crops.iterrows():
