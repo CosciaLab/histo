@@ -3,7 +3,7 @@ process LINK_COMPARTMENTS {
     tag "${meta.sample}:${method}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa:2.2.12"
+    container "docker.io/josenimo/sopa:2.3.0"
 
     input:
     // one method's resolved cells and nuclei from RESOLVE

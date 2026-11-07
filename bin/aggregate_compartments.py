@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Mean marker intensity per cell, one AnnData table per method, written to a file.
+"""Per-cell marker intensity statistics, one AnnData table per method, written to a file.
 
-Copied from sopa 2.2.12 (BSD 3-Clause, licence below) with two changes: polygon holes are
-honoured, so a cytoplasm ring is not measured as the whole cell, and the mask origin follows the
-clipped chunk (an upstream chunk-edge bug).
+Statistics (mean, median, std, min, max, q25, q75, q90; --statistics) are computed per cell and marker from
+all of the cell's pixels, read in tile windows so size does not limit the image. `rasterize` and
+`pixel_outer_bounds` are copied from sopa 2.2.12 (BSD 3-Clause, licence below); `rasterize` honours
+polygon holes, so a cytoplasm ring is not measured as the whole cell.
 The store is only read; a later step writes the table into it.
 
 Optional compartments (nucleus, cytoplasm) become layers of the same table. Their parquets
 are indexed by cell id; cells absent from them get NaN. `--links` is a parquet of per-cell
-columns indexed by cell id (for example n_nuclei), joined into obs.
+columns indexed by cell id (for example n_nuclei), joined into obs with shape features and nc_ratio.
 
 
 BSD 3-Clause License
@@ -91,62 +92,89 @@ def pixel_outer_bounds(bounds):
     return [floor(bounds[0]), floor(bounds[1]), ceil(bounds[2]) + 1, ceil(bounds[3]) + 1]
 
 
-def mean_intensities(image, shapes):
-    """Mean intensity per shape and channel: array (n_shapes, n_channels). Image and shapes share pixel coordinates."""
-    # From sopa 2.2.12 (aggregation/channels.py::_aggregate_channels_aligned, mode "average");
-    # changes: hole-aware rasterize, mask origin follows the clipped chunk, NaN for empty masks,
-    # returns the array instead of an AnnData
-    import dask
+STATISTICS = ("mean", "median", "std", "min", "max", "q25", "q75", "q90")
+TILE_SIZE = 2048  # px; shapes are owned by the tile holding their centroid
+
+
+def parse_statistics(text: str) -> list[str]:
+    """Split a comma-separated list; refuse off-menu names, duplicates, and a missing mean."""
+    names = [t.strip() for t in text.split(",")]
+    for name in names:
+        if name not in STATISTICS:
+            raise ValueError(f"unknown statistic {name!r}; choose from {', '.join(STATISTICS)}")
+    dupes = sorted({n for n in names if names.count(n) > 1})
+    if dupes:
+        raise ValueError(f"duplicate statistics: {', '.join(dupes)}")
+    if "mean" not in names:
+        raise ValueError("statistics must include 'mean' (it fills X)")
+    return names
+
+
+def _reduce(pixels, statistic):
+    """One statistic over axis 0 of (n_pixels, n_channels) float64 pixels."""
     import numpy as np
-    import shapely
-    from shapely.geometry import box
+
+    if statistic == "mean":
+        return pixels.mean(axis=0)
+    if statistic == "median":
+        return np.median(pixels, axis=0)
+    if statistic == "std":
+        return pixels.std(axis=0)  # ddof 0
+    if statistic == "min":
+        return pixels.min(axis=0)
+    if statistic == "max":
+        return pixels.max(axis=0)
+    return np.quantile(pixels, int(statistic[1:]) / 100, axis=0)
+
+
+def measure_intensities(image, shapes, statistics, tile_size=TILE_SIZE):
+    """Statistics per shape and channel: float32 (n_shapes, n_channels * n_statistics), statistic-major.
+
+    Also returns the largest read window side in px. Image and shapes share pixel coordinates.
+    """
+    import numpy as np
 
     cells = shapes.geometry.tolist()
-    tree = shapely.STRtree(cells)
-
     n_channels = len(image.coords["c"])
-    areas = np.zeros(len(cells))
-    aggregation = np.zeros((len(cells), n_channels))
+    out = np.full((len(cells), n_channels * len(statistics)), np.nan, dtype=np.float32)
+    height, width = image.sizes["y"], image.sizes["x"]
+    n_ty, n_tx = -(-height // tile_size), -(-width // tile_size)
 
-    chunk_sizes = image.data.chunks
-    offsets_y = np.cumsum(np.pad(chunk_sizes[1], (1, 0), "constant"))
-    offsets_x = np.cumsum(np.pad(chunk_sizes[2], (1, 0), "constant"))
+    # each shape is measured in the tile holding its centroid, from a window that holds all its pixels
+    owned = {}
+    for i, cell in enumerate(cells):
+        if cell is None or cell.is_empty:
+            continue
+        x, y = cell.centroid.x, cell.centroid.y
+        tile = (min(max(int(y // tile_size), 0), n_ty - 1), min(max(int(x // tile_size), 0), n_tx - 1))
+        owned.setdefault(tile, []).append(i)
 
-    def _average_chunk_inside_cells(chunk, iy, ix):
-        ymin, ymax = offsets_y[iy], offsets_y[iy + 1]
-        xmin, xmax = offsets_x[ix], offsets_x[ix + 1]
+    largest = 0
+    for (ty, tx), indices in owned.items():
+        boxes = {}
+        for i in indices:
+            b = pixel_outer_bounds(cells[i].bounds)
+            b = [max(b[0], 0), max(b[1], 0), min(b[2], width), min(b[3], height)]
+            if b[2] > b[0] and b[3] > b[1]:
+                boxes[i] = b
+        if not boxes:
+            continue
+        x0 = min([tx * tile_size, *(b[0] for b in boxes.values())])
+        y0 = min([ty * tile_size, *(b[1] for b in boxes.values())])
+        x1 = max([min((tx + 1) * tile_size, width), *(b[2] for b in boxes.values())])
+        y1 = max([min((ty + 1) * tile_size, height), *(b[3] for b in boxes.values())])
+        window = image.data[:, y0:y1, x0:x1].compute()
+        largest = max(largest, x1 - x0, y1 - y0)
 
-        patch = box(xmin, ymin, xmax, ymax)
-        intersections = tree.query(patch, predicate="intersects")
-
-        for index in intersections:
-            cell = cells[index]
-            bounds = pixel_outer_bounds(cell.bounds)
-
-            sub_image = chunk[
-                :,
-                max(bounds[1] - ymin, 0) : bounds[3] - ymin,
-                max(bounds[0] - xmin, 0) : bounds[2] - xmin,
-            ]
-
-            if sub_image.shape[1] == 0 or sub_image.shape[2] == 0:
+        for i, (bx0, by0, bx1, by1) in boxes.items():
+            sub = window[:, by0 - y0 : by1 - y0, bx0 - x0 : bx1 - x0]
+            mask = rasterize(cells[i], sub.shape[1:], (bx0, by0)).astype(bool)
+            if not mask.any():
                 continue
-
-            mask = rasterize(cell, sub_image.shape[1:], (max(bounds[0], xmin), max(bounds[1], ymin)))
-
-            areas[index] += np.sum(mask)
-            aggregation[index] += np.sum(sub_image * mask, axis=(1, 2))
-
-    tasks = [
-        dask.delayed(_average_chunk_inside_cells)(chunk, iy, ix)
-        for iy, row in enumerate(image.chunk({"c": -1}).data.to_delayed()[0])
-        for ix, chunk in enumerate(row)
-    ]
-    # synchronous: tasks add into shared per-cell arrays, which threads would race on
-    dask.compute(tasks, scheduler="synchronous")
-
-    with np.errstate(invalid="ignore", divide="ignore"):
-        return np.where(areas[:, None] > 0, aggregation / areas[:, None], np.nan)
+            pixels = sub[:, mask].T.astype(np.float64)
+            for s, statistic in enumerate(statistics):
+                out[i, s * n_channels : (s + 1) * n_channels] = _reduce(pixels, statistic)
+    return out, largest
 
 
 def label_cells(obs, slide: str, core_id: str | None = None):
@@ -168,9 +196,44 @@ def specs_by_name(specs: list[dict]) -> dict:
     return {s["name"]: {k: v for k, v in s.items() if v is not None} for s in specs}
 
 
-def build_table(cells, x, var_names, layers, obs_extra, region, slide, core_id, specs):
+def stat_var(markers: list[str], statistics: list[str]):
+    """var for X and layers: statistic-major, named {marker}_{statistic}; read `marker`/`statistic`, never parse the name."""
+    import pandas as pd
+
+    rows = [(m, s) for s in statistics for m in markers]
+    return pd.DataFrame(
+        {"marker": [m for m, _ in rows], "statistic": [s for _, s in rows]},
+        index=pd.Index([f"{m}_{s}" for m, s in rows]),
+    )
+
+
+def obs_columns(cells, target, nucleus_compartment, links):
+    """Morphology (always of the unexpanded shapes) plus links, indexed like `cells`."""
+    import numpy as np
+    import pandas as pd
+
+    from measure_shapes import shape_features
+
+    if target == "nuclei":
+        return shape_features(cells.geometry.tolist(), cells.index, "nucleus")
+    out = shape_features(cells.geometry.tolist(), cells.index, "cell")
+    if links is None:
+        return out
+    # nucleus_area keeps its links meaning (0 without a nucleus); shape_features gives the other six
+    compartment = nucleus_compartment.reindex(cells.index)
+    nucleus = shape_features(compartment.geometry.tolist(), cells.index, "nucleus").drop(
+        columns="nucleus_area"
+    )
+    out = pd.concat([out, links.reindex(cells.index), nucleus], axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out["nc_ratio"] = np.where(out["n_nuclei"] > 0, out["nucleus_area"] / out["cell_area"], np.nan)
+    return out
+
+
+def build_table(cells, x, var, layers, obs_extra, region, slide, core_id, specs, quantification):
     """AnnData with sopa's obs columns, obs_names = cell index unchanged, parsed as a SpatialData table."""
-    # area and obsm['spatial'] describe the cells as given (unexpanded); sopa used the expanded ones
+    # obsm['spatial'] describes the cells as given (unexpanded); sopa used the expanded ones
+    import numpy as np
     import pandas as pd
     from anndata import AnnData
     from spatialdata.models import TableModel
@@ -183,28 +246,35 @@ def build_table(cells, x, var_names, layers, obs_extra, region, slide, core_id, 
     obs["region"] = pd.Series(region, index=names, dtype="category")
     obs = label_cells(obs, slide, core_id)
     obs["cell_id"] = names
-    obs["area"] = cells.area.values
     if obs_extra is not None:
         obs = obs.join(obs_extra.set_axis(obs_extra.index.astype(str)))
 
-    adata = AnnData(x, obs=obs, var=pd.DataFrame(index=list(var_names)))
+    # the one place dtype is fixed: float32 halves the table
+    adata = AnnData(np.asarray(x, dtype=np.float32), obs=obs, var=var)
     for name, layer in layers.items():
-        adata.layers[name] = layer
+        adata.layers[name] = np.asarray(layer, dtype=np.float32)
     adata.obsm["spatial"] = cells.centroid.get_coordinates().values.reshape(len(cells), 2)
     adata.uns["segmentation"] = specs_by_name(specs)
+    adata.uns["quantification"] = quantification
 
     return TableModel.parse(adata, region=region, region_key="region", instance_key="cell_id")
 
 
-def compartment_layer(image, shapes, cells):
-    """Mean intensities for `shapes` (indexed by cell id), as rows aligned to `cells`; NaN where a cell has none."""
+def compartment_layer(image, shapes, cells, statistics, tile_size=TILE_SIZE):
+    """Statistics for `shapes` (indexed by cell id), rows aligned to `cells`; NaN where a cell has none.
+
+    Also returns the largest read window side in px.
+    """
     import numpy as np
 
-    out = np.full((len(cells), len(image.coords["c"])), np.nan)
+    out = np.full((len(cells), len(image.coords["c"]) * len(statistics)), np.nan, dtype=np.float32)
     present = cells.index.isin(shapes.index)
+    window = 0
     if present.any():
-        out[present] = mean_intensities(image, shapes.loc[cells.index[present]])
-    return out
+        out[present], window = measure_intensities(
+            image, shapes.loc[cells.index[present]], statistics, tile_size
+        )
+    return out, window
 
 
 def parse_args(argv=None):
@@ -233,10 +303,19 @@ def parse_args(argv=None):
         type=float,
         default=0,
         help="expand the measured objects (--shapes: cells, or nuclei in a nuclei-only run) for X only, "
-        "not the layers; obs area and obsm spatial stay unexpanded",
+        "not the layers; obs morphology and obsm spatial stay unexpanded",
+    )
+    parser.add_argument(
+        "--statistics",
+        default="mean,median,std",
+        help=f"comma-separated per-cell statistics, must include mean; from {', '.join(STATISTICS)}",
     )
     parser.add_argument("--output", required=True, help="h5ad file to write")
     args = parser.parse_args(argv)
+    try:
+        parse_statistics(args.statistics)
+    except ValueError as e:
+        parser.error(str(e))
     if args.target == "nuclei" and (args.nuclei_compartment or args.cytoplasm or args.links):
         parser.error("--nuclei-compartment, --cytoplasm and --links need --target cells")
     return args
@@ -253,38 +332,47 @@ def main() -> int:
 
     from resolve_segmentation import store_image_key
 
+    statistics = parse_statistics(args.statistics)
     specs = json.loads(Path(args.specs).read_text())
     image_key = store_image_key(args.sdata)
     sdata = sd.read_zarr(args.sdata)
     image = get_spatial_image(sdata, image_key)
-    var_names = [str(c) for c in image.coords["c"].values]
+    markers = [str(c) for c in image.coords["c"].values]
 
     # RESOLVE shapes are already in this image's pixel coordinates (identity transform).
     cells = gpd.read_parquet(args.shapes)
     measured = expand_radius(cells, args.expand_radius_ratio)
-    x = mean_intensities(image, measured)
+    x, window = measure_intensities(image, measured, statistics)
 
     layers = {}
-    if args.nuclei_compartment:
-        layers["nucleus"] = compartment_layer(image, gpd.read_parquet(args.nuclei_compartment), cells)
-    if args.cytoplasm:
-        layers["cytoplasm"] = compartment_layer(image, gpd.read_parquet(args.cytoplasm), cells)
-    obs_extra = pd.read_parquet(args.links).reindex(cells.index) if args.links else None
+    windows = [window]
+    nucleus_compartment = gpd.read_parquet(args.nuclei_compartment) if args.nuclei_compartment else None
+    for name, shapes in (
+        ("nucleus", nucleus_compartment),
+        ("cytoplasm", gpd.read_parquet(args.cytoplasm) if args.cytoplasm else None),
+    ):
+        if shapes is not None:
+            layers[name], w = compartment_layer(image, shapes, cells, statistics)
+            windows.append(w)
+    links = pd.read_parquet(args.links) if args.links else None
+    obs_extra = obs_columns(cells, args.target, nucleus_compartment, links)
 
     table = build_table(
         cells,
         x,
-        var_names,
+        stat_var(markers, statistics),
         layers,
         obs_extra,
         f"{args.method}_{args.target}",
         args.slide,
         args.core_id,
         specs,
+        {"statistics": statistics, "tile_size": TILE_SIZE, "max_window_px": int(max(windows))},
     )
     table.write_h5ad(args.output)
     print(
-        f"[aggregate] {args.method}: {table.n_obs} {args.target} x {table.n_vars} markers, layers {sorted(layers)}"
+        f"[aggregate] {args.method}: {table.n_obs} {args.target} x {len(markers)} markers, "
+        f"statistics {statistics}, layers {sorted(layers)}"
     )
     return 0
 

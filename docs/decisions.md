@@ -98,9 +98,9 @@ one exemplar core, 2 channels peaked at 15 GB and 37 at 130 GB. See `instansegMe
 GPU tasks are, as a stopgap: larger slides usually get larger patches. A tile-size benchmark
 replaces both (ROADMAP).
 
-**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on Cellpose patch tasks,
-and `SEGMENT_PATCH` derives the device from it, so the two cannot disagree. InstanSeg stays on
-CPU until sopa's wrapper works on CUDA (ROADMAP).
+**GPU through one switch, `use_gpu`.** It sets Nextflow's `accelerator` on Cellpose and InstanSeg
+patch tasks, and `SEGMENT_PATCH` derives the device from it, so the two cannot disagree. InstanSeg
+on GPU is capped at 10 channels, checked at startup, until its GPU memory is measured (ROADMAP).
 The SLURM executor ignores `accelerator`, so `slurm` and `mdc` translate it into `--gres`. MDC asks
 for A40s: the sopa image's CUDA 13 has no V100 kernels, and only A40 nodes have Ceph. A CUDA check
 fails the task, since cellpose falls back to CPU silently.
@@ -129,14 +129,11 @@ passes, so geometry is all they share, and only resolved shapes are final. A nuc
 the cell holding the largest share of its area if that share is at least 0.5, a constant; ties
 go to the cell first in the frame. Nothing is dropped.
 
-**Aggregation is copied from sopa 2.2.12, with two fixes.** sopa rasterizes the exterior only,
-so a cytoplasm ring would be measured as the whole cell. And it places the mask of a cell crossing a
-dask chunk edge at the cell's bounds, not the clipped window's: the mask is shifted, so 1.x
-intensities of such cells were wrong (errors up to ~3600 units in review). Building the table
-with `TableModel.parse` keeps the cell ids sopa's `parse_table` renumbers. Also: each part of a
-MultiPolygon gets its own mask, OR-ed (an island in a lake survives); a synchronous dask
-scheduler, as tasks add into shared arrays; NaN for an empty mask. Offer both fixes
-upstream (ROADMAP).
+**Mask rasterising is copied from sopa 2.2.12, with one fix.** sopa rasterizes the exterior
+only, so a cytoplasm ring would be measured as the whole cell. Here holes are cut, each
+MultiPolygon part in its own mask, OR-ed, so one part's hole cannot erase another (an island in
+a lake survives). Building the table with `TableModel.parse` keeps the cell ids sopa's
+`parse_table` renumbers. Empty mask: NaN. Offer the fix upstream (ROADMAP).
 
 **NaN is "not measured", 0 "measured, nothing there".** A cell without a nucleus has NaN layers
 and `cytoplasm_area`; a cell its nuclei fill has `cytoplasm_area` 0.
@@ -153,6 +150,27 @@ Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, a
 the kwargs JSON fails sopa in every patch task.
 
 **StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
+
+## Quantification
+
+**Shapes are read in tile windows, not segmentation patches.** `patch_width_pixel` is tuned for
+segmentation, patches need not overlap enough to hold a cell, and tying the two would make
+a resource setting change the table. A shape belongs to the tile holding its centroid; the
+window grows to its pixel bounds, so a giant shape enlarges only its tile's window. Each shape is measured
+whole, so medians and SDs are exact and `tile_size` does not change results.
+
+**The statistic menu is `mean`, `median`, `std`, `min`, `max`, `q25`, `q75`, `q90`; the default
+is `mean,median,std`.** No benchmark ranks statistics for phenotyping, and the mean is the
+baseline. `q99` is not offered: in a 50 px cell it is the max. Min is mostly background and max
+a hot pixel or a bright neighbour, so both are QC signals, opt-in. `mean` is required, as QC
+clusters on it.
+
+**Morphology is computed on the polygons**, exactly, with no raster. Circularity depends on how
+the polygon was made (sopa smooths) and is unstable below ~30 px², so compare it within one
+method only.
+
+**Pixel units.** Areas and lengths are px and px², as `area` was. Pixel size in the Zarr is
+deferred (ROADMAP).
 
 ## Containers
 

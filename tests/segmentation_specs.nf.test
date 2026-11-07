@@ -90,7 +90,7 @@ nextflow_function {
         }
     }
 
-    test("only Cellpose asks for a GPU") {
+    test("use_gpu asks for a GPU for both methods") {
         when {
             function {
                 """
@@ -102,7 +102,7 @@ nextflow_function {
             assert function.success
             assert function.result*.name == ['cellpose_cells', 'instanseg_cells']
             assert function.result[0].gpu == true
-            assert function.result[1].gpu == false
+            assert function.result[1].gpu == true
         }
     }
 

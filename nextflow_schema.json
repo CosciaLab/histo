@@ -248,7 +248,7 @@
                 },
                 "use_gpu": {
                     "type": "boolean",
-                    "description": "One GPU per Cellpose patch task. Cluster only; InstanSeg runs on CPU."
+                    "description": "One GPU per Cellpose and InstanSeg patch task. Cluster only; InstanSeg then takes at most 10 channels."
                 }
             },
             "fa_icon": "far fa-square"
@@ -295,12 +295,18 @@
         "aggregation": {
             "title": "Aggregation",
             "type": "object",
-            "description": "Per-cell channel intensities",
+            "description": "Per-cell marker statistics and morphology",
             "default": "",
             "properties": {
                 "expand_radius_ratio": {
                     "type": "number",
-                    "description": "Expand cell polygons by `expand_radius_ratio * mean_radius` when averaging channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes. Helps capture membrane stainings at the cell boundary."
+                    "description": "Expand cell polygons by `expand_radius_ratio * mean_radius` when measuring channel intensities, for X only; the nucleus and cytoplasm layers, area and centroids use the unexpanded shapes. Helps capture membrane stainings at the cell boundary."
+                },
+                "quantification_statistics": {
+                    "type": "string",
+                    "default": "mean,median,std",
+                    "pattern": "^(mean|median|std|min|max|q25|q75|q90)(,(mean|median|std|min|max|q25|q75|q90))*$",
+                    "description": "Per-marker statistics, comma-separated, no spaces: mean, median, std, min, max, q25, q75, q90. mean is required."
                 }
             },
             "fa_icon": "fas fa-calculator"

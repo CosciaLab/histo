@@ -77,6 +77,35 @@ nextflow_function {
         }
     }
 
+    test("use_gpu with 10 instanseg_channels is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_instanseg: true, instanseg_pixel_size: 0.65, use_gpu: true,
+                             instanseg_channels: (1..10).collect { "M\$it" }.join(' ') ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("use_gpu with 11 instanseg_channels is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_instanseg: true, instanseg_pixel_size: 0.65, use_gpu: true,
+                             instanseg_channels: (1..11).collect { "M\$it" }.join(' ') ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("at most 10 channels") && it.contains("names 11") }
+        }
+    }
+
     test("keep_projection without use_projection is rejected") {
         when {
             function {
@@ -223,6 +252,47 @@ nextflow_function {
         }
         then {
             assert function.success
+        }
+    }
+
+    test("default statistics are accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'mean,median,std' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("statistics without mean are rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'median,std' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("quantification_statistics must include mean") }
+        }
+    }
+
+    test("duplicate statistics are rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, quantification_statistics: 'mean,mean' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("quantification_statistics lists mean twice") }
         }
     }
 }

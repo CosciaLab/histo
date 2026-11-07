@@ -21,7 +21,9 @@ from qc_metrics import (
     channel_histograms,
     collect,
     image_channel_labels,
+    mean_columns,
     read_column,
+    row_areas,
     segmentation_image_element,
 )
 
@@ -50,27 +52,41 @@ def make_image(store, element, data):
     return labels
 
 
+def write_strings(root, path, values, encoding):
+    """One string column in AnnData's nullable-string or categorical encoding."""
+    group = root.create_group(path)
+    if encoding == "nullable-string-array":
+        group.attrs["encoding-type"] = encoding
+        group.create_array("values", shape=(len(values),), dtype="<U32")[:] = np.array(values, dtype="<U32")
+        group.create_array("mask", shape=(len(values),), dtype="bool")[:] = False
+        return
+    cats = sorted(set(values))
+    group.attrs["encoding-type"] = "categorical"
+    group.create_array("categories", shape=(len(cats),), dtype="<U32")[:] = np.array(cats, dtype="<U32")
+    group.create_array("codes", shape=(len(values),), dtype="i1")[:] = [cats.index(v) for v in values]
+
+
 def make_table(store, areas, centroids, channel_names, name="table", shapes_name="cellpose_boundaries"):
-    """A minimal AnnData table using all three column encodings at once."""
+    """A minimal 3.0 AnnData table: {marker}_mean then {marker}_median columns in X."""
     root = zarr.open_group(str(store / "tables" / name), mode="w")
-    root.create_array("obs/area", shape=(len(areas),), dtype="f8")[:] = areas
+    root.create_array("obs/cell_area", shape=(len(areas),), dtype="f8")[:] = areas
     root.create_array("obsm/spatial", shape=centroids.shape, dtype="f8")[:] = centroids
 
-    # var/_index as nullable strings, which is how the real store holds it.
-    var_index = root.create_group("var/_index")
-    var_index.attrs["encoding-type"] = "nullable-string-array"
-    values = var_index.create_array("values", shape=(len(channel_names),), dtype="<U16")
-    values[:] = np.array(channel_names, dtype="<U16")
-    mask = var_index.create_array("mask", shape=(len(channel_names),), dtype="bool")
-    mask[:] = False
+    n = len(channel_names)
+    write_strings(
+        root,
+        "var/_index",
+        [f"{c}_mean" for c in channel_names] + [f"{c}_median" for c in channel_names],
+        "nullable-string-array",
+    )
+    write_strings(root, "var/marker", list(channel_names) * 2, "categorical")
+    write_strings(root, "var/statistic", ["mean"] * n + ["median"] * n, "categorical")
+    # Means are 1..n, medians 100+; a wrong column choice changes any ratio.
+    x = np.tile(np.concatenate([np.arange(1, n + 1), 100 + np.arange(n)]).astype("f4"), (len(areas), 1))
+    root.create_array("X", shape=x.shape, dtype="f4")[:] = x
 
     # obs/region as categorical, the other real encoding.
-    region = root.create_group("obs/region")
-    region.attrs["encoding-type"] = "categorical"
-    cats = region.create_array("categories", shape=(1,), dtype="<U32")
-    cats[:] = np.array([shapes_name], dtype="<U32")
-    codes = region.create_array("codes", shape=(len(areas),), dtype="i1")
-    codes[:] = 0
+    write_strings(root, "obs/region", [shapes_name] * len(areas), "categorical")
 
 
 def make_patches(store, bboxes):
@@ -106,7 +122,7 @@ def store(tmp_path):
 
 class TestReadColumn:
     def test_plain_array(self, store):
-        col = read_column(zarr.open_group(str(store / "tables/table"), mode="r")["obs"]["area"])
+        col = read_column(zarr.open_group(str(store / "tables/table"), mode="r")["obs"]["cell_area"])
         assert list(col) == [4.0, 50.0, 900.0, 1000.0]
 
     def test_categorical_is_expanded(self, store):
@@ -116,7 +132,7 @@ class TestReadColumn:
 
     def test_nullable_string(self, store):
         col = read_column(zarr.open_group(str(store / "tables/table"), mode="r")["var"]["_index"])
-        assert list(col) == ["ch0", "ch1"]
+        assert list(col) == ["ch0_mean", "ch1_mean", "ch0_median", "ch1_median"]
 
     def test_unknown_encoding_refused(self, tmp_path):
         """Guessing from the group's keys would break on the first added key."""
@@ -125,6 +141,43 @@ class TestReadColumn:
         node.attrs["encoding-type"] = "something-new"
         with pytest.raises(ValueError, match="unsupported AnnData column encoding"):
             read_column(node)
+
+
+class TestMeanColumns:
+    def test_mean_columns_select_means(self, store):
+        table = zarr.open_group(str(store / "tables/table"), mode="r")
+        assert mean_columns(table) == (["ch0", "ch1"], [0, 1])
+
+    def test_mean_columns_marker_with_underscore(self, tmp_path):
+        s = tmp_path / "u.zarr"
+        s.mkdir()
+        make_table(s, np.array([1.0]), np.array([[0.0, 0.0]]), ["CD45_RO", "DAPI"])
+        table = zarr.open_group(str(s / "tables/table"), mode="r")
+        assert mean_columns(table) == (["CD45_RO", "DAPI"], [0, 1])
+
+    def test_real_anndata_table(self, tmp_path):
+        pytest.importorskip("spatialdata")
+        from aggregate_compartments import obs_columns
+        from test_aggregate_compartments import table as real_table, three_cells
+
+        t = real_table(obs_extra=obs_columns(three_cells(), "cells", None, None))
+        t.write_zarr(str(tmp_path / "store" / "tables" / "t"))
+        table = zarr.open_group(str(tmp_path / "store" / "tables" / "t"), mode="r")
+        assert mean_columns(table) == (["DAPI", "CD3"], [0, 1])
+        assert isinstance(table["X"], zarr.Array)
+        assert list(row_areas(table)) == list(t.obs["cell_area"])
+
+    def test_2x_table_refused(self, store):
+        table = zarr.open_group(str(store / "tables/table"), mode="r+")
+        del table["var"]["statistic"]
+        with pytest.raises(ValueError, match="before 3.0"):
+            mean_columns(table)
+
+    def test_nuclei_only_areas(self, store):
+        table = zarr.open_group(str(store / "tables/table"), mode="r+")
+        del table["obs"]["cell_area"]
+        table.create_array("obs/nucleus_area", shape=(4,), dtype="f8")[:] = [1.0, 2.0, 3.0, 4.0]
+        assert list(row_areas(table)) == [1.0, 2.0, 3.0, 4.0]
 
 
 class TestSegmentationImageElement:

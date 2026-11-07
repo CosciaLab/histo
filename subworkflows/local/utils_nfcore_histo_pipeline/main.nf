@@ -16,6 +16,9 @@ include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 include { segmentationTargets       } from '../../../modules/local/utils'
+include { defaultInstansegChannels  } from '../../../modules/local/utils'
+include { getChannels               } from '../../../modules/local/utils'
+include { instansegGpuMaxChannels   } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -371,6 +374,19 @@ def validateMarkersheet(rows, sample = null) {
         validateProjectionGroups(rows, where)
     }
 
+    // The same count SEGMENTATION takes, from the sheet after backsub drops removed channels.
+    if (params.use_gpu && params.use_instanseg && params.instanseg_channels == null) {
+        def kept = params.use_backsub ? rows.findAll { !it.remove } : rows
+        segmentationTargets(params).each { target ->
+            def n_channels = defaultInstansegChannels(kept, target).size()
+            assert n_channels <= instansegGpuMaxChannels() : (
+                "${where}: InstanSeg ${target} would read ${n_channels} channels (channel_role dna and marker), " +
+                "but use_gpu runs InstanSeg on at most ${instansegGpuMaxChannels()} until its GPU memory is " +
+                "measured (ROADMAP). Set instanseg_channels, or set use_gpu to false."
+            )
+        }
+    }
+
     return rows
 }
 
@@ -659,10 +675,12 @@ def validateParams(params) {
         assert params.cellpose_channels == null : "use_projection sets the Cellpose channels to the " +
             "projection's 'cell' and 'nuclear', so cellpose_channels must be unset. Got: ${params.cellpose_channels}"
     }
-    // sopa (2.2.12 and main) calls .numpy() on InstanSeg's CUDA tensor and fails, so conf/gpu.config
-    // gives the GPU to Cellpose only. ROADMAP: lift when fixed.
-    if (params.use_gpu && params.use_instanseg) {
-        log.warn("use_gpu applies to Cellpose; InstanSeg runs on CPU (sopa cannot run it on CUDA yet)")
+    // Without instanseg_channels the count comes from each marker sheet (validateMarkersheet).
+    if (params.use_gpu && params.use_instanseg && params.instanseg_channels != null) {
+        def n_channels = getChannels(params.instanseg_channels, true).size()
+        assert n_channels <= instansegGpuMaxChannels() :
+            "use_gpu runs InstanSeg on at most ${instansegGpuMaxChannels()} channels until its GPU memory is " +
+            "measured (ROADMAP); instanseg_channels names ${n_channels}. Name fewer, or set use_gpu to false."
     }
     assert !(params.keep_projection && !params.use_projection) :
         "keep_projection requires use_projection: without it there is no projected image to keep."
@@ -684,6 +702,16 @@ def validateParams(params) {
             "tma_expected_cores must be greater than 0. Got: ${params.tma_expected_cores}"
         assert params.tma_core_diameter_mm > 0 :
             "tma_core_diameter_mm must be greater than 0. Got: ${params.tma_core_diameter_mm}"
+    }
+
+    // QC clusters on the mean, and a repeated statistic would write duplicate columns.
+    if (params.quantification_statistics != null) {
+        def stats = params.quantification_statistics.split(',') as List
+        assert 'mean' in stats : "quantification_statistics must include mean: QC clusters on it. " +
+            "Got: ${params.quantification_statistics}"
+        def twice = stats.findAll { s -> stats.count(s) > 1 }.unique()
+        assert !twice : "quantification_statistics lists ${twice.join(', ')} twice. " +
+            "Got: ${params.quantification_statistics}"
     }
 
     return params
