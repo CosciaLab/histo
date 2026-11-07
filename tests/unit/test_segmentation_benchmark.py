@@ -215,3 +215,33 @@ def test_dapi_from_composite_ignores_cyan():
     rgb[..., 2] = image[1] + image[2]  # channel 1 is blue, channel 2 is cyan (G and B)
     rgb[..., 1] = image[2]
     assert dapi_from_composite(image, rgb) == (1, "")
+
+
+def test_tissuenet_meta_maps_one_to_one_after_headers(tmp_path):
+    from segmentation_benchmark.prepare import read_tissuenet
+
+    header = ["filename", "experiment", "pixel_size", "screening_passed", "time_step", "specimen"]
+    meta = np.array(
+        [header] * 4 + [["f", "../x/20200101_CyCIF_Tonsil", 0.5, "Not screened", None, "Tonsil"]] * 2,
+        dtype=object,
+    )
+    x = np.zeros((2, 8, 8, 2))
+    x[1, ..., 1] = 3.0
+    y = np.zeros((2, 8, 8, 2), np.int32)
+    y[0, :4, :4, 0] = 1
+    y[0, :2, :2, 1] = 1
+    path = tmp_path / "t.npz"
+    np.savez(path, X=x, y=y, meta=meta)
+    (row0, img0, cells0, nuclei0), (row1, img1, _, _) = list(read_tissuenet(path))
+    assert (row0["crop"], row0["platform"], row0["tissue"], row0["nuclear"]) == (
+        "0000",
+        "20200101_CyCIF_Tonsil",
+        "Tonsil",
+        0,
+    )
+    assert img0.shape == (2, 8, 8) and img1[1].max() == 3.0 and img1[0].max() == 0
+    assert (cells0 > 0).sum() == 16 and (nuclei0 > 0).sum() == 4
+
+    np.savez(path, X=x, y=y, meta=meta[:-1])
+    with pytest.raises(ValueError, match="tiles"):
+        list(read_tissuenet(path))

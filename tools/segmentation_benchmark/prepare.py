@@ -20,7 +20,10 @@ Findings from inspecting the data (Cross-platform = Aleynick et al. 2023, Sci Da
   holds (accepted: a user's marker sheet would do the same). Pixel size 0.3774 um.
 - Tonsil (Zenodo 22107836): (7, 100, 100) uint16, DAPI is index 6 on all 10 crops (checked by
   `tonsil_nuclear_channel`); nuclei ids are a subset of cell ids. Pixel size unknown.
-- TissueNet is not read here yet; its reader is added once the zip is available.
+- TissueNet 1.1 test npz (modified Apache, non-commercial): X (N,256,256,2) = [nuclear, whole
+  cell], y (N,256,256,2) = [whole cell, nuclear]; `meta` has 4 header rows (header text
+  repeated) before N data rows, checked to be 1:1 with X. platform = experiment folder name,
+  tissue = specimen, 0.5 um/px. Only the test split is read.
 """
 
 from __future__ import annotations
@@ -39,6 +42,8 @@ from skimage.draw import polygon
 PIXEL_SIZE_UM = {"Vectra": 0.5, "CODEX": 0.3774}  # paper Table 2
 POLYGON_TYPES = ("POLYGON", "FREEHAND", "TRACED")
 DAPI_MIN_CORR = 0.9
+TISSUENET_TEST = "tissuenet_v1.1_test.npz"
+TISSUENET_MONTAGE_MIN_CELLS = 20
 DAPI_MIN_BLUE_CORR = 0.5
 DAPI_MIN_MARGIN = 0.1
 COLUMNS = [
@@ -258,15 +263,40 @@ def read_tonsil(root: Path):
         yield row, img, cells, nuclei
 
 
+def read_tissuenet(npz: Path):
+    """Yield (row, image, cells, nuclei) per tile of a TissueNet test npz."""
+    data = np.load(npz, allow_pickle=True)  # meta is an object array
+    x, y, meta = data["X"], data["y"], data["meta"]
+    is_header = meta[:, 0] == "filename"
+    meta = meta[~is_header]
+    if len(meta) != len(x) or len(y) != len(x) or x.shape[-1] != 2 or y.shape[-1] != 2:
+        raise ValueError(
+            f"TissueNet meta rows {len(meta)} (after {is_header.sum()} headers) != {len(x)} tiles"
+        )
+    for i, (m, tile, lab) in enumerate(zip(meta, x, y, strict=True)):
+        image = np.moveaxis(tile, -1, 0).astype(np.float32)  # [nuclear, whole cell]
+        cells, nuclei = lab[..., 0].astype(np.uint32), lab[..., 1].astype(np.uint32)
+        row = {
+            "dataset": "tissuenet", "crop": f"{i:04d}", "platform": Path(str(m[1])).name,
+            "tissue": str(m[5]), "pixel_size_um": float(m[2]), "channels": "nuclear|membrane",
+            "nuclear": 0, "height": image.shape[1], "width": image.shape[2],
+            "n_cells": len(np.unique(cells)) - 1, "n_nuclei": len(np.unique(nuclei)) - 1,
+            "overlap_cells": 0.0, "overlap_nuclei": 0.0, "dapi_check": "n/a",
+        }  # fmt: skip
+        yield row, image, cells, nuclei
+
+
 def _mark_montage(rows: list[dict]) -> None:
-    """First crop by name per Cross-platform platform (with cell masks) and first two tonsil."""
+    """First crop by name per Cross-platform platform (with cell masks), first two tonsil, first TissueNet tile with 20+ cells."""
     for r in rows:
         r["montage"] = False
     ordered = sorted(rows, key=lambda r: (r["dataset"], r["crop"]))
     seen = Counter()
     for r in ordered:
         group, limit = (r["platform"], 1) if r["dataset"] == "crossplatform" else (r["dataset"], 2)
-        if r["n_cells"] and seen[group] < limit:
+        need = TISSUENET_MONTAGE_MIN_CELLS if r["dataset"] == "tissuenet" else 1
+        limit = 1 if r["dataset"] == "tissuenet" else limit
+        if r["n_cells"] >= need and seen[group] < limit:
             r["montage"] = True
             seen[group] += 1
 
@@ -279,15 +309,17 @@ def prepare(raw: Path, out: Path) -> tuple[pd.DataFrame, list]:
         readers.append(read_crossplatform(raw / "crossplatform", skipped))
     if (raw / "tonsil").is_dir():
         readers.append(read_tonsil(raw / "tonsil"))
+    if (raw / "tissuenet" / TISSUENET_TEST).is_file():
+        readers.append(read_tissuenet(raw / "tissuenet" / TISSUENET_TEST))
     rows = []
     for reader in readers:
         for row, image, cells, nuclei in reader:
             folder = out / "crops" / row["dataset"] / row["crop"]
             folder.mkdir(parents=True, exist_ok=True)
-            tifffile.imwrite(folder / "image.tif", image)
+            tifffile.imwrite(folder / "image.tif", image, compression="zlib")
             for name, labels in (("cells", cells), ("nuclei", nuclei)):
                 if labels is not None:
-                    tifffile.imwrite(folder / f"{name}.tif", labels.astype(np.uint32))
+                    tifffile.imwrite(folder / f"{name}.tif", labels.astype(np.uint32), compression="zlib")
                 else:
                     (folder / f"{name}.tif").unlink(missing_ok=True)
             rows.append(row)
@@ -299,7 +331,9 @@ def prepare(raw: Path, out: Path) -> tuple[pd.DataFrame, list]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Write the benchmark crops and crops.csv.")
-    parser.add_argument("--raw", type=Path, required=True, help="folder with tonsil/, crossplatform/")
+    parser.add_argument(
+        "--raw", type=Path, required=True, help="folder with tonsil/, crossplatform/, tissuenet/"
+    )
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
