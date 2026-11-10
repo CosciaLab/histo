@@ -106,6 +106,27 @@ the whole-slide result; (4) only then restructure `PREPROCESS_IMAGES`.
 
 Downstream is untouched: core identity, `meta.slide` and `MERGE_SPATIALDATA` already exist.
 
+### Separate track: H&E registration (VALIS)
+
+A same-section H&E, scanned after the IF, registered onto Ashlar's stitched image and added to the store as
+`{sample}_he` on the IF pixel grid. Spec:
+[2026-11-10-he-registration-design.md](docs/superpowers/specs/2026-11-10-he-registration-design.md); plan:
+[2026-11-10-he-registration.md](docs/superpowers/plans/2026-11-10-he-registration.md). Off by default, not breaking.
+
+Runs [valis_pipeline](https://github.com/leventetn/valis_registration_pipeline) from its own image,
+`docker.io/leventetn/valis_pipeline`, which needs four changes there first (its ROADMAP, Next 2): channel by index,
+an image-only output, one entry point, and the image. Then here: `he_image` column, params, `REGISTER_HE`,
+`ADD_REGISTERED_IMAGE`, wiring, a QC section, docs. About 2 weeks with both sides; mDVP15 (tiles and H&E CZI on the
+cluster) is the real-data check.
+
+Then, in order:
+
+1. **H&E scenes.** A `he_scene` column: the mDVP15 H&E CZI holds several scenes (scene 1 is the tissue).
+2. **H&E segmentation.** An InstanSeg `brightfield_nuclei` spec on `{sample}_he`. Moves the writer before
+   `MAKE_IMAGE_PATCHES` and makes the single-image steps name their image. Check the IF pixel against InstanSeg's
+   0.5 µm training scale first.
+3. **TMA.** Register the whole slide before Coreograph, crop the H&E per core. Coreograph records no core boxes.
+
 ## Before every release
 
 Two runs on the cluster, by hand. Images are 8.8 GB (mIF) to 14.7 GB (with Coreograph), too
@@ -133,7 +154,8 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    call per `dna` channel; each writes every core again, so disk grows with cycles. Decide first
    what a missing core means (drop it, fewer channels, or fail): QC or control flow. 1–1.5 weeks.
 5. **H&E input.** Separate path: no preprocessing, an H&E nuclear model, morphology features,
-   no QC at first. May need a new image for a WSI reader. 3–5 weeks.
+   no QC at first. May need a new image for a WSI reader. 3–5 weeks. Different from the H&E
+   registration track, which adds an H&E to an IF run.
 6. **Segmentation preview**, so users pick settings by eye instead of worrying about optimising
    them. A mode that stops after segmenting ~5 crops chosen to span the slide (dense, sparse,
    tissue edge, brightest cell marker) over a small grid: `cellprob_threshold`, `flow_threshold`,

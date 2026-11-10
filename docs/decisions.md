@@ -172,6 +172,31 @@ method only.
 **Pixel units.** Areas and lengths are px and px², as `area` was. Pixel size in the Zarr is
 deferred (ROADMAP).
 
+## H&E registration (planned)
+
+From the spec `docs/superpowers/specs/2026-11-10-he-registration-design.md`; not implemented yet.
+
+**valis_pipeline from its own image, not copied in.** One code base; the run records its commit. Its reasons
+(VALIS 1.2.0 pinned with patches, hematoxylin against the measured glass, the chosen image sizes) are in its
+`docs/decisions.md`.
+
+**Registered on Ashlar's output, by the first `dna` channel's index.** Ashlar writes no names, and backsub keeps the
+pixel grid, so one map serves the backsub element too. The index comes from the original marker sheet, since backsub
+renumbers.
+
+**VALIS does not stitch.** Micro registration joins per-tile displacement fields over a 100 px overlap at fixed
+positions; a jump between tiles is feathered, not resolved. The H&E is then pulled through one map, so it has no seams.
+
+**Added after segmentation, before QC.** Three steps assume one image in the store, and sopa reads a 3-channel image
+as H&E. QC and the merge read the store concurrently once nothing else writes, so the writer must precede them; QC
+then waits for the registration.
+
+**On the IF pixel grid, Identity to `global`.** Cells, shapes and H&E share one frame, which keeps H&E segmentation
+possible later. Finer H&E pixels would need a `Scale` element in a pixel-only store (Pixel size).
+
+**VALIS settings fixed, placement exposed.** Rigid 1000 px, non-rigid 4000 px, DeepFlow come from valis_pipeline's
+benchmarks; placement and its check are what a user may need to change per slide.
+
 ## Containers
 
 **Nothing is pulled at run time.** A pull failing hours in wastes the run and the queue slot.
