@@ -56,10 +56,9 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 ### 3.4 onward: learned features
 
-Nimbus, KRONOS and VirTues, one per release; Nimbus first, as its per-cell marker positivity
-feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing
-and 3.3's baked weights. None is in bioconda, so expect private images. Check weight licences
-first.
+KRONOS and VirTues, one per release, on the stage Nimbus added in 3.2. One interface: image and
+shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing and 3.3's baked weights. Neither is in
+bioconda, so expect private images. Check weight licences first.
 
 ### Then: QC report overhaul
 
@@ -142,6 +141,9 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
    only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 3.3 item 2, which sets
    the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
+7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
+   channel across all cores, so a core with no positive cells is not stretched to [0, 1].
+8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `use_nimbus`: per-cell marker positivity scores from Nimbus, one `{method}_nimbus` table per
+  segmentation method, tiled so memory does not grow with the image. `nimbus_channels` picks the
+  markers. Provenance is published to `learned_features/`.
+
 ### Deprecated
 
 - `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still

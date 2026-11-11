@@ -41,6 +41,7 @@ PAGES: dict[str, list[str]] = {
     ],
     "cellpose": ["modules/local/segment_patch"],
     "instanseg": ["modules/local/segment_patch"],
+    "nimbus": ["modules/local/nimbus"],
     "projection": ["modules/local/project_channels"],
     "linking": ["modules/local/link_compartments"],
     "quantification": ["modules/local/aggregate"],
@@ -67,6 +68,11 @@ TOOL_OVERRIDES: dict[str, dict[str, str]] = {
         "homepage": "https://github.com/instanseg/instanseg",
         "doi": "10.48550/arXiv.2408.15954",
         "package": "instanseg",
+    },
+    "nimbus": {
+        "name": "Nimbus",
+        "homepage": "https://github.com/angelolab/Nimbus-Inference",
+        "doi": "10.1038/s41592-025-02826-9",
     },
     "qc-report": {"name": "pipeline scripts (`bin/`)"},
 }
