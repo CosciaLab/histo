@@ -349,7 +349,7 @@ def validateMarkersheet(rows, sample = null) {
 
         // Segmentation runs after backsub, so a removed channel is no longer in the image.
         def removed = rows.findAll { it.remove }.collect { it.marker_name } as Set
-        ['cellpose_channels', 'instanseg_channels'].each { param ->
+        ['cellpose_channels', 'instanseg_channels', 'nimbus_channels'].each { param ->
             def value = params[param]
             if (!(value instanceof CharSequence)) {
                 return
@@ -670,7 +670,7 @@ def validateParams(params) {
         "use_nimbus without use_preprocessing needs nimbus_channels: the default channels " +
         "come from the marker sheet. Name the channels, separated by space, comma or pipe."
     if (params.use_nimbus && !params.use_gpu) {
-        log.warn("use_nimbus without use_gpu: same scores, but hours per whole slide on CPU.")
+        log.warn("use_nimbus without use_gpu: same scores, but a whole slide can take days on CPU and may exceed the task time limit.")
     }
 
     if (params.preprocessing_only) {
