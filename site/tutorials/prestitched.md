@@ -80,7 +80,7 @@ patch_width_pixel: 5000
 ## Run
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.1.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

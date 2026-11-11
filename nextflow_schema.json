@@ -462,6 +462,7 @@
                 "instanseg_pixel_size": {
                     "type": "number",
                     "description": "Deprecated: use pixel_size",
+                    "help_text": "**Conflicts:** `pixel_size` with a different value.",
                     "hidden": true
                 },
                 "instanseg_channels": {
@@ -489,7 +490,8 @@
                 },
                 "nimbus_channels": {
                     "type": ["string", "integer"],
-                    "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters."
+                    "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters.",
+                    "help_text": "**Ignored unless:** `use_nimbus`."
                 }
             },
             "fa_icon": "fas fa-brain"
