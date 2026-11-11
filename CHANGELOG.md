@@ -3,7 +3,28 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v3.0.0 - [unreleased]
+## v3.2.0 - [unreleased]
+
+### Added
+
+### Deprecated
+
+## v3.1.0 - [2026-11-07]
+
+### Added
+
+- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
+  reports, tutorials on the exemplar data, one page per module, and a parameter reference
+  generated from the schema. Parameter rules
+  (requires, conflicts, ignored unless) are in the schema `help_text`.
+
+### Changed
+
+- Docs site navigation restructured: inputs, outputs by kind, tutorials on the exemplar data, one
+  page per module; how-to guides dropped.
+- Metro map redrawn as two lines on two rows, larger and with higher contrast.
+
+## v3.0.0 - [2026-11-07]
 
 ### Breaking
 
@@ -15,10 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
-  reports, tutorials on the exemplar data, one page per module, and a parameter reference
-  generated from the schema. Parameter rules
-  (requires, conflicts, ignored unless) are in the schema `help_text`.
 - `quantification_statistics` (default `mean,median,std`; also `min`, `max`, `q25`, `q75`,
   `q90`) sets the statistics per marker. `mean` is required.
 - Shape features in `obs` for the cell and, where linked, the nucleus: `cell_*` and `nucleus_*`
