@@ -1,5 +1,7 @@
 """Tiled Nimbus runner core, tested with a fake model."""
 
+import math
+
 import numpy as np
 import pytest
 from shapely.geometry import Polygon, box
@@ -146,6 +148,19 @@ def test_image_px_ceils():
     assert nc.image_px(2048, 0.65) == 3151
 
 
+def test_model_um_per_px_drives_scale_image_px_and_magnification(monkeypatch):
+    ps = 0.65
+    before = (nc.resize_scale(ps), nc.image_px(2048, ps), nc.magnification(ps))
+    assert before == pytest.approx((0.65, math.ceil(2048 / 0.65), 10 / 0.65))
+    monkeypatch.setattr(nc, "MODEL_UM_PER_PX", 0.5)
+    scale, px, mag = nc.resize_scale(ps), nc.image_px(2048, ps), nc.magnification(ps)
+    assert scale == pytest.approx(1.3)
+    assert px == math.ceil(2048 * 0.5 / 0.65)
+    # magnification and resize scale stay inverse: model magnification = mag * scale
+    assert mag == pytest.approx(10 * 0.5 / ps)
+    assert mag * scale == pytest.approx(nc.MODEL_MAGNIFICATION)
+
+
 def box_blur(x, r):
     from scipy.ndimage import uniform_filter
 
@@ -256,7 +271,7 @@ def test_cli_table_layout(tmp_path):
     assert set(out.obs["region"]) == {"m_cells"}
     keys = {
         "nimbus_version", "weights", "weights_sha256", "channels", "factors", "unscored",
-        "pixel_size", "magnification", "tile_size", "margin", "halo", "min_window",
+        "pixel_size", "model_um_per_px", "magnification", "tile_size", "margin", "halo", "min_window",
         "test_time_aug", "device",
     }  # fmt: skip
     assert keys <= set(out.uns["nimbus"])

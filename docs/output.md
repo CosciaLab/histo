@@ -205,26 +205,27 @@ sdata["cellpose_nimbus"][:, "CD3"].X
 
 - `X`: float32, cells by markers. NaN for a channel with no nonzero pixel, or a cell covering no
   pixel centre.
-- `var_names`: the marker names, in marker-sheet order.
+- `var_names`: the marker names, in `nimbus_channels` order when given, else marker-sheet order.
 - `obs`: `region`, `slide`, `core_id` and `cell_id` where present, copied from `{m}_table`.
 - `uns['nimbus']`: how the scores were made.
 
-| `uns['nimbus']` key | Meaning                                                                         |
-| ------------------- | ------------------------------------------------------------------------------- |
-| `nimbus_version`    | Nimbus-Inference version.                                                       |
-| `weights`           | Weights file.                                                                   |
-| `weights_sha256`    | sha256 of the weights file.                                                     |
-| `channels`          | Markers scored.                                                                 |
-| `factors`           | Per-channel normalisation factor (0.999 quantile).                              |
-| `unscored`          | Channels with no nonzero pixel; their columns are NaN.                          |
-| `pixel_size`        | µm per pixel given by `pixel_size`.                                             |
-| `magnification`     | `10 / pixel_size`. Provisional; see [decisions](decisions.md#learned-features). |
-| `tile_size`         | Tile edge, in image pixels (2048 model pixels).                                 |
-| `margin`            | Context added around each tile, in image pixels.                                |
-| `halo`              | Model halo measured at start-up, in model pixels.                               |
-| `min_window`        | Smallest window, in image pixels (1056 model pixels).                           |
-| `test_time_aug`     | Always `true`.                                                                  |
-| `device`            | `cpu` or `cuda`.                                                                |
+| `uns['nimbus']` key | Meaning                                                                                |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `nimbus_version`    | Nimbus-Inference version.                                                              |
+| `weights`           | Weights file.                                                                          |
+| `weights_sha256`    | sha256 of the weights file.                                                            |
+| `channels`          | Markers scored.                                                                        |
+| `factors`           | Per-channel normalisation factor (0.999 quantile).                                     |
+| `unscored`          | Channels with no nonzero pixel; their columns are NaN.                                 |
+| `pixel_size`        | µm per pixel given by `pixel_size`.                                                    |
+| `model_um_per_px`   | µm per model pixel (1.0). Provisional; see [decisions](decisions.md#learned-features). |
+| `magnification`     | `10 * model_um_per_px / pixel_size`.                                                   |
+| `tile_size`         | Tile edge, in image pixels (2048 model pixels).                                        |
+| `margin`            | Context added around each tile, in image pixels.                                       |
+| `halo`              | Model halo measured at start-up, in model pixels.                                      |
+| `min_window`        | Smallest window, in image pixels (1056 model pixels).                                  |
+| `test_time_aug`     | Always `true`.                                                                         |
+| `device`            | `cpu` or `cuda`.                                                                       |
 
 The same keys are published as `learned_features/{sample}_{m}_nimbus.json`, so provenance can be read without
 opening the store.

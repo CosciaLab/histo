@@ -19,13 +19,19 @@ MIN_WINDOW_MODEL_PX = 1056
 MARGIN_EXTRA_MODEL_PX = 32
 WEIGHTS = "V1.pt"
 MODEL_MAGNIFICATION = 10
-MAGNIFICATION_AT_1_UM = 10  # "10x" = 1 um/px: unconfirmed upstream (see tools/containers/nimbus/README.md)
+# um per model px; the one place for the "10x = 1 um/px" assumption, unconfirmed upstream (tools/containers/nimbus/README.md)
+MODEL_UM_PER_PX = 1.0
 # Heavy libraries are imported inside functions so pure helpers test without them.
 
 
 def image_px(model_px, pixel_size):
     """Convert a size in model px to image px."""
-    return math.ceil(model_px / pixel_size)
+    return math.ceil(model_px * MODEL_UM_PER_PX / pixel_size)
+
+
+def resize_scale(pixel_size):
+    """Factor that takes an image of pixel_size um/px to the model's scale."""
+    return pixel_size / MODEL_UM_PER_PX
 
 
 def assign_tiles(centroids, tile_size):
@@ -158,8 +164,8 @@ def score_cells(image, geoms, cell_labels, channel_names, factors, predict, tile
 
 
 def magnification(pixel_size):
-    """Upstream magnification for an image of pixel_size um/px; the single place for the 10x = 1 um/px assumption."""
-    return MAGNIFICATION_AT_1_UM / pixel_size
+    """Upstream magnification of an image of pixel_size um/px, derived from MODEL_UM_PER_PX."""
+    return MODEL_MAGNIFICATION / resize_scale(pixel_size)
 
 
 def load_nimbus(device, batch_size=4):
@@ -199,12 +205,14 @@ def nimbus_predictor(nimbus, pixel_size, batch_size=4):
     import numpy as np
     from nimbus_inference.utils import prepare_binary_mask, prepare_input_data, test_time_aug
 
+    scale = resize_scale(pixel_size)
+
     def predict(channel, normalised, labels):
         h, w = normalised.shape
         binary = prepare_binary_mask(labels)
         img = normalised
-        if pixel_size != 1:
-            size = (round(w * pixel_size), round(h * pixel_size))
+        if scale != 1:
+            size = (int(w * scale), int(h * scale))  # int() as upstream predict_fovs
             img = cv2.resize(normalised, size)
             binary = cv2.resize(binary, size, interpolation=cv2.INTER_NEAREST)
         data = prepare_input_data(img, binary_mask=binary)
@@ -213,7 +221,7 @@ def nimbus_predictor(nimbus, pixel_size, batch_size=4):
         if not isinstance(pred, np.ndarray):
             pred = pred.cpu().numpy()
         pred = np.squeeze(pred)
-        if pixel_size != 1:
+        if scale != 1:
             pred = cv2.resize(pred, (w, h), interpolation=cv2.INTER_NEAREST)
         assert pred.shape == (h, w), f"prediction shape {pred.shape} != window shape {(h, w)}"
         return pred
@@ -316,6 +324,7 @@ def main(argv=None, predict=None, halo=None) -> int:
         "factors": {c: f for c, f in factors.items() if f is not None},
         "unscored": [c for c, f in factors.items() if f is None],
         "pixel_size": args.pixel_size,
+        "model_um_per_px": MODEL_UM_PER_PX,
         "magnification": magnification(args.pixel_size),
         "tile_size": tile,
         "margin": margin,
