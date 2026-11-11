@@ -1,0 +1,65 @@
+name: "nimbus"
+description: Score each marker channel per cell with the Nimbus model, for the cells of one segmentation method; reads the store, writes an AnnData table and a provenance file.
+keywords:
+  - nimbus
+  - marker
+  - spatialdata
+  - imaging
+tools:
+  - "nimbus":
+      description: "Pre-trained deep learning model for marker activity classification in multiplexed images."
+      homepage: "https://github.com/angelolab/Nimbus-Inference"
+      documentation: "https://github.com/angelolab/Nimbus-Inference/blob/main/README.md"
+      tool_dev_url: "https://github.com/angelolab/Nimbus-Inference"
+      licence:
+        - "Apache-2.0"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store with the cells of the method; only read
+        pattern: "*.zarr"
+    - method:
+        type: string
+        description: Segmentation method whose {method}_cells and {method}_table are scored
+    - spec:
+        type: map
+        description: |
+          One feature spec from featureSpecs (modules/local/utils.nf)
+          e.g. [ name:'nimbus', model:'nimbus', channels:[...], pixel_size:0.5, gpu:false ]
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  tables:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - method:
+          type: string
+          description: Segmentation method, passed through
+      - spec:
+          type: map
+          description: The feature spec, passed through
+      - "${method}_nimbus.h5ad":
+          type: file
+          description: Per-cell marker scores, one row per row of {method}_table
+          pattern: "*_nimbus.h5ad"
+      - "${method}_nimbus.json":
+          type: file
+          description: Provenance of the run
+          pattern: "*_nimbus.json"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"
