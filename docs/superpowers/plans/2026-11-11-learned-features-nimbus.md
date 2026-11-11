@@ -61,8 +61,8 @@ sopa-image export step, and choosing it needs their agreement.
 
 - Create: `tools/containers/nimbus/Dockerfile`
 - Create: `tools/containers/nimbus/README.md` (build, save-to-tar and verify commands; five lines)
-- Create: `tests/unit/fixtures/nimbus_crop/` with `image.npy` (c, y, x) uint16, `labels.npy` int32
-  and `reference_scores.csv`
+- Create: `tests/unit/fixtures/nimbus_crop/` with `image.npy` (c, y, x) uint16, `labels.npy` int32,
+  `reference_scores.csv` and `factors.json` (upstream's normalisation dict)
 - Create: `tools/nimbus_reference.py`, which produces the reference with upstream Nimbus
 
 **Interfaces:**
@@ -101,7 +101,7 @@ sopa-image export step, and choosing it needs their agreement.
     Take labels from a cellpose `{method}_cells` run, or from the crop's existing mask.
   - Run `tools/nimbus_reference.py` in a numpy<2 environment:
     `uv run --python 3.11 --with Nimbus-Inference==0.0.5 python -I tools/nimbus_reference.py tests/unit/fixtures/nimbus_crop`.
-  - Expected: `reference_scores.csv` with one row per label.
+  - Expected: `reference_scores.csv` with one row per label, and `factors.json`.
 - [ ] **Step 5: Commit.** `Nimbus image spike and parity fixture`
 
 ### Task 2: `pixel_size` replaces `instanseg_pixel_size`
@@ -289,7 +289,8 @@ moves to `pixel_size`. Do not touch the CHANGELOG's past entries.
   ```
 
   It reads the image named by the store's `cell_segmentation_image` attribute, `{M}_cells`, and
-  `{M}_table`'s obs. The rows are `{M}_table.obs_names`, and shapes are reindexed to them. The
+  `{M}_table`'s obs. It computes the factors with `normalisation_factors` on that image, which
+  makes the normalisation per store. The rows are `{M}_table.obs_names`, and shapes are reindexed to them. The
   output is a `TableModel` with:
   - `region` `{M}_cells`, `region_key` `region` and `instance_key` `cell_id`;
   - obs `region`, `slide`, `core_id` and `cell_id`, copied;
@@ -309,7 +310,7 @@ moves to `pixel_size`. Do not touch the CHANGELOG's past entries.
     `var_names` equal the channels, `X.dtype == float32`, and that the `uns['nimbus']` keys are present.
   - `test_unknown_channel_exits_naming_channels`.
   - `test_parity_with_upstream` loads the fixture and runs `score_cells` with `nimbus_predictor("cpu", pixel_size=1.0)`.
-    The factors come from `reference_scores.csv`'s normalisation. Tile 4096 gives one window.
+    The factors come from the fixture's `factors.json`. Tile 4096 gives one window.
     Asserts `np.testing.assert_allclose(ours, reference, atol=1e-4)`.
 - [ ] **Step 2: Run them and confirm they fail.**
       Run: `pytest tests/unit/test_nimbus_cells.py -v`
