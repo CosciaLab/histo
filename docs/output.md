@@ -206,7 +206,7 @@ sdata["cellpose_nimbus"][:, "CD3"].X
 - `X`: float32, cells by markers. NaN for a channel with no nonzero pixel, or a cell covering no
   pixel centre.
 - `var_names`: the marker names, in marker-sheet order.
-- `obs`: `region`, `slide`, `core_id` and `cell_id`, copied from `{m}_table`.
+- `obs`: `region`, `slide`, `core_id` and `cell_id` where present, copied from `{m}_table`.
 - `uns['nimbus']`: how the scores were made.
 
 | `uns['nimbus']` key | Meaning                                                                         |
@@ -219,10 +219,10 @@ sdata["cellpose_nimbus"][:, "CD3"].X
 | `unscored`          | Channels with no nonzero pixel; their columns are NaN.                          |
 | `pixel_size`        | µm per pixel given by `pixel_size`.                                             |
 | `magnification`     | `10 / pixel_size`. Provisional; see [decisions](decisions.md#learned-features). |
-| `tile_size`         | Tile edge, in model pixels.                                                     |
-| `margin`            | Context added around each tile, in model pixels.                                |
+| `tile_size`         | Tile edge, in image pixels (2048 model pixels).                                 |
+| `margin`            | Context added around each tile, in image pixels.                                |
 | `halo`              | Model halo measured at start-up, in model pixels.                               |
-| `min_window`        | Smallest window, in model pixels.                                               |
+| `min_window`        | Smallest window, in image pixels (1056 model pixels).                           |
 | `test_time_aug`     | Always `true`.                                                                  |
 | `device`            | `cpu` or `cuda`.                                                                |
 

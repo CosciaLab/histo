@@ -292,7 +292,7 @@ a later run deleted ("projection removed by an earlier run"). Rerun those sample
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
 sopa image cannot run on the V100s. At most 16 patches per method run at once. Cellpose tasks get
 1 CPU and 8 GB on `size_tiny` and `size_small`, else 2 CPUs and 16 GB; InstanSeg tasks keep their
-CPU sizing. Nimbus has its own cap of 16 at once. A task fails if CUDA is not usable in it, rather than running on CPU. Not on the Mac:
+CPU sizing. A task fails if CUDA is not usable in it, rather than running on CPU. Not on the Mac:
 Docker there has no GPU.
 
 InstanSeg on GPU takes at most 10 channels, until its GPU memory is measured
