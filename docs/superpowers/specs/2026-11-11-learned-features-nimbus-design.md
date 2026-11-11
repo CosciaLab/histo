@@ -71,9 +71,10 @@ repositories, read on 2026-11-11.
 `instanseg_pixel_size`. It is required with `use_instanseg` or `use_nimbus`, and is available to
 later steps.
 
-`instanseg_pixel_size` joins the removed parameters. Giving it stops the run at startup with a
-message that names `pixel_size`, as the StarDist parameters do. That makes this a breaking change.
-It ships in its own commit, before any Nimbus work.
+`instanseg_pixel_size` is deprecated, not removed. v3.1.0 is released, so removing it would force a
+4.0.0. A run that gives it gets a warning naming `pixel_size`, and its value is used. Giving both
+with different values stops the run. Removal waits for the next major release. The change ships in
+its own commit, before any Nimbus work, and the release stays a minor one (3.2.0).
 
 **A new schema group, "Learned features":**
 
@@ -171,7 +172,7 @@ survives the TMA merge, which copies every table and retargets its region.
   - the package version, the weights file and its sha256;
   - the channels and the normalisation factor of each;
   - `pixel_size` and the magnification;
-  - the tile size, the margin and test-time augmentation;
+  - the tile size, the margin, the halo and test-time augmentation;
   - the device.
 
 **Why a table, not a layer.** A layer must share `{method}_table`'s `var`, which is marker ×
@@ -182,19 +183,53 @@ cells by, so `cellpose_nimbus` / `CD3` is one selection in napari-spatialdata.
 
 The runner is `bin/nimbus_cells.py`. Its pure functions are tested without the model.
 
-- **Tiles and windows.** Each cell belongs to the tile holding its centroid. The tile is 2048 px, a
-  script constant. Its window is grown to cover its cells' bounds plus a 128 px context margin.
+**Tiles and windows, sized at the model's scale.** The image is resized by `pixel_size` before
+inference, so sizes are set in model pixels and converted with `/ pixel_size`.
+
+- **Tile.** The tile is 2048 model px. Each cell belongs to the tile holding its centroid.
+- **Window.** It is the tile grown to cover its cells' bounds, plus a context margin.
+- **Margin.** The margin is the model's halo plus 32, in model px. The halo is measured at start-up
+  as `(input_shape - output_shape) // 2` of the valid-padding model, about 92 px from the
+  architecture. The extra 32 covers the pooling phase and resize rounding.
+- **Minimum window.** It is 1056 model px, so the valid path is always taken (see below). Windows
+  clipped at the image border are shifted inward to reach it, where the image is large enough.
 - **Labels.** Every shape that intersects the window is rasterised with integer labels, because
   neighbours shape the binary mask Nimbus sees. Only owned cells are scored, each exactly once.
-- **Inference per window.** The window is read one channel at a time and normalised with the
-  store's factors. It then goes through Nimbus's `prepare_binary_mask`, `prepare_input_data`,
-  `test_time_aug` and `segment_mean`, the same calls upstream's `predict_fovs` makes.
-- **Same results on every device.** Test-time augmentation stays on, the Nimbus default, on CPU
-  and GPU alike. No other setting depends on the device.
-- **Rescaling.** `magnification` is `10 / pixel_size`, which assumes the model's "10x" is 1 µm/px.
-  The plan's first task verifies this with the paper or the authors.
-- **Device.** The device comes from `task.accelerator`, as in `SEGMENT_PATCH`. A requested CUDA
-  device that is absent fails the task.
+
+**Inference per window.**
+
+- The window is read one channel at a time and normalised with the store's factors.
+- It then goes through Nimbus's `prepare_binary_mask`, `prepare_input_data`, `test_time_aug` and
+  `segment_mean`, the same calls upstream's `predict_fovs` makes.
+- `magnification` is `10 / pixel_size`, which assumes the model's "10x" is 1 µm/px. The plan's
+  first task verifies this with the paper or the authors.
+
+**Why tiling changes nothing Nimbus computes.** Verified in the Nimbus 0.0.5 source:
+
+- **One global step, the per-channel factor.** It is computed once per store, before tiling, and
+  every window gets the same factor. A channel with no factor is never passed on: Nimbus would
+  quietly fall back to that window's own quantile, a per-tile normalisation.
+- **No per-tile statistics in the model.** Its BatchNorm layers run in eval mode on fixed
+  statistics. Test-time augmentation averages within one input.
+- **Context.** A margin at least the halo gives every owned cell's pixels the same receptive field
+  as whole-image inference.
+- **One code path.** Upstream uses the reflect-padding model for inputs of 1024 px or less and
+  tile-and-stitch with the valid model above that. The two give different results, and each switch
+  reloads the weights from disk. The minimum window keeps every window on the valid path, as
+  whole-slide inference upstream would be. The exception is an image smaller than the minimum,
+  which upstream also runs on the reflect path.
+- **Resize and pooling phase.** The window origin does not fall on the whole image's resize and
+  pooling grid, so equality is close, not exact. A test with the real model measures it: one
+  window against many small ones on the same crop. If the difference exceeds 0.01, the run stops
+  and checks in.
+
+**Same results on every device.** Test-time augmentation stays on, the Nimbus default, on CPU and
+GPU alike. No other setting depends on the device.
+
+**Device.** The device comes from `task.accelerator`, as in `SEGMENT_PATCH`. A requested CUDA device
+that is absent fails the task.
+
+`uns['nimbus']` also records the tile size, the margin and the measured halo.
 
 ## Container
 
@@ -262,7 +297,7 @@ returns the normalised input, so means are hand-computable.
 
 - Stub runs: Nimbus with one method, with two methods, and on a TMA.
 - With `use_nimbus` off, the graph is unchanged.
-- Validation: each new `validateParams` rule, and the removed `instanseg_pixel_size`.
+- Validation: each new `validateParams` rule, and the deprecated `instanseg_pixel_size` (warns; both differing stops).
 - Every existing test that sets `instanseg_pixel_size` moves to `pixel_size`.
 
 **Container and real data.**
@@ -273,9 +308,19 @@ returns the normalised input, so means are hand-computable.
 
 ## Docs and release
 
-**Breaking for users.** In `CHANGELOG.md`, the `pixel_size` rename goes under Breaking; Nimbus goes
-under Added. The site tutorials and parameter pages that use `instanseg_pixel_size` are updated,
-and the parameter reference is regenerated.
+**Release.** The release is minor, 3.2.0. In `CHANGELOG.md`, Nimbus goes under Added and the
+`instanseg_pixel_size` deprecation under Deprecated. The site tutorials and parameter pages move to
+`pixel_size`, and the parameter reference is regenerated.
+
+**Stale version docs fixed first.** v3.0.0 and v3.1.0 are published releases (2026-11-07). On dev,
+however:
+
+- `manifest.version` still says 2.0.0;
+- the CHANGELOG lists 3.0.0 as unreleased;
+- the CHANGELOG has no 3.1.0 entry.
+
+A separate commit sets the manifest to 3.1.0, dates 3.0.0, and adds 3.1.0 from
+`git log v3.0.0..v3.1.0`.
 
 **Other docs:**
 
@@ -311,6 +356,7 @@ It goes in `_qc.json` and the report. It is the last task, so it can be cut.
 
 1. Normalisation is per core on TMAs, to keep inter-patient differences.
 2. Whole cells only.
-3. One `pixel_size` for the pipeline.
+3. One `pixel_size` for the pipeline; `instanseg_pixel_size` is deprecated, so the release stays minor.
 4. GPU is recommended, and results are the same on CPU and GPU.
 5. Scores go in a new table per method rather than a layer.
+6. Tiles must not change Nimbus's maths: one global factor per store, a margin from the model's halo, and one code path.
