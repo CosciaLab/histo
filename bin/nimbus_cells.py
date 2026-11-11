@@ -215,6 +215,7 @@ def nimbus_predictor(nimbus, pixel_size, batch_size=4):
         pred = np.squeeze(pred)
         if pixel_size != 1:
             pred = cv2.resize(pred, (w, h), interpolation=cv2.INTER_NEAREST)
+        assert pred.shape == (h, w), f"prediction shape {pred.shape} != window shape {(h, w)}"
         return pred
 
     return predict
@@ -302,10 +303,10 @@ def main(argv=None, predict=None, halo=None) -> int:
     scores = score_cells(image, geoms, labels, args.channels, factors, predict, tile, margin, min_window)
 
     try:
-        from importlib.metadata import version
+        from importlib.metadata import PackageNotFoundError, version
 
         nimbus_version = version("Nimbus-Inference")
-    except Exception:  # noqa: BLE001
+    except PackageNotFoundError:
         nimbus_version = "unknown"
     provenance = {
         "nimbus_version": nimbus_version,

@@ -189,9 +189,12 @@ def make_store(tmp_path, region="m_cells"):
     import spatialdata as sd
     from spatialdata.models import Image2DModel, ShapesModel, TableModel
 
-    rng = np.random.default_rng(7)
+    data = np.full((2, 80, 80), 1, dtype=np.uint16)
+    for (lo, hi), v in zip(((5, 15), (30, 40), (55, 65)), (100, 200, 300), strict=False):  # c1, c2, c3
+        data[0, lo:hi, lo:hi] = v
+        data[1, lo:hi, lo:hi] = v // 10
     image = Image2DModel.parse(
-        rng.integers(1, 200, size=(2, 80, 80)).astype(np.uint16),
+        data,
         dims=("c", "y", "x"),
         c_coords=["CD45", "FOXP3"],
         scale_factors=[2],  # multiscale, as sopa stores it
@@ -244,6 +247,11 @@ def test_cli_table_layout(tmp_path):
     assert list(out.var_names) == ["FOXP3", "CD45"]
     assert out.X.dtype == np.float32
     assert not np.isnan(out.X).any()
+    # cell c1 < c2 < c3 in both channels; a misaligned shape/table join would break this
+    by_cell = dict(zip(out.obs_names, out.X[:, list(out.var_names).index("CD45")], strict=False))
+    assert by_cell["c1"] < by_cell["c2"] < by_cell["c3"]
+    assert by_cell["c2"] / by_cell["c1"] == pytest.approx(2, rel=0.1)
+    assert by_cell["c3"] / by_cell["c1"] == pytest.approx(3, rel=0.1)
     assert {"region", "slide", "core_id", "cell_id"} <= set(out.obs.columns)
     assert set(out.obs["region"]) == {"m_cells"}
     keys = {
