@@ -112,7 +112,7 @@ input: /data/myproject/sheets/samplesheet.csv
 outdir: /data/myproject/results
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 ```
 
 - `input`: the samplesheet from step 3.

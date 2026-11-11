@@ -87,7 +87,7 @@ input: /path/to/exemplars/samplesheet.csv
 outdir: /path/to/results/exemplar-001
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 
 patch_width_pixel: 1500
 ```
@@ -95,7 +95,7 @@ patch_width_pixel: 1500
 - [`use_instanseg`](../inputs/parameters-full.md#use_instanseg) segments cells with
   [InstanSeg](../modules/instanseg.md). It reads every `dna` and `marker` channel of the marker
   sheet, so there are no channels to choose.
-- [`instanseg_pixel_size`](../inputs/parameters-full.md#instanseg_pixel_size) is the size of
+- [`pixel_size`](../inputs/parameters-full.md#pixel_size) is the size of
   one pixel in µm. For exemplar-001 it is 0.65, as recorded in the image's metadata.
 - [`patch_width_pixel`](../inputs/parameters-full.md#patch_width_pixel) cuts the image into
   1500-pixel squares, here 3 × 2 patches, segmented side by side. See

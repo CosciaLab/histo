@@ -25,7 +25,7 @@ nextflow_pipeline {
                 outdir = "$outputDir"
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
                 segment_nuclei = true
             }
@@ -60,7 +60,7 @@ nextflow_pipeline {
             params {
                 outdir = "$outputDir"
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
                 segment_nuclei = true
             }
@@ -135,7 +135,7 @@ nextflow_pipeline {
                 tma_core_diameter_mm = 1.5
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.1
+                pixel_size = 0.1
                 instanseg_channels = "DNA_6"
                 segment_nuclei = true
                 use_qc = true

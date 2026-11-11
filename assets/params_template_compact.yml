@@ -33,6 +33,7 @@
 # config_profile_url: null          # Institutional config URL link.
 
 ## Generic options
+# pixel_size: null           # µm per pixel of the image (OME PhysicalSizeX).
 # version: null              # Display version and exit.
 # publish_dir_mode: "copy"   # Method used to save pipeline results to output directory. One of: symlink, rellink, link, copy, copyNoFollow, move.
 # email_on_fail: null        # Email address for completion summary, only when pipeline fails.
@@ -91,7 +92,7 @@
 ## InstanSeg
 # use_instanseg: null         # Segment with InstanSeg.
 # instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
-# instanseg_pixel_size: null  # Image resolution in microns per pixel.
+# instanseg_pixel_size: null  # Deprecated: use pixel_size.
 # instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
 

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecated
 
+- `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still
+  works and warns; setting both to different values is an error.
+
 ## v3.1.0 - [2026-11-07]
 
 ### Added

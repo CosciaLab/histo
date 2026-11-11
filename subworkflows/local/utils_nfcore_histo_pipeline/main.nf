@@ -19,6 +19,7 @@ include { segmentationTargets       } from '../../../modules/local/utils'
 include { defaultInstansegChannels  } from '../../../modules/local/utils'
 include { getChannels               } from '../../../modules/local/utils'
 include { instansegGpuMaxChannels   } from '../../../modules/local/utils'
+include { pixelSize                 } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -645,8 +646,11 @@ def validateParams(params) {
 
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
-    assert !(params.use_instanseg && params.instanseg_pixel_size == null) :
-        "use_instanseg requires instanseg_pixel_size (microns per pixel of the image). Without it " +
+    if (params.instanseg_pixel_size != null) {
+        log.warn("instanseg_pixel_size is deprecated; use pixel_size.")
+    }
+    assert !(params.use_instanseg && pixelSize(params) == null) :
+        "use_instanseg requires pixel_size (microns per pixel of the image). Without it " +
         "InstanSeg does not rescale and may return no cells."
 
     // Channel roles come from the marker sheet, which pre-stitched input does not have.

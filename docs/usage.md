@@ -111,7 +111,7 @@ Paths must be absolute.
 
 Required: `input`, `outdir` and, unless `preprocessing_only`, at least one segmentation method.
 Cellpose also needs `cellpose_channels` or `use_projection`; InstanSeg needs
-`instanseg_pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
+`pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
 startup; see [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-1x).
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
@@ -134,7 +134,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                    |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                      |
 | `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                  |
-| `use_instanseg`            | `false`              | You want InstanSeg. Needs `instanseg_pixel_size`; channels default from each sheet.                    |
+| `use_instanseg`            | `false`              | You want InstanSeg. Needs `pixel_size`; channels default from each sheet.                              |
 | `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                 |
 | `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per segmentation patch. See [GPU segmentation](#gpu-segmentation).             |

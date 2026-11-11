@@ -21,7 +21,7 @@ Pick one or both **methods**:
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | Cells from one membrane marker and DNA     | `use_cellpose: true`, `cellpose_channels: "CD45 DNA_6"`, nuclear stain last                                          |
 | Cells from many markers, with Cellpose     | `use_cellpose: true`, `use_projection: true`; see [Many markers](../inputs/parameters.md#many-markers-with-cellpose) |
-| Cells from every marker, no channel choice | `use_instanseg: true`, `instanseg_pixel_size` in µm per pixel                                                        |
+| Cells from every marker, no channel choice | `use_instanseg: true`, `pixel_size` in µm per pixel                                                                  |
 | A second opinion                           | Both. The QC then compares them                                                                                      |
 
 Then the **targets**. Cells are on by default.
@@ -57,7 +57,7 @@ cellprob_threshold: 0
 clip_limit: 0
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 
 segment_nuclei: true
 patch_width_pixel: 1500

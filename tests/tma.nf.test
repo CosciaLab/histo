@@ -75,7 +75,7 @@ nextflow_pipeline {
                 tma_core_diameter_mm = 1.5
                 cellpose_channels = "DNA_6"
                 use_instanseg = true
-                instanseg_pixel_size = 0.1
+                pixel_size = 0.1
                 instanseg_channels = "DNA_6"
                 use_qc = true
             }
