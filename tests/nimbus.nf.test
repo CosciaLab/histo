@@ -1,0 +1,165 @@
+// Nimbus under -stub: one NIMBUS per store and method, one write, QC after it.
+// -profile test supplies Cellpose; laptop puts tests/stub_bin on PATH for ashlar.
+
+nextflow_pipeline {
+
+    name "Nimbus"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    // The trace has no timestamps; a task's .command.begin and .exitcode files mark its start and end.
+    def taskTimes = { metaDir, workDir, proc ->
+        def rows = new File("$metaDir/trace.csv").readLines()*.split('\t')
+        def col = { name -> rows[0].findIndexOf { it == name } }
+        rows.tail().findAll { it[col('name')].contains(proc) }.collect { r ->
+            def dir = new File("$workDir/${r[col('hash')].split('/')[0]}").listFiles().find { it.name.startsWith(r[col('hash')].split('/')[1]) }
+            [start: new File(dir, '.command.begin').lastModified(), end: new File(dir, '.exitcode').lastModified()]
+        }
+    }
+
+    test("one method: one NIMBUS, one WRITE_FEATURES, QC after it") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_nimbus = true
+                nimbus_channels = "DAPI"
+                pixel_size = 0.65
+                use_qc = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def write_done = taskTimes(metaDir, workDir, 'WRITE_FEATURES')*.end.max()
+            def qc_start = taskTimes(metaDir, workDir, 'QC_METRICS')*.start.min()
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("NIMBUS").size() == 1 },
+                { assert names("WRITE_FEATURES").size() == 1 },
+                { assert names("WRITE_SEGMENTATIONS").size() == 1 },
+                // The writes share the store's metadata, so QC must start after the last one.
+                { assert qc_start >= write_done },
+                { assert new File("$outputDir/learned_features/cellpose_nimbus.json").exists() },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('NIMBUS') }
+            )
+        }
+    }
+
+    test("two methods: a NIMBUS per method, one write") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                use_nimbus = true
+                nimbus_channels = "DAPI"
+                pixel_size = 0.65
+                use_instanseg = true
+                instanseg_channels = "DAPI"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("NIMBUS").size() == 2 },
+                { assert names("WRITE_FEATURES").size() == 1 },
+                { assert new File("$outputDir/learned_features/cellpose_nimbus.json").exists() },
+                { assert new File("$outputDir/learned_features/instanseg_nimbus.json").exists() }
+            )
+        }
+    }
+
+    test("TMA: one NIMBUS per core") {
+
+        when {
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+                cellpose_channels = "DNA_6"
+                use_nimbus = true
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                // The Coreograph stub emits two cores; channels come from the marker sheet.
+                { assert names("NIMBUS").size() == 2 },
+                { assert names("WRITE_FEATURES").size() == 2 },
+                { assert names("MERGE_SPATIALDATA").size() == 1 }
+            )
+        }
+    }
+
+    test("use_nimbus off runs neither process") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+
+            assertAll(
+                { assert workflow.success },
+                { assert !ran.any { it.contains("NIMBUS") } },
+                { assert !ran.any { it.contains("WRITE_FEATURES") } }
+            )
+        }
+    }
+
+    test("nimbus_channels naming a missing channel stops the run") {
+
+        when {
+            def data = "$baseDir/tests/stub_data"
+            def sheet = new File("$outputDir", "samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+                "testslide,1,${data}/cycle01.ome.tiff,${data}/markers.csv\n" +
+                "testslide,2,${data}/cycle02.ome.tiff,${data}/markers.csv\n"
+
+            params {
+                outdir = "$outputDir"
+                input = sheet.path
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+                use_nimbus = true
+                nimbus_channels = "ELANE,NOT_A_CHANNEL"
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert workflow.stdout.any { it.contains("not in the marker sheet: NOT_A_CHANNEL") } || workflow.stderr.any { it.contains("not in the marker sheet: NOT_A_CHANNEL") } }
+            )
+        }
+    }
+}
