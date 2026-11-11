@@ -76,3 +76,19 @@ def test_tile_invariance_real_model(crop, nimbus):
     d = np.abs(tiled - whole)
     print(f"tile invariance max {d.max():.3g} mean {d.mean():.3g}")
     assert d.max() <= 0.01
+
+
+def test_main_real_model_path(tmp_path):
+    from test_nimbus_cells import cli_args, make_store
+
+    pytest.importorskip("spatialdata")
+    import anndata as ad
+
+    path = make_store(tmp_path)
+    assert nc.main(cli_args(path, tmp_path)) == 0
+    out = ad.read_h5ad(tmp_path / "m_nimbus.h5ad")
+    prov = json.loads((tmp_path / "m_nimbus.json").read_text())
+    assert len(prov["weights_sha256"]) == 64 and int(prov["weights_sha256"], 16) >= 0
+    assert prov["nimbus_version"] != "unknown"
+    assert prov["halo"] == 96
+    assert out.shape == (3, 2) and np.isfinite(out.X).all()
