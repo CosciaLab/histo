@@ -8,9 +8,10 @@
 # default; docs/usage.md lists the few you must set.
 
 ## Input/output options
-# input: null   # Path to a comma-separated samplesheet. Required.
-# outdir: null  # The output directory where the results will be saved. Required.
-# email: null   # Email address for completion summary.
+# pixel_size: null  # µm per pixel of the image (OME PhysicalSizeX).
+# input: null       # Path to a comma-separated samplesheet. Required.
+# outdir: null      # The output directory where the results will be saved. Required.
+# email: null       # Email address for completion summary.
 
 ## Preprocessing
 # use_preprocessing: true            # Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below.
@@ -33,7 +34,6 @@
 # config_profile_url: null          # Institutional config URL link.
 
 ## Generic options
-# pixel_size: null           # µm per pixel of the image (OME PhysicalSizeX).
 # version: null              # Display version and exit.
 # publish_dir_mode: "copy"   # Method used to save pipeline results to output directory. One of: symlink, rellink, link, copy, copyNoFollow, move.
 # email_on_fail: null        # Email address for completion summary, only when pipeline fails.
