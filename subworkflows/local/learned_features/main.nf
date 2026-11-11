@@ -24,8 +24,9 @@ workflow LEARNED_FEATURES {
     // One row per sample, method and spec. Specs are shared objects: build new maps, never mutate one.
     def ch_sample_specs = ch_sample_rows.flatMap { meta, sdata, rows ->
         [methods, specs].combinations().collect { method, spec ->
+            // A model with no branch below would be dropped and the store never written: fail instead.
             if (spec.model != 'nimbus') {
-                return [meta, sdata, method, spec]
+                error("Unknown learned-features model '${spec.model}'; add its branch to LEARNED_FEATURES.")
             }
             // Unknown names would fail inside the task; fail here and say which.
             if (rows != null && spec.channels) {
