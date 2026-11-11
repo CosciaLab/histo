@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from shapely.geometry import box
+from shapely.geometry import Polygon, box
 
 import nimbus_cells as nc
 
@@ -61,10 +61,10 @@ def test_window_smaller_than_min_when_image_is():
 def test_cell_on_image_border_is_whole():
     image = np.zeros((1, 40, 40), dtype=np.float32)
     image[0, 5:15, 0:10] = 0.5
-    image[0, 0, 0] = 1.0
     geoms = [box(0, 5, 10, 15)]
     out = run(image, geoms, np.array([1]), {"c0": 1.0}, tile=16)
-    assert out[0, 0] == pytest.approx(0.5)
+    # polygon() includes boundary pixels: the box covers 11x11 px, 100 of them 0.5 (50/121)
+    assert out[0, 0] == pytest.approx(50 / 121)
 
 
 def test_window_contains_neighbours():
@@ -144,3 +144,39 @@ def test_cell_without_pixel_centre_is_nan():
 
 def test_image_px_ceils():
     assert nc.image_px(2048, 0.65) == 3151
+
+
+def box_blur(x, r):
+    from scipy.ndimage import uniform_filter
+
+    return uniform_filter(x, size=2 * r + 1, mode="nearest")
+
+
+def test_margin_gives_whole_image_result_and_zero_margin_does_not():
+    rng = np.random.default_rng(4)
+    image = rng.integers(1, 100, size=(1, 200, 200)).astype(np.float32)
+    # cells straddle tile edges at 64 and 100
+    geoms, labels = grid_cells(8, step=24, size=12, x_off=3, y_off=3)
+    factors = {"c0": 60.0}
+    r = 6
+
+    def blur(_ch, x, _lab):
+        return box_blur(x, r)
+
+    names = ["c0"]
+    # a single window that holds everything is the whole-image reference
+    ref = nc.score_cells(image, geoms, labels, names, factors, blur, 4096, 0, 0)
+    for tile in (64, 100):
+        tiled = nc.score_cells(image, geoms, labels, names, factors, blur, tile, r + 1, 0)
+        np.testing.assert_allclose(tiled, ref, atol=1e-6)
+        short = nc.score_cells(image, geoms, labels, names, factors, blur, tile, 0, 0)
+        assert np.abs(short - ref).max() > 1e-4
+
+
+def test_empty_and_none_geoms_are_skipped():
+    image = np.ones((1, 60, 60), dtype=np.float32)
+    geoms = [box(10, 10, 20, 20), None, Polygon(), box(30, 30, 40, 40)]
+    out = run(image, geoms, np.array([1, 2, 3, 4]), {"c0": 1.0})
+    assert out.shape == (4, 1)
+    assert np.isnan(out[[1, 2], 0]).all()
+    assert out[[0, 3], 0] == pytest.approx([1.0, 1.0])

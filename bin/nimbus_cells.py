@@ -51,9 +51,9 @@ def tile_windows(bounds, tiles, tile_size, margin, min_window, image_shape):
     for tx, ty in np.unique(tiles, axis=0):
         b = bounds[(tiles == (tx, ty)).all(axis=1)]
         x_lo = min(tx * tile_size, b[:, 0].min())
-        x_hi = max((tx + 1) * tile_size, b[:, 2].max())
+        x_hi = max((tx + 1) * tile_size, math.ceil(b[:, 2].max()) + 1)
         y_lo = min(ty * tile_size, b[:, 1].min())
-        y_hi = max((ty + 1) * tile_size, b[:, 3].max())
+        y_hi = max((ty + 1) * tile_size, math.ceil(b[:, 3].max()) + 1)
         x0, x1 = _axis(math.floor(x_lo), math.ceil(x_hi), margin, min_window, w)
         y0, y1 = _axis(math.floor(y_lo), math.ceil(y_hi), margin, min_window, h)
         windows[(int(tx), int(ty))] = (y0, y1, x0, x1)
@@ -63,15 +63,14 @@ def tile_windows(bounds, tiles, tile_size, margin, min_window, image_shape):
 def label_window(geoms, labels, window):
     """int32 label image of every geom intersecting the window; labels must be > 0."""
     import numpy as np
-    from aggregate_compartments import rasterize
+    from aggregate_compartments import pixel_outer_bounds, rasterize
 
     y0, y1, x0, x1 = window
     out = np.zeros((y1 - y0, x1 - x0), dtype=np.int32)
     for geom, label in zip(geoms, labels, strict=True):
-        gx0, gy0, gx1, gy1 = geom.bounds
-        # rasterise only the geom's box inside the window
-        bx0, bx1 = max(math.floor(gx0), x0), min(math.ceil(gx1), x1)
-        by0, by1 = max(math.floor(gy0), y0), min(math.ceil(gy1), y1)
+        # same outer bounds as aggregation (polygon() includes boundary pixels), clipped to the window
+        gx0, gy0, gx1, gy1 = pixel_outer_bounds(geom.bounds)
+        bx0, bx1, by0, by1 = max(gx0, x0), min(gx1, x1), max(gy0, y0), min(gy1, y1)
         if bx1 <= bx0 or by1 <= by0:
             continue
         mask = rasterize(geom, (by1 - by0, bx1 - bx0), (bx0, by0))
@@ -122,16 +121,21 @@ def score_cells(image, geoms, cell_labels, channel_names, factors, predict, tile
     out = np.full((len(geoms), len(channel_names)), np.nan, dtype=np.float32)
     if not len(geoms):
         return out
+    # empty or None geoms are skipped (rows stay NaN), as in aggregation
+    valid = np.array([g is not None and not g.is_empty for g in geoms], dtype=bool)
+    if not valid.any():
+        return out
     garr = np.asarray(geoms, dtype=object)
-    centroids = np.array([(g.centroid.x, g.centroid.y) for g in geoms])
-    bounds = np.array([g.bounds for g in geoms])
+    vidx = np.flatnonzero(valid)
+    centroids = np.array([(garr[i].centroid.x, garr[i].centroid.y) for i in vidx])
+    bounds = np.array([garr[i].bounds for i in vidx])
     tiles = assign_tiles(centroids, tile_size)
     windows = tile_windows(bounds, tiles, tile_size, margin, min_window, image.shape[1:])
-    tree = shapely.STRtree(garr)
+    tree = shapely.STRtree(garr[vidx])
 
     for tile, (y0, y1, x0, x1) in windows.items():
-        owned = np.flatnonzero((tiles == tile).all(axis=1))
-        near = tree.query(shapely.box(x0, y0, x1, y1), predicate="intersects")
+        owned = vidx[(tiles == tile).all(axis=1)]
+        near = vidx[tree.query(shapely.box(x0, y0, x1, y1), predicate="intersects")]
         labels = label_window(garr[near], cell_labels[near], (y0, y1, x0, x1))
         for c, name in enumerate(channel_names):
             factor = factors[name]
