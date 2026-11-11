@@ -274,6 +274,22 @@ Every model follows the same contract:
 - **Shared plumbing.** `LEARNED_FEATURES` branches on `spec.model`, as `SEGMENTATION` branches on
   `spec.method`. `WRITE_FEATURES` writes whatever tables arrive.
 
+Adding a model touches about ten places:
+
+- `nextflow.config` and `nextflow_schema.json`: `use_<model>` and its parameters, then
+  `assets/params_template*.yml` through the prek hook.
+- `validateParams` (`utils_nfcore_histo_pipeline`): its requirements, and any channel check.
+- `featureSpecs` (`modules/local/utils.nf`): its spec block.
+- `LEARNED_FEATURES`: the model guard, its channel resolution, its `branch` entry and its mix into
+  `ch_scores`.
+- Its module under `modules/local/`, with `meta.yml`, a stub and `versions.yml`.
+- `conf/modules.config`, `conf/base.config`, `conf/gpu.config` and `conf/sizes.config`: publishing,
+  resources, accelerator and sizing.
+- `containers.tsv` and `tools/container_manifest.py`: its image.
+- `LEARNED_MODELS` in `bin/write_segmentations.py`. Forgetting it leaves a stale table from old
+  shapes after a re-segmentation with the model off.
+- `CITATIONS.md`, `CHANGELOG.md`, `docs/output.md` and the site module page.
+
 Each later model needs decisions of its own, kept out of this release:
 
 - **KRONOS2:** a weights path supplied per user, not baked in, and a vocabulary check that fails

@@ -153,7 +153,7 @@ tools/container_manifest.py --check    # fail if stale; the container-manifest p
 
 Regenerate it after adding or removing a module, or bumping a container.
 
-**Five images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
+**Six images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
 BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
 the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`).
 `josenimo/sopa:2.3.0` (Cellpose-SAM and InstanSeg, weights baked in) and `josenimo/nimbus:0.0.5`
