@@ -211,6 +211,26 @@ def defaultInstansegChannels(List rows, String target) {
     return rows.findAll { it.channel_role in roles }.collect { it.marker_name }
 }
 
+// Marker names Nimbus scores when nimbus_channels is unset: the marker channels only.
+def defaultNimbusChannels(List rows) {
+    return rows.findAll { it.channel_role == 'marker' }.collect { it.marker_name }
+}
+
+// One spec per learned-features model.
+def featureSpecs(Map args) {
+    def specs = []
+    if (args.use_nimbus) {
+        specs << [
+            name: 'nimbus',
+            model: 'nimbus',
+            channels: getChannels(args.nimbus_channels, true),
+            pixel_size: pixelSize(args),
+            gpu: args.use_gpu ? true : false,
+        ]
+    }
+    return specs
+}
+
 def argsCLI(String group = null, Map args = null) {
     args = args ?: params
 

@@ -666,6 +666,32 @@
 
 
 ## =============================================================================
+## Learned features
+## =============================================================================
+## Parameters related to learned-features models, which score each segmented
+## cell
+
+## -----------------------------------------------------------------------------
+## use_nimbus
+## -----------------------------------------------------------------------------
+##     Score per-cell marker positivity with Nimbus.
+##     Type: boolean
+## -----------------------------------------------------------------------------
+# use_nimbus: null
+
+## -----------------------------------------------------------------------------
+## nimbus_channels
+## -----------------------------------------------------------------------------
+##     Channel(s) to score with Nimbus. Unset takes the `marker` channels
+##     from each sample's marker sheet. Required without a marker sheet
+##     (`use_preprocessing = false`). Use marker names, separated by space,
+##     comma or pipe characters.
+##     Type: ['string', 'integer']
+## -----------------------------------------------------------------------------
+# nimbus_channels: null
+
+
+## =============================================================================
 ## QC report
 ## =============================================================================
 ## Parameters related to the quality-control metrics and report

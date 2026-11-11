@@ -476,6 +476,24 @@
             },
             "fa_icon": "fas fa-tools"
         },
+        "learned_features": {
+            "title": "Learned features",
+            "type": "object",
+            "description": "Parameters related to learned-features models, which score each segmented cell",
+            "default": "",
+            "properties": {
+                "use_nimbus": {
+                    "type": "boolean",
+                    "description": "Score per-cell marker positivity with Nimbus.",
+                    "help_text": "**Requires:** `pixel_size`, `segment_cells`, and `nimbus_channels` when `use_preprocessing` is false."
+                },
+                "nimbus_channels": {
+                    "type": ["string", "integer"],
+                    "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters."
+                }
+            },
+            "fa_icon": "fas fa-brain"
+        },
         "qc_report": {
             "title": "QC report",
             "type": "object",
@@ -537,6 +555,9 @@
         },
         {
             "$ref": "#/$defs/instanseg"
+        },
+        {
+            "$ref": "#/$defs/learned_features"
         },
         {
             "$ref": "#/$defs/qc_report"

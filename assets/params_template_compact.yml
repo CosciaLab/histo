@@ -96,6 +96,10 @@
 # instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
 
+## Learned features
+# use_nimbus: null       # Score per-cell marker positivity with Nimbus.
+# nimbus_channels: null  # Channel(s) to score with Nimbus.
+
 ## QC report
 # use_qc: true         # Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report.
 # use_qc_images: true  # Whether to include the segmentation crops and the cell clustering in the QC report.
