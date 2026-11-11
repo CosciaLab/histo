@@ -28,19 +28,24 @@ workflow LEARNED_FEATURES {
             if (spec.model != 'nimbus') {
                 error("Unknown learned-features model '${spec.model}'; add its branch to LEARNED_FEATURES.")
             }
-            // Unknown names would fail inside the task; fail here and say which.
-            if (rows != null && spec.channels) {
-                def missing = spec.channels - rows*.marker_name
-                if (missing) {
-                    // error(), not assert: an assert inside an operator dies without its message.
-                    error("Sample '${meta.sample}': nimbus_channels not in the marker sheet: ${missing.join(', ')}.")
+            // Nimbus resolves its channels from the marker sheet; another model resolves its own.
+            def resolved = spec
+            if (spec.model == 'nimbus') {
+                // Unknown names would fail inside the task; fail here and say which.
+                if (rows != null && spec.channels) {
+                    def missing = spec.channels - rows*.marker_name
+                    if (missing) {
+                        // error(), not assert: an assert inside an operator dies without its message.
+                        error("Sample '${meta.sample}': nimbus_channels not in the marker sheet: ${missing.join(', ')}.")
+                    }
                 }
+                def channels = spec.channels ?: defaultNimbusChannels(rows ?: [])
+                if (!channels) {
+                    error("Sample '${meta.sample}': no marker channels for nimbus. Set nimbus_channels, or mark channels 'marker' in the marker sheet.")
+                }
+                resolved = spec + [channels: channels]
             }
-            def channels = spec.channels ?: defaultNimbusChannels(rows ?: [])
-            if (!channels) {
-                error("Sample '${meta.sample}': no marker channels for nimbus. Set nimbus_channels, or mark channels 'marker' in the marker sheet.")
-            }
-            [meta, sdata, method, spec + [channels: channels]]
+            [meta, sdata, method, resolved]
         }
     }
 

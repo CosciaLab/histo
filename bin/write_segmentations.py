@@ -23,7 +23,8 @@ from pathlib import Path
 # spatialdata is imported inside functions so the module imports without it.
 
 SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTATION
-RESERVED = re.compile(r"^(cellpose|instanseg)_(cells|nuclei|cytoplasm|table|nimbus)$")
+LEARNED_MODELS = ("nimbus",)  # a new learned-features model adds its name here
+RESERVED = re.compile(rf"^(cellpose|instanseg)_(cells|nuclei|cytoplasm|table|{'|'.join(LEARNED_MODELS)})$")
 ELEMENT_KINDS = ("shapes", "tables")
 
 
