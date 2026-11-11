@@ -180,3 +180,89 @@ def test_empty_and_none_geoms_are_skipped():
     assert out.shape == (4, 1)
     assert np.isnan(out[[1, 2], 0]).all()
     assert out[[0, 3], 0] == pytest.approx([1.0, 1.0])
+
+
+def make_store(tmp_path, region="m_cells"):
+    import anndata as ad
+    import geopandas as gpd
+    import pandas as pd
+    import spatialdata as sd
+    from spatialdata.models import Image2DModel, ShapesModel, TableModel
+
+    rng = np.random.default_rng(7)
+    image = Image2DModel.parse(
+        rng.integers(1, 200, size=(2, 80, 80)).astype(np.uint16),
+        dims=("c", "y", "x"),
+        c_coords=["CD45", "FOXP3"],
+        scale_factors=[2],  # multiscale, as sopa stores it
+    )
+    ids = ["c3", "c1", "c2"]
+    geoms = {"c1": box(5, 5, 15, 15), "c2": box(30, 30, 40, 40), "c3": box(55, 55, 65, 65)}
+    # shapes in a different order from the table, as after a merge
+    shapes = ShapesModel.parse(
+        gpd.GeoDataFrame(geometry=[geoms[i] for i in ("c2", "c3", "c1")], index=pd.Index(["c2", "c3", "c1"]))
+    )
+    obs = pd.DataFrame(
+        {
+            "region": pd.Categorical([region] * 3),
+            "slide": pd.Categorical(["S"] * 3),
+            "core_id": pd.Categorical(["A1"] * 3),
+            "cell_id": ids,
+        },
+        index=ids,
+    )
+    table = TableModel.parse(
+        ad.AnnData(np.zeros((3, 1), dtype=np.float32), obs=obs, var=pd.DataFrame(index=["x"])),
+        region=region,
+        region_key="region",
+        instance_key="cell_id",
+    )
+    sdata = sd.SpatialData(images={"img": image}, shapes={region: shapes}, tables={"m_table": table})
+    sdata.attrs["cell_segmentation_image"] = "img"
+    path = tmp_path / "s.zarr"
+    sdata.write(path)
+    return path
+
+
+def cli_args(path, tmp_path, channels="FOXP3,CD45"):
+    return [
+        "--sdata", str(path), "--method", "m", "--channels", channels, "--pixel-size", "1.0",
+        "--device", "cpu", "--output", str(tmp_path / "m_nimbus.h5ad"),
+        "--provenance", str(tmp_path / "m_nimbus.json"),
+    ]  # fmt: skip
+
+
+def test_cli_table_layout(tmp_path):
+    pytest.importorskip("spatialdata")
+    import anndata as ad
+
+    path = make_store(tmp_path)
+    rc = nc.main(cli_args(path, tmp_path), predict=identity, halo=96)
+    assert rc == 0
+    out = ad.read_h5ad(tmp_path / "m_nimbus.h5ad")
+    assert list(out.obs_names) == ["c3", "c1", "c2"]
+    assert list(out.var_names) == ["FOXP3", "CD45"]
+    assert out.X.dtype == np.float32
+    assert not np.isnan(out.X).any()
+    assert {"region", "slide", "core_id", "cell_id"} <= set(out.obs.columns)
+    assert set(out.obs["region"]) == {"m_cells"}
+    keys = {
+        "nimbus_version", "weights", "weights_sha256", "channels", "factors", "unscored",
+        "pixel_size", "magnification", "tile_size", "margin", "halo", "min_window",
+        "test_time_aug", "device",
+    }  # fmt: skip
+    assert keys <= set(out.uns["nimbus"])
+    assert out.uns["nimbus"]["margin"] == nc.image_px(96 + nc.MARGIN_EXTRA_MODEL_PX, 1.0)
+    import json
+
+    assert set(json.loads((tmp_path / "m_nimbus.json").read_text())) == set(out.uns["nimbus"])
+
+
+def test_unknown_channel_exits_naming_channels(tmp_path, capsys):
+    pytest.importorskip("spatialdata")
+    path = make_store(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        nc.main(cli_args(path, tmp_path, channels="CD45,NOPE"), predict=identity, halo=96)
+    assert e.value.code == 1
+    err = capsys.readouterr().err
+    assert "NOPE" in err and "CD45" in err and "FOXP3" in err
