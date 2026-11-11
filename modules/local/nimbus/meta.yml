@@ -12,7 +12,7 @@ tools:
       documentation: "https://github.com/angelolab/Nimbus-Inference/blob/main/README.md"
       tool_dev_url: "https://github.com/angelolab/Nimbus-Inference"
       licence:
-        - "Apache-2.0"
+        - "MIT"
       identifier: ""
 input:
   - - meta:

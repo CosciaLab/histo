@@ -45,7 +45,7 @@ nextflow_pipeline {
                 { assert names("WRITE_SEGMENTATIONS").size() == 1 },
                 // The writes share the store's metadata, so QC must start after the last one.
                 { assert qc_start >= write_done },
-                { assert new File("$outputDir/learned_features/cellpose_nimbus.json").exists() },
+                { assert new File("$outputDir/learned_features/sample_name_cellpose_nimbus.json").exists() },
                 { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('NIMBUS') }
             )
         }
@@ -72,8 +72,8 @@ nextflow_pipeline {
                 { assert workflow.success },
                 { assert names("NIMBUS").size() == 2 },
                 { assert names("WRITE_FEATURES").size() == 1 },
-                { assert new File("$outputDir/learned_features/cellpose_nimbus.json").exists() },
-                { assert new File("$outputDir/learned_features/instanseg_nimbus.json").exists() }
+                { assert new File("$outputDir/learned_features/sample_name_cellpose_nimbus.json").exists() },
+                { assert new File("$outputDir/learned_features/sample_name_instanseg_nimbus.json").exists() }
             )
         }
     }
@@ -110,7 +110,10 @@ nextflow_pipeline {
                 // The Coreograph stub emits two cores; channels come from the marker sheet.
                 { assert names("NIMBUS").size() == 2 },
                 { assert names("WRITE_FEATURES").size() == 2 },
-                { assert names("MERGE_SPATIALDATA").size() == 1 }
+                { assert names("MERGE_SPATIALDATA").size() == 1 },
+                // One provenance file per core, not one overwritten by the other.
+                { assert new File("$outputDir/learned_features/testslide_core001_cellpose_nimbus.json").exists() },
+                { assert new File("$outputDir/learned_features/testslide_core002_cellpose_nimbus.json").exists() }
             )
         }
     }

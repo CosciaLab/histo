@@ -226,7 +226,7 @@ sdata["cellpose_nimbus"][:, "CD3"].X
 | `test_time_aug`     | Always `true`.                                                                  |
 | `device`            | `cpu` or `cuda`.                                                                |
 
-The same keys are published as `learned_features/{m}_nimbus.json`, so provenance can be read without
+The same keys are published as `learned_features/{sample}_{m}_nimbus.json`, so provenance can be read without
 opening the store.
 
 #### From 1.x
