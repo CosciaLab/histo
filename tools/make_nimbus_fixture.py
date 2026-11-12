@@ -1,6 +1,6 @@
 """Cut the Nimbus parity fixture from a stitched OME-TIFF (CYX).
 
-Usage: python -I tools/make_nimbus_fixture.py <stitched.ome.tif> <out_dir>
+Usage: python -I tools/make_nimbus_fixture.py <stitched.ome.tif> <out_dir> [size [y0 x0]]
 Needs numpy, tifffile, scikit-image, scipy (e.g. `uv run --with ...`).
 Writes image.npy (C,Y,X uint16) and labels.npy (int32).
 """
@@ -33,11 +33,11 @@ def whole_cell_labels(dna):
     return expand_labels(nuclei, EXPAND_PX).astype(np.int32)
 
 
-def main(src, out_dir):
+def main(src, out_dir, size=SIZE, y0=Y0, x0=X0):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     stack = tifffile.imread(src)
-    win = (slice(Y0, Y0 + SIZE), slice(X0, X0 + SIZE))
+    win = (slice(y0, y0 + size), slice(x0, x0 + size))
     image = np.stack([stack[c][win] for c in CHANNELS]).astype(np.uint16)
     labels = whole_cell_labels(stack[DNA][win])
     np.save(out / "image.npy", image)
@@ -49,4 +49,4 @@ def main(src, out_dir):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    main(*sys.argv[1:3], *map(int, sys.argv[3:6]))

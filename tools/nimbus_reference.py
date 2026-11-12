@@ -1,10 +1,11 @@
 """Run upstream Nimbus on the fixture crop to produce the parity reference.
 
-Usage: python -I tools/nimbus_reference.py <fixture_dir>
+Usage: python -I tools/nimbus_reference.py <fixture_dir> [pixel_size [checkpoint]]
 Needs Nimbus-Inference==0.0.5 in a numpy<2 environment (see tools/containers/nimbus/README.md).
 Reads image.npy and labels.npy; writes factors.json and reference_scores.csv.
-magnification = model_magnification = 10, so upstream does no rescaling, and at 1280 px it takes
-the valid tile-and-stitch path.
+pixel_size 1 (default): magnification = model_magnification = 10, so upstream does no rescaling.
+Otherwise magnification = 10 / pixel_size and upstream resizes (int()) itself.
+checkpoint "latest" downloads V1.pt; pass "V1.pt" inside the nimbus image (no network).
 """
 
 import json
@@ -20,7 +21,7 @@ from nimbus_inference.utils import MultiplexDataset
 CHANNEL_NAMES = ("CD45", "FOXP3")  # image.npy channel order, see make_nimbus_fixture.py
 
 
-def main(fixture):
+def main(fixture, pixel_size=1.0, checkpoint="latest"):
     fixture = Path(fixture)
     image = np.load(fixture / "image.npy")
     labels = np.load(fixture / "labels.npy")
@@ -34,7 +35,7 @@ def main(fixture):
             [str(fov)],
             lambda _: str(Path(tmp) / "labels.tiff"),
             suffix=".tiff",
-            magnification=10,
+            magnification=10 / pixel_size,
             output_dir=tmp,
         )
         # One FOV, so the factor is deterministic (upstream's subset shuffle is moot).
@@ -47,7 +48,7 @@ def main(fixture):
             test_time_aug=True,
             model_magnification=10,
             device="cpu",
-            checkpoint="latest",  # fetches V1.pt, the only release
+            checkpoint=checkpoint,
         )
         table = nimbus.predict_fovs()
         factors = {k: float(v) for k, v in dataset.normalization_dict.items()}
@@ -58,4 +59,4 @@ def main(fixture):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], *([float(sys.argv[2])] if len(sys.argv) > 2 else []), *sys.argv[3:4])
