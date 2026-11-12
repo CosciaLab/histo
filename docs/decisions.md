@@ -165,7 +165,7 @@ cells' bounds plus a margin of halo + 32 model px. The halo is measured from the
 for `V1.pt`. Minimum window: 1056 model px, so the valid-padding path is always taken. Neighbours
 are rasterised too, since they shape the binary mask Nimbus sees; only owned cells are scored.
 
-**Tiling changes nothing Nimbus computes.**
+**Tiling is meant to change nothing Nimbus computes; at 0.65 µm/px it does, measurably.**
 
 - The one global step, the per-channel factor, is computed once per store and shared by every
   window. A channel with no factor is never passed on, or Nimbus would fall back to the window's
@@ -176,8 +176,17 @@ are rasterised too, since they shape the binary mask Nimbus sees; only owned cel
 - Upstream uses reflect padding up to 1024 px and tile-and-stitch above it, with different results.
   The minimum window keeps every window on the valid path, as upstream whole-slide inference is.
 
-Measured on a 1280 × 1280 crop of exemplar-001: against upstream whole-image inference, max abs
-difference 7.2e-07. Tiled (640 px tiles, four distinct 1056 px windows) against whole image, 0.
+Measured on exemplar-001 crops, scores in [0, 1], with the real model on CPU:
+
+| Pixel size | Crop        | Whole image against upstream | Tiled against whole image (2 × 2 windows) |
+| ---------- | ----------- | ---------------------------- | ----------------------------------------- |
+| 1.0        | 1280 × 1280 | max 7.2e-07                  | max 0 (window origins on the 16 px grid)  |
+| 0.65       | 2100 × 2100 | max 3.0e-08, mean 4.3e-09    | max 0.414, mean 0.0113 (origins off grid) |
+
+The 1.0 tiling result is uninformative: its window origins are multiples of the model's 16 px
+pooling period. At 0.65 the origins fall off that grid and some cells move by up to 0.41, so the
+claim "tiling changes no score" does not hold there. Cause not yet found; fixing it is open work
+(Task 11 follows up). The 0.65 test is marked xfail with these numbers.
 
 **Normalisation is per store.** Per core on a TMA, per image otherwise. A slide-wide factor would
 erase differences between patients' cores. The cost: a core with no positive cells has noise
@@ -186,7 +195,7 @@ subsample, so it is deterministic. Slide-wide is a ROADMAP item. A channel with 
 is NaN and listed in `uns`.
 
 **Test-time augmentation is fixed on, upstream code unchanged.** It is the Nimbus default, and
-keeping it on makes CPU and GPU agree. Upstream functions (`prepare_binary_mask`,
+it is the same setting on CPU and GPU. CPU against GPU agreement is still to be measured on the cluster. Upstream functions (`prepare_binary_mask`,
 `prepare_input_data`, `test_time_aug`, `segment_mean`) are called as `predict_fovs` calls them.
 
 **Cells only.** Nimbus was trained on whole-cell masks, so `use_nimbus` requires `segment_cells`.
@@ -197,8 +206,8 @@ and removed at the next major release.
 **Weights are baked in.** `V1.pt` (MIT, from HF `JLrumberger/Nimbus-Inference`) is inside
 `docker.io/josenimo/nimbus:0.0.5`, with `HF_HUB_OFFLINE=1`.
 
-**Open: magnification.** The code uses `magnification = 10 / pixel_size`, treating Nimbus' "10x" as
-1 µm/px. Upstream never defines it ([issue #61](https://github.com/angelolab/Nimbus-Inference/issues/61)),
+**Open: magnification.** The code sets `MODEL_UM_PER_PX = 1.0` in `bin/nimbus_cells.py`, treating Nimbus' "10x" as
+1 µm/px; resize scale, window sizes and `magnification = 10 * MODEL_UM_PER_PX / pixel_size` all follow it. Upstream never defines it ([issue #61](https://github.com/angelolab/Nimbus-Inference/issues/61)),
 and 10x is often 0.5 µm/px. Both are compared on real data before the default is chosen.
 
 ## Quantification

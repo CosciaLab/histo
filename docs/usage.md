@@ -316,9 +316,11 @@ nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
 - `segment_cells` is required: Nimbus was trained on whole cells.
 - Markers come from the marker sheet (`marker` role). `nimbus_channels` overrides them, and is
   required for a stitched image with no sheet.
-- Use `use_gpu`. CPU gives the same scores but takes hours per whole slide, so it only warns.
-- Test-time augmentation is always on, on CPU and GPU alike. It costs several forward passes per
-  window, and it is why results do not depend on the device.
+- Use `use_gpu`. CPU is expected to give the same scores (not yet measured) but a whole slide can take days, so it only warns.
+- Test-time augmentation is always on, with the same setting on CPU and GPU. It costs several forward
+  passes per window. CPU and GPU scores have not yet been compared; that is to be measured on the cluster.
+- Tiling can shift scores: at 0.65 µm/px a tiled run differed from a whole-image run by up to 0.41
+  (mean 0.011) on a test crop. See [decisions](decisions.md#learned-features).
 - Each channel is divided by its 0.999 quantile within one store: per core on a TMA, per image
   otherwise. This keeps differences between patients' cores. In a core with no positive cells, noise
   is stretched to [0, 1] and can score as signal.

@@ -34,9 +34,11 @@ per image, or per core on a tissue microarray. Per core keeps differences betwee
 core with no positive cells can score noise as signal.
 
 Large images are cut into [tiles](tiling.md) with a margin of surrounding context, so memory does
-not grow with the image. Tiling changes no score: on a test crop the tiled result was identical to
-running the whole image at once. Test-time augmentation, which averages the model's answer over
-flipped copies of the input, is always on, so CPU and GPU agree.
+not grow with the image. Tiling can shift scores: on a test crop at 0.65 µm/px, tiled and whole-image
+scores differed by up to 0.41 (mean 0.011), while a crop at 1 µm/px showed no difference. Scoring the
+whole image at once matched the Nimbus authors' own code to within 1e-6 at both pixel sizes.
+Test-time augmentation, which averages the model's answer over flipped copies of the input, is
+always on, with the same setting on CPU and GPU. We have not yet compared CPU and GPU scores.
 
 % source: docs/decisions.md#learned-features
 % source: bin/nimbus_cells.py
