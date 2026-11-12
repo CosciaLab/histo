@@ -160,6 +160,12 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   resolution, so it always picks the coarsest. Still reported; selection uses seed stability.
 - **Every `-stub` run warns about a positional argument `true`.** Nextflow 26.04.6 leaves it in
   the args for both `-stub` and `-stub-run`. Harmless.
+- **An unchanged `-resume` reruns everything from `MAKE_IMAGE_PATCHES`.** Only `TO_SPATIALDATA`
+  is cached (seen in the Nimbus Mac run, 2026-11-12). Suspect the in-place Zarr mutation.
+- **A spaced boolean (`--use_qc false`) is reported as a samplesheet error.** The startup check
+  above catches it, but the message points at the wrong thing.
+- **`QC_IMAGES` on prestitched input needs a channel named `DAPI`.** `--nuclear-pattern` is not
+  exposed as a parameter.
 
 ### Known limitations
 
