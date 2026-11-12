@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `use_nimbus`: per-cell marker positivity scores from Nimbus, one `{method}_nimbus` table per
   segmentation method, tiled so memory does not grow with the image. `nimbus_channels` picks the
   markers. Provenance is published to `learned_features/`.
+- `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive,
+  named for Nextflow's cache, outside the shared cache.
 
 ### Deprecated
 

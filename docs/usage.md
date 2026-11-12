@@ -365,6 +365,14 @@ rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARI
 Our own images (`docker.io/josenimo/sopa:2.3.0`, `docker.io/josenimo/nimbus:0.0.5`) are staged the
 same way. The Nimbus image is needed for `use_nimbus`, and has the weights (`V1.pt`) inside.
 
+To build one SIF yourself, from a registry or a `docker save` tar, submit
+`tools/build_sif.sbatch`. It writes to `/fast/AG_Coscia/$USER/sif` under the name Nextflow looks for,
+never to the cache, and prints the `rsync` line to copy it in (`--help` for options):
+
+```bash
+sbatch tools/build_sif.sbatch docker.io/josenimo/nimbus:0.0.5
+```
+
 `--ignore-existing` rather than plain `rsync` is deliberate: an image already in the cache is one a
 colleague may have a job attached to right now, and replacing it mid-run is how you break someone
 else's week.

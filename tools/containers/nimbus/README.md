@@ -4,6 +4,7 @@ Nimbus-Inference 0.0.5 on `josenimo/sopa:2.3.0`, `V1.pt` baked in, no network at
 
 - Build: `docker buildx build --platform linux/amd64 -t docker.io/josenimo/nimbus:0.0.5 tools/containers/nimbus`
 - Save: `docker save docker.io/josenimo/nimbus:0.0.5 -o nimbus_0.0.5.tar`
+- SIF on the cluster: `sbatch tools/build_sif.sbatch docker.io/josenimo/nimbus:0.0.5`, or from the tar with `--name docker.io-josenimo-nimbus-0.0.5.img nimbus_0.0.5.tar`
 - Verify: `docker run --rm --network none --entrypoint python docker.io/josenimo/nimbus:0.0.5 -c "import numpy; from nimbus_inference.nimbus import Nimbus as N; n=N(dataset=None, output_dir='', save_predictions=False, device='cpu', checkpoint='V1.pt'); n.load_checkpoint(padding='valid'); print(numpy.__version__)"`
 - Extra deps beyond the brief: `lxml` (pyometiff import), `huggingface_hub` with its own deps (needs `httpx2`).
 
