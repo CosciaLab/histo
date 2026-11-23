@@ -3,7 +3,7 @@ process WRITE_FEATURES {
     tag "${meta.sample}"
 
     conda "${moduleDir}/environment.yml"
-    container "docker.io/josenimo/sopa:2.3.0"
+    container "docker.io/josenimo/sopa:2.3.0-1"
 
     input:
     // Writes into the store after WRITE_SEGMENTATIONS; never in parallel with it (they race on its metadata).

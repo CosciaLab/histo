@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive,
   named for Nextflow's cache, outside the shared cache.
 
+### Changed
+
+- Cellpose uses `cpsam_v2` (cellpose's own default); cell counts shift. `pretrained_model: cpsam`
+  restores the old model.
+
 ### Deprecated
 
 - `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still

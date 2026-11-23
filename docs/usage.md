@@ -367,7 +367,7 @@ ls "$NXF_SINGULARITY_CACHEDIR"
 rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARITY_CACHEDIR/"
 ```
 
-Our own images (`docker.io/josenimo/sopa:2.3.0`, `docker.io/josenimo/nimbus:0.0.5`) are staged the
+Our own images (`docker.io/josenimo/sopa:2.3.0-1`, `docker.io/josenimo/nimbus:0.0.5`) are staged the
 same way. The Nimbus image is needed for `use_nimbus`, and has the weights (`V1.pt`) inside.
 
 To build one SIF yourself, from a registry or a `docker save` tar, submit

@@ -51,6 +51,10 @@ dev = [
     # bin/coreograph_*.py run in the Coreograph image, which ships both.
     "scikit-image>=0.22",
     "matplotlib>=3.8",
+    # tools/segmentation_benchmark/prepare.py reads the ImageJ ROI zips of the Cross-platform masks.
+    "roifile>=2026.2.10",
+    # prepare.py reads the CODEX channel names from the dataset's Annotation Panel Table.xlsx.
+    "openpyxl>=3.1",
 ]
 
 [tool.pytest.ini_options]

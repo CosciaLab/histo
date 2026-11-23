@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -27,7 +28,7 @@ METHOD_DEFAULTS = {
         "flow_threshold": 2,
         "cellprob_threshold": -6,
         "model_type": "cyto3",
-        "pretrained_model": None,
+        "pretrained_model": "cpsam_v2",  # ours, not sopa's (None)
         "gpu": False,
     },
     # cli/segmentation.py:148-158 (device is set by --device)
@@ -109,6 +110,21 @@ def method_arguments(spec: dict) -> dict:
     return kwargs
 
 
+def check_weights(pretrained_model: str | None, models_dir: str | None) -> None:
+    """Fail naming the model: cellpose silently loads its default for an unknown name, then downloads."""
+    if not pretrained_model or Path(pretrained_model).exists():
+        return
+    if not models_dir:
+        raise ValueError(
+            f"pretrained_model '{pretrained_model}' is a name but CELLPOSE_LOCAL_MODELS_PATH is not set"
+        )
+    if not (Path(models_dir) / pretrained_model).is_file():
+        raise ValueError(
+            f"pretrained_model '{pretrained_model}' has no weights in CELLPOSE_LOCAL_MODELS_PATH ({models_dir}); "
+            "use a name baked into the image or a path"
+        )
+
+
 def segmentation_arguments(spec: dict) -> dict:
     """StainingSegmentation keyword arguments: per-method CLI defaults, then the spec's segmentation_kwargs."""
     _check_method(spec["method"])
@@ -129,6 +145,8 @@ def main() -> int:
 
     spec = json.loads(Path(args.spec).read_text())
     kwargs = method_arguments(spec)  # first: a bad {method}_kwargs fails before the store is read
+    if spec["method"] == "cellpose":
+        check_weights(kwargs.get("pretrained_model"), os.environ.get("CELLPOSE_LOCAL_MODELS_PATH"))
     sdata = read_zarr_standardized(args.sdata)
     key = image_key_for(sdata.attrs, spec["image"])
     require_image(key, sdata.images, spec["image"])
