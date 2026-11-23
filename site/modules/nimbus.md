@@ -18,7 +18,7 @@ sees the marker as positive in that cell. You do not set a threshold per marker.
 - [`nimbus_channels`](../inputs/parameters-full.md#nimbus_channels): the markers to score. By
   default, every `marker` channel of the [marker sheet](../inputs/markers.md). Required for a
   stitched image you bring yourself, which has no marker sheet.
-- [`use_gpu`](../inputs/parameters-full.md#use_gpu): recommended. A CPU gives the same scores but
+- [`use_gpu`](../inputs/parameters-full.md#use_gpu): recommended. A CPU gives near-identical scores but
   takes hours per whole slide.
 
 % source: nextflow_schema.json

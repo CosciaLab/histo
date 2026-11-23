@@ -316,9 +316,11 @@ nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
 - `segment_cells` is required: Nimbus was trained on whole cells.
 - Markers come from the marker sheet (`marker` role). `nimbus_channels` overrides them, and is
   required for a stitched image with no sheet.
-- Use `use_gpu`. CPU is expected to give the same scores (not yet measured) but a whole slide can take days, so it only warns.
+- Use `use_gpu`. CPU gives near-identical scores but a whole slide can take days, so it only warns.
 - Test-time augmentation is always on, with the same setting on CPU and GPU. It costs several forward
-  passes per window. CPU and GPU scores have not yet been compared; that is to be measured on the cluster.
+  passes per window. On exemplar-002, CPU and GPU scores differed by 5e-4 on average and 0.11 at most,
+  with the same share of positive cells per marker. Cellpose ran on CPU too, so part of that is from
+  slightly different cell outlines. NIMBUS took ~12 min per core on CPU against ~1 min on an A40.
 - Tiling can shift scores: at 0.65 µm/px a tiled run differed from a whole-image run by up to 0.41
   (mean 0.011) on a test crop. See [decisions](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#learned-features).
 - Each channel is divided by its 0.999 quantile within one store: per core on a TMA, per image

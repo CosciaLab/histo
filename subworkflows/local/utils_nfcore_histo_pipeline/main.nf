@@ -670,7 +670,7 @@ def validateParams(params) {
         "use_nimbus without use_preprocessing needs nimbus_channels: the default channels " +
         "come from the marker sheet. Name the channels, separated by space, comma or pipe."
     if (params.use_nimbus && !params.use_gpu) {
-        log.warn("use_nimbus without use_gpu: same scores, but a whole slide can take days on CPU and may exceed the task time limit.")
+        log.warn("use_nimbus without use_gpu: near-identical scores, but a whole slide can take days on CPU and may exceed the task time limit.")
     }
 
     if (params.preprocessing_only) {
