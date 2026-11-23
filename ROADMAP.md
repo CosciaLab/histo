@@ -56,10 +56,9 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 ### 3.4 onward: learned features
 
-Nimbus, KRONOS and VirTues, one per release; Nimbus first, as its per-cell marker positivity
-feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing
-and 3.3's baked weights. None is in bioconda, so expect private images. Check weight licences
-first.
+KRONOS and VirTues, one per release, on the stage Nimbus added in 3.2. One interface: image and
+shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing and 3.3's baked weights. Neither is in
+bioconda, so expect private images. Check weight licences first.
 
 ### Then: QC report overhaul
 
@@ -142,6 +141,9 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
    only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 3.3 item 2, which sets
    the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
+7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
+   channel across all cores, so a core with no positive cells is not stretched to [0, 1].
+8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
@@ -158,6 +160,12 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   resolution, so it always picks the coarsest. Still reported; selection uses seed stability.
 - **Every `-stub` run warns about a positional argument `true`.** Nextflow 26.04.6 leaves it in
   the args for both `-stub` and `-stub-run`. Harmless.
+- **An unchanged `-resume` reruns everything from `MAKE_IMAGE_PATCHES`.** Only `TO_SPATIALDATA`
+  is cached (seen in the Nimbus Mac run, 2026-11-12). Suspect the in-place Zarr mutation.
+- **A spaced boolean (`--use_qc false`) is reported as a samplesheet error.** The startup check
+  above catches it, but the message points at the wrong thing.
+- **`QC_IMAGES` on prestitched input needs a channel named `DAPI`.** `--nuclear-pattern` is not
+  exposed as a parameter.
 
 ### Known limitations
 

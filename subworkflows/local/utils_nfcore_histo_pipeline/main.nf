@@ -19,6 +19,7 @@ include { segmentationTargets       } from '../../../modules/local/utils'
 include { defaultInstansegChannels  } from '../../../modules/local/utils'
 include { getChannels               } from '../../../modules/local/utils'
 include { instansegGpuMaxChannels   } from '../../../modules/local/utils'
+include { pixelSize                 } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -348,7 +349,7 @@ def validateMarkersheet(rows, sample = null) {
 
         // Segmentation runs after backsub, so a removed channel is no longer in the image.
         def removed = rows.findAll { it.remove }.collect { it.marker_name } as Set
-        ['cellpose_channels', 'instanseg_channels'].each { param ->
+        ['cellpose_channels', 'instanseg_channels', 'nimbus_channels'].each { param ->
             def value = params[param]
             if (!(value instanceof CharSequence)) {
                 return
@@ -645,14 +646,32 @@ def validateParams(params) {
 
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
-    assert !(params.use_instanseg && params.instanseg_pixel_size == null) :
-        "use_instanseg requires instanseg_pixel_size (microns per pixel of the image). Without it " +
+    // Called unconditionally so a conflicting pixel-size pair stops every run, not only InstanSeg's.
+    pixelSize(params)
+    if (params.instanseg_pixel_size != null) {
+        log.warn("instanseg_pixel_size is deprecated; use pixel_size.")
+    }
+    assert !(params.use_instanseg && pixelSize(params) == null) :
+        "use_instanseg requires pixel_size (microns per pixel of the image). Without it " +
         "InstanSeg does not rescale and may return no cells."
 
     // Channel roles come from the marker sheet, which pre-stitched input does not have.
     assert !(params.use_instanseg && params.instanseg_channels == null && !params.use_preprocessing) :
         "use_instanseg without use_preprocessing needs instanseg_channels: the default channels " +
         "come from the marker sheet. Name the channels, separated by space, comma or pipe."
+
+    // Nimbus scores each segmented cell, at the model's training resolution.
+    assert !(params.use_nimbus && pixelSize(params) == null) :
+        "use_nimbus requires pixel_size (microns per pixel of the image). Without it Nimbus " +
+        "cannot rescale to its training resolution."
+    assert !(params.use_nimbus && !('cells' in segmentationTargets(params))) :
+        "use_nimbus requires segment_cells: Nimbus scores cells, so there must be a cell segmentation."
+    assert !(params.use_nimbus && params.nimbus_channels == null && !params.use_preprocessing) :
+        "use_nimbus without use_preprocessing needs nimbus_channels: the default channels " +
+        "come from the marker sheet. Name the channels, separated by space, comma or pipe."
+    if (params.use_nimbus && !params.use_gpu) {
+        log.warn("use_nimbus without use_gpu: near-identical scores, but a whole slide can take days on CPU and may exceed the task time limit.")
+    }
 
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +

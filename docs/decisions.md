@@ -151,6 +151,65 @@ the kwargs JSON fails sopa in every patch task.
 
 **StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
 
+## Learned features
+
+**A stage after segmentation, one table per model and method.** `LEARNED_FEATURES` runs after
+`SEGMENTATION`, only when a model is enabled. `NIMBUS` writes files; `WRITE_FEATURES` alone writes
+`{method}_nimbus` into the store, after `WRITE_SEGMENTATIONS`. Scores are a table, not a layer: a
+layer must share `{method}_table`'s `var` (marker × statistic), and viewers colour cells by table.
+Later models (KRONOS, VirTues) add a flag and a spec.
+
+**Tile windows are sized at model scale.** The image is resized by `pixel_size` before inference.
+Tile: 2048 model px, each cell owned by the tile holding its centroid. Window: the tile grown to its
+cells' bounds plus a margin of halo + 32 model px. The halo is measured from the loaded model, 96 px
+for `V1.pt`. Minimum window: 1056 model px, so the valid-padding path is always taken. Neighbours
+are rasterised too, since they shape the binary mask Nimbus sees; only owned cells are scored.
+
+**Tiling is meant to change nothing Nimbus computes; at 0.65 µm/px it does, measurably.**
+
+- The one global step, the per-channel factor, is computed once per store and shared by every
+  window. A channel with no factor is never passed on, or Nimbus would fall back to the window's
+  own quantile.
+- BatchNorm runs in eval mode on fixed statistics, and test-time augmentation averages within one
+  input. No statistic crosses windows.
+- A margin of at least the halo gives every owned cell the receptive field of whole-image inference.
+- Upstream uses reflect padding up to 1024 px and tile-and-stitch above it, with different results.
+  The minimum window keeps every window on the valid path, as upstream whole-slide inference is.
+
+Measured on exemplar-001 crops, scores in [0, 1], with the real model on CPU:
+
+| Pixel size | Crop        | Whole image against upstream | Tiled against whole image (2 × 2 windows) |
+| ---------- | ----------- | ---------------------------- | ----------------------------------------- |
+| 1.0        | 1280 × 1280 | max 7.2e-07                  | max 0 (window origins on the 16 px grid)  |
+| 0.65       | 2100 × 2100 | max 3.0e-08, mean 4.3e-09    | max 0.414, mean 0.0113 (origins off grid) |
+
+The 1.0 tiling result is uninformative: its window origins are multiples of the model's 16 px
+pooling period. At 0.65 the origins fall off that grid and some cells move by up to 0.41, so the
+claim "tiling changes no score" does not hold there. Cause not yet found; fixing it is open work
+(Task 11 follows up). The 0.65 test is marked xfail with these numbers.
+
+**Normalisation is per store.** Per core on a TMA, per image otherwise. A slide-wide factor would
+erase differences between patients' cores. The cost: a core with no positive cells has noise
+stretched to [0, 1]. The factor is the exact 0.999 quantile of nonzero pixels over a fixed-stride
+subsample, so it is deterministic. Slide-wide is a ROADMAP item. A channel with no nonzero pixel
+is NaN and listed in `uns`.
+
+**Test-time augmentation is fixed on, upstream code unchanged.** It is the Nimbus default, and
+it is the same setting on CPU and GPU. CPU against GPU agreement is still to be measured on the cluster. Upstream functions (`prepare_binary_mask`,
+`prepare_input_data`, `test_time_aug`, `segment_mean`) are called as `predict_fovs` calls them.
+
+**Cells only.** Nimbus was trained on whole-cell masks, so `use_nimbus` requires `segment_cells`.
+
+**One pixel size.** `pixel_size` serves InstanSeg and Nimbus. `instanseg_pixel_size` is deprecated,
+and removed at the next major release.
+
+**Weights are baked in.** `V1.pt` (MIT, from HF `JLrumberger/Nimbus-Inference`) is inside
+`docker.io/josenimo/nimbus:0.0.5`, with `HF_HUB_OFFLINE=1`.
+
+**Open: magnification.** The code sets `MODEL_UM_PER_PX = 1.0` in `bin/nimbus_cells.py`, treating Nimbus' "10x" as
+1 µm/px; resize scale, window sizes and `magnification = 10 * MODEL_UM_PER_PX / pixel_size` all follow it. Upstream never defines it ([issue #61](https://github.com/angelolab/Nimbus-Inference/issues/61)),
+and 10x is often 0.5 µm/px. Both are compared on real data before the default is chosen.
+
 ## Quantification
 
 **Shapes are read in tile windows, not segmentation patches.** `patch_width_pixel` is tuned for

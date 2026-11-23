@@ -18,6 +18,10 @@ from typing import Any
 PERCENTILES = (1.0, 25.0, 50.0, 75.0, 99.0, 99.9, 99.99)
 
 
+# Nimbus scores are probabilities; a cell above this counts as positive for the marker.
+NIMBUS_THRESHOLD = 0.5
+
+
 def percentiles_from_histogram(hist: Any, percentiles: tuple[float, ...] = PERCENTILES) -> dict[str, float]:
     """Exact percentiles from a full-range histogram where `hist[v]` counts pixels of value `v`.
 
@@ -479,6 +483,24 @@ def open_table(sdata_path: Path, name: str) -> Any:
     return zarr.open_group(str(path), mode="r")
 
 
+def nimbus_metrics(X: Any, markers: list[str], threshold: float = 0.5) -> dict[str, Any]:
+    """Per marker, the fraction of scored cells above `threshold` and the median score."""
+    import numpy as np
+
+    X = np.asarray(X, dtype=np.float64)
+    out: dict[str, Any] = {}
+    for i, marker in enumerate(markers):
+        col = X[:, i]
+        col = col[~np.isnan(col)]
+        # None, not NaN, for an unscored marker: JSON has no NaN.
+        out[marker] = (
+            {"fraction_positive": None, "median": None}
+            if col.size == 0
+            else {"fraction_positive": float((col > threshold).mean()), "median": float(np.median(col))}
+        )
+    return out
+
+
 def collect(
     sdata_path: Path,
     table: str,
@@ -488,8 +510,9 @@ def collect(
     nuclear_pattern: str | None = None,
     before_image: Path | None = None,
     histogram_range: str = "channels-max",
+    nimbus_table: str | None = None,
 ) -> dict[str, Any]:
-    """Every metric for one sample; `before_image` and `marker_rows` add optional sections."""
+    """Every metric for one sample; `before_image`, `marker_rows` and `nimbus_table` add optional sections."""
     import numpy as np
     import pyarrow.parquet as pq
     import zarr
@@ -662,6 +685,12 @@ def collect(
         # None, not zero, so "not tiled" differs from "tiled and empty".
         out["patches"] = None
 
+    if nimbus_table:
+        nimbus = open_table(sdata_path, nimbus_table)
+        out["nimbus"] = nimbus_metrics(
+            nimbus["X"][:], [str(m) for m in read_column(nimbus["var"]["_index"])], NIMBUS_THRESHOLD
+        )
+
     return out
 
 
@@ -701,6 +730,11 @@ def main() -> int:
         "this only for a sheet with no channel_role column, or to override a wrong one. "
         f"Without either, falls back to matching {DEFAULT_NUCLEAR_PATTERN!r}.",
     )
+    ap.add_argument(
+        "--nimbus-table",
+        default=None,
+        help="name of the Nimbus table under tables/, e.g. cellpose_nimbus; adds per-marker positivity",
+    )
     args = ap.parse_args()
 
     markers = None
@@ -721,6 +755,7 @@ def main() -> int:
         nuclear_pattern=args.nuclear_pattern,
         before_image=args.before_image,
         histogram_range=args.histogram_range,
+        nimbus_table=args.nimbus_table,
     )
 
     args.out.write_text(json.dumps(metrics, indent=2, sort_keys=False) + "\n")

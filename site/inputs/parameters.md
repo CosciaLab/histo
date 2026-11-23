@@ -7,7 +7,7 @@ input: /data/myproject/sheets/samplesheet.csv
 outdir: /data/myproject/results
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 ```
 
 Every run needs `input` (the [samplesheet](samplesheet.md)) and `outdir` (where results go), and
@@ -48,7 +48,7 @@ Pick one method or both. Unless `preprocessing_only`, at least one is needed.
 | Method                               | Set                                                                                                                                                          | Channels it reads                                                      |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | [Cellpose](../modules/cellpose.md)   | [`use_cellpose`](parameters-full.md#use_cellpose)`: true` and [`cellpose_channels`](parameters-full.md#cellpose_channels), e.g. `"CD45 DNA_1"`, nuclear last | the two you name, or two [projected](#many-markers-with-cellpose) ones |
-| [InstanSeg](../modules/instanseg.md) | [`use_instanseg`](parameters-full.md#use_instanseg)`: true` and [`instanseg_pixel_size`](parameters-full.md#instanseg_pixel_size), your pixel size in µm     | every `dna` and `marker` channel of the marker sheet                   |
+| [InstanSeg](../modules/instanseg.md) | [`use_instanseg`](parameters-full.md#use_instanseg)`: true` and [`pixel_size`](parameters-full.md#pixel_size), your pixel size in µm                         | every `dna` and `marker` channel of the marker sheet                   |
 
 Then pick what to find. Cells are on by default.
 

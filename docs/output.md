@@ -129,6 +129,7 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
   - `shapes/{m}_cytoplasm` (both targets): each cell minus its linked nuclei, for cells with
     non-empty cytoplasm only, indexed by their cell ids.
   - `tables/{m}_table`: one row per cell, or per nucleus in a nuclei-only run. Below.
+  - `tables/{m}_nimbus` (`use_nimbus`): Nimbus scores, one row per cell. See [Nimbus scores](#nimbus-scores).
 - `{slide}_merged.zarr/` and `{slide}_merge_manifest.json`
   - **Dearrayed slides only**, instead of per-core stores: every core's elements in one store,
     and the manifest of what was merged.
@@ -192,6 +193,42 @@ Refer to the [SpatialData docs](https://spatialdata.scverse.org/en/stable/) for 
 
 `PUBLISH_SPATIALDATA` copies the store here, and exists only for that: it runs after the last
 step that writes to the store.
+
+#### Nimbus scores
+
+`use_nimbus` adds `tables/{m}_nimbus` for each method: the same cells as `{m}_table`, one column per
+marker, each value a confidence in [0, 1] that the marker is positive in that cell.
+
+```python
+sdata["cellpose_nimbus"][:, "CD3"].X
+```
+
+- `X`: float32, cells by markers. NaN for a channel with no nonzero pixel, or a cell covering no
+  pixel centre.
+- `var_names`: the marker names, in `nimbus_channels` order when given, else marker-sheet order.
+- `obs`: `region`, `slide`, `core_id` and `cell_id` where present, copied from `{m}_table`.
+- `uns['nimbus']`: how the scores were made.
+
+| `uns['nimbus']` key | Meaning                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `nimbus_version`    | Nimbus-Inference version.                                                                                                               |
+| `weights`           | Weights file.                                                                                                                           |
+| `weights_sha256`    | sha256 of the weights file.                                                                                                             |
+| `channels`          | Markers scored.                                                                                                                         |
+| `factors`           | Per-channel normalisation factor (0.999 quantile).                                                                                      |
+| `unscored`          | Channels with no nonzero pixel; their columns are NaN.                                                                                  |
+| `pixel_size`        | µm per pixel given by `pixel_size`.                                                                                                     |
+| `model_um_per_px`   | µm per model pixel (1.0). Provisional; see [decisions](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#learned-features). |
+| `magnification`     | `10 * model_um_per_px / pixel_size`.                                                                                                    |
+| `tile_size`         | Tile edge, in image pixels (2048 model pixels).                                                                                         |
+| `margin`            | Context added around each tile, in image pixels.                                                                                        |
+| `halo`              | Model halo measured at start-up, in model pixels.                                                                                       |
+| `min_window`        | Smallest window, in image pixels (1056 model pixels).                                                                                   |
+| `test_time_aug`     | Always `true`.                                                                                                                          |
+| `device`            | `cpu` or `cuda`.                                                                                                                        |
+
+The same keys are published as `learned_features/{sample}_{m}_nimbus.json`, so provenance can be read without
+opening the store.
 
 #### From 1.x
 

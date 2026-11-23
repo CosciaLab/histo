@@ -65,6 +65,10 @@ Both are MIT licensed. This pipeline would not exist without them.
 
   > Schmidt U, Weigert M, Broaddus C, Myers G. Cell Detection with Star-Convex Polygons. MICCAI 2018, LNCS 11071, 265–273 (2018). https://doi.org/10.1007/978-3-030-00934-2_30
 
+- [Nimbus](https://doi.org/10.1038/s41592-025-02826-9) — per-cell marker positivity, under `use_nimbus`
+
+  > Rumberger JL, Greenwald NF, Ranek JS, Boonrat P, Walker C, Franzen J, Varra SR, Kong A, Sowers C, Liu CC, Averbukh I, Piyadasa H, Vanguri R, Nederlof I, Wang XJ, Van Valen D, Kok M, Bendall SC, Hollmann TJ, Kainmueller D, Angelo M. Automated classification of cellular expression in multiplexed imaging data with Nimbus. Nat Methods 22(10), 2161–2170 (2025). https://doi.org/10.1038/s41592-025-02826-9
+
 - [SpatialData](https://www.nature.com/articles/s41592-024-02212-x) — the Zarr-backed data
   structure the whole downstream half is built on
 

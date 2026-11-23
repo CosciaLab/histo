@@ -46,6 +46,7 @@ project:
         - file: modules/tiling.md
         - file: modules/cellpose.md
         - file: modules/instanseg.md
+        - file: modules/nimbus.md
         - file: modules/projection.md
         - file: modules/linking.md
         - file: modules/quantification.md

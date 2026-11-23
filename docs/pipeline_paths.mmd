@@ -6,6 +6,7 @@
 %%metro marker: PROJECT_CHANNELS | circle, #cccccc
 %%metro marker: LINK_COMPARTMENTS | circle, #cccccc
 %%metro marker: COMPARE_SEGMENTATIONS | circle, #cccccc
+%%metro marker: NIMBUS | circle, #cccccc
 %%metro marker_legend: circle, #cccccc | Optional step
 %%metro grid: preprocessing | 0,0
 %%metro grid: store | 1,0
@@ -38,11 +39,13 @@ graph LR
         SEGMENT_PATCH_INSTANSEG([InstanSeg])
         LINK_COMPARTMENTS([Link nucleus ↔ cell])
         AGGREGATE([Quantify per cell])
+        NIMBUS([Nimbus scores])
 
         PROJECT_CHANNELS -->|wsi, tma| SEGMENT_PATCH_CELLPOSE
         SEGMENT_PATCH_CELLPOSE -->|wsi, tma| LINK_COMPARTMENTS
         SEGMENT_PATCH_INSTANSEG -->|wsi, tma| LINK_COMPARTMENTS
         LINK_COMPARTMENTS -->|wsi, tma| AGGREGATE
+        AGGREGATE -->|wsi, tma| NIMBUS
     end
 
     subgraph output [Output]
@@ -70,8 +73,8 @@ graph LR
     BACKSUB -->|wsi, tma| TO_SPATIALDATA
     TO_SPATIALDATA -->|wsi, tma| PROJECT_CHANNELS
     TO_SPATIALDATA -->|wsi, tma| SEGMENT_PATCH_INSTANSEG
-    AGGREGATE -->|wsi| PUBLISH_SPATIALDATA
-    AGGREGATE -->|tma| MERGE_SPATIALDATA
+    NIMBUS -->|wsi| PUBLISH_SPATIALDATA
+    NIMBUS -->|tma| MERGE_SPATIALDATA
     PUBLISH_SPATIALDATA -->|wsi, tma| QC_METRICS
 
     %% Two lines, two rows: left to right, then back right to left through Output and QC.
@@ -79,6 +82,7 @@ graph LR
     %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
     %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
     %%   AGGREGATE        RESOLVE, AGGREGATE, WRITE_SEGMENTATIONS
+    %%   NIMBUS           NIMBUS, WRITE_FEATURES
     %%   QC_METRICS       QC_METRICS, QC_IMAGES
     %% Schematic, not wiring: QC reads the store alongside publishing, not after it.
     %% Edges left out are described in docs/CONTRIBUTING.md#what-the-map-leaves-out.

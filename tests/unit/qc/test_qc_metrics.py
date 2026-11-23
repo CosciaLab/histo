@@ -17,6 +17,7 @@ from qc_metrics import (
     cycle_ratio_metrics,
     effective_bit_depth,
     linking_metrics,
+    nimbus_metrics,
     nuclear_cycle_pair,
     patch_metrics,
     percentiles_from_histogram,
@@ -634,3 +635,20 @@ class TestLinkingMetrics:
         import json
 
         json.dumps(linking_metrics(np.array([1]), np.array([1.0]), np.int64(0)))
+
+
+class TestNimbusMetrics:
+    def test_fraction_and_median(self):
+        out = nimbus_metrics(np.array([[0.1], [0.6], [0.9]], dtype=np.float32), ["CD3"])
+        assert out["CD3"]["fraction_positive"] == pytest.approx(2 / 3)
+        assert out["CD3"]["median"] == pytest.approx(0.6)
+
+    def test_nan_cells_are_ignored(self):
+        out = nimbus_metrics(np.array([[0.9], [np.nan], [0.1]], dtype=np.float32), ["CD3"])
+        assert out["CD3"]["fraction_positive"] == 0.5
+
+    def test_all_nan_marker_is_none(self):
+        X = np.array([[np.nan, 0.7], [np.nan, 0.2]], dtype=np.float32)
+        out = nimbus_metrics(X, ["A", "B"])
+        assert out["A"] == {"fraction_positive": None, "median": None}
+        assert out["B"]["fraction_positive"] == 0.5

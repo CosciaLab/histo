@@ -334,6 +334,21 @@ class TestBuild:
     def test_no_linking_section_without_nuclei(self):
         assert "Nuclei per cell" not in build(minimal_metrics())
 
+    def test_nimbus_section_lists_markers(self):
+        m = minimal_metrics()
+        m["nimbus"] = {
+            "CD3": {"fraction_positive": 0.25, "median": 0.3},
+            "PanCK": {"fraction_positive": None, "median": None},
+        }
+        page = build(m)
+        assert "Nimbus" in page
+        assert "<td>CD3</td><td>25.0%</td><td>0.30</td>" in page
+        assert "<td>PanCK</td><td>n/a</td><td>n/a</td>" in page
+
+    def test_no_nimbus_section_without_the_key(self):
+        page = build(minimal_metrics())
+        assert "Nimbus" not in page
+
     def test_hero_number_is_present_unabbreviated(self):
         """The one number the page leads with is exact, not compacted."""
         m = minimal_metrics()

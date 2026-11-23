@@ -16,7 +16,7 @@ nextflow_pipeline {
             params {
                 outdir = "$outputDir"
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
             }
         }
@@ -63,7 +63,7 @@ nextflow_pipeline {
             params {
                 outdir = "$outputDir"
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
                 cellpose_kwargs = "{'niter': 10}"
                 instanseg_kwargs = "{'batch_size': 2}"
@@ -87,7 +87,7 @@ nextflow_pipeline {
             params {
                 outdir = "$outputDir"
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
                 use_qc = false
             }

@@ -88,7 +88,7 @@ tma_core_diameter_mm: 1.5
 use_backsub: true
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 segment_nuclei: true
 
 patch_width_pixel: 2000
@@ -115,7 +115,7 @@ patch_width_pixel: 2000
 ## Run
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.1.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

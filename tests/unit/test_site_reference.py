@@ -210,6 +210,11 @@ def test_instanseg_page_names_instanseg_without_sopa_version():
     assert cells[2] == ""  # instanseg is not pinned; the image tag is sopa's version
 
 
+def test_nimbus_page_names_nimbus_and_image_tag():
+    cells = _facts_row("nimbus")
+    assert "Nimbus" in cells[1] and "josenimo/nimbus:0.0.5" in cells[3]
+
+
 def test_qc_report_page_names_pipeline_scripts_and_keeps_container():
     md = render_module_facts(
         [REPO / d for d in PAGES["qc-report"]], REPO / "containers.tsv", TOOL_OVERRIDES["qc-report"]

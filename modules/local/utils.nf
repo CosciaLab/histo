@@ -120,7 +120,7 @@ def segmentationSpecs(Map args) {
                 channels: getChannels(args.instanseg_channels, true),
                 method_kwargs: [
                     model_type: args.instanseg_model_type,
-                    pixel_size: toNumber('instanseg_pixel_size', args.instanseg_pixel_size),
+                    pixel_size: pixelSize(args),
                     target: target,
                 ].findAll { _k, v -> v != null },
                 method_kwargs_extra: args.instanseg_kwargs,
@@ -150,6 +150,17 @@ def getChannels(channels, Boolean allow_null = false) {
     return channels.toString().split(/[ ,|]+/).findAll { it }
 }
 
+// µm per pixel from pixel_size, or its deprecated alias instanseg_pixel_size; params cannot be
+// reassigned, so every read goes through here.
+def pixelSize(Map args) {
+    def a = toNumber('pixel_size', args.pixel_size)
+    def b = toNumber('instanseg_pixel_size', args.instanseg_pixel_size)
+    if (a != null && b != null && a != b) {
+        error("pixel_size (${a}) and the deprecated instanseg_pixel_size (${b}) differ; set only pixel_size.")
+    }
+    return a != null ? a : b
+}
+
 // Command-line values arrive as Strings and params cannot be reassigned, so numbers are parsed
 // where used: in arithmetic "3000" * 0.65 is string repetition, and in kwargs JSON a str for sopa.
 def toNumber(String name, value) {
@@ -172,7 +183,7 @@ def toNumber(String name, value) {
 // to ~4 channels, then ~0.25 GB per channel (test7, dropbox run 00009); ~1.2x headroom.
 def instansegMemoryGB(int n_channels, patch_width, pixel_size) {
     patch_width = toNumber('patch_width_pixel', patch_width)
-    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
+    pixel_size = toNumber('pixel_size', pixel_size)
     def megapixels = Math.pow(patch_width * pixel_size / 0.5, 2) / 1e6
     return Math.ceil(2 + megapixels * instansegGBPerMegapixel(n_channels)) as int
 }
@@ -183,7 +194,7 @@ def instansegGBPerMegapixel(int n_channels) {
 
 // Largest patch_width_pixel, in steps of 100, whose request stays within gigabytes.
 def instansegMaxPatchWidth(int n_channels, gigabytes, pixel_size) {
-    pixel_size = toNumber('instanseg_pixel_size', pixel_size)
+    pixel_size = toNumber('pixel_size', pixel_size)
     def megapixels = (gigabytes - 2) / instansegGBPerMegapixel(n_channels)
     return ((Math.sqrt(megapixels * 1e6) * 0.5 / pixel_size / 100) as int) * 100
 }
@@ -198,6 +209,26 @@ def instansegGpuMaxChannels() {
 def defaultInstansegChannels(List rows, String target) {
     def roles = target == 'nuclei' ? ['dna'] : ['dna', 'marker']
     return rows.findAll { it.channel_role in roles }.collect { it.marker_name }
+}
+
+// Marker names Nimbus scores when nimbus_channels is unset: the marker channels only.
+def defaultNimbusChannels(List rows) {
+    return rows.findAll { it.channel_role == 'marker' }.collect { it.marker_name }
+}
+
+// One spec per learned-features model.
+def featureSpecs(Map args) {
+    def specs = []
+    if (args.use_nimbus) {
+        specs << [
+            name: 'nimbus',
+            model: 'nimbus',
+            channels: getChannels(args.nimbus_channels, true),
+            pixel_size: pixelSize(args),
+            gpu: args.use_gpu ? true : false,
+        ]
+    }
+    return specs
 }
 
 def argsCLI(String group = null, Map args = null) {

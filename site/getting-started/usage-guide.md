@@ -7,7 +7,7 @@ sheets and settings is under [Inputs](../inputs/inputs.md).
 ## The command
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.1.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -93,7 +93,7 @@ mkdir -p "$TMPDIR"
 # Stops a download at launch of a config this pipeline does not use.
 export NXF_OFFLINE=true
 
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.1.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

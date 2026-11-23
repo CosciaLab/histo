@@ -1,0 +1,85 @@
+// One spec per learned-features model, built from params.
+
+nextflow_function {
+
+    name "featureSpecs"
+    script "../modules/local/utils.nf"
+    function "featureSpecs"
+    tag "unit"
+    tag "validation"
+
+    test("no model gives no specs") {
+        when {
+            function {
+                """
+                input[0] = [:]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == []
+        }
+    }
+
+    test("Nimbus with marker-sheet channels") {
+        when {
+            function {
+                """
+                input[0] = [ use_nimbus: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'nimbus'
+            assert function.result[0].model == 'nimbus'
+            assert function.result[0].channels == null
+            assert function.result[0].pixel_size == 0.65
+        }
+    }
+
+    test("Nimbus channels are split and pixel_size parsed") {
+        when {
+            function {
+                """
+                input[0] = [ use_nimbus: true, pixel_size: '0.65', nimbus_channels: 'CD3, CD45' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result[0].channels == ['CD3', 'CD45']
+            assert function.result[0].pixel_size == 0.65
+        }
+    }
+}
+
+nextflow_function {
+
+    name "defaultNimbusChannels"
+    script "../modules/local/utils.nf"
+    function "defaultNimbusChannels"
+    tag "unit"
+    tag "validation"
+
+    test("only marker channels, in order") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DAPI', channel_role: 'dna' ],
+                    [ marker_name: 'CD3', channel_role: 'marker' ],
+                    [ marker_name: 'AF488', channel_role: 'autofluorescence' ],
+                    [ marker_name: 'CD45', channel_role: 'marker' ],
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == ['CD3', 'CD45']
+        }
+    }
+}

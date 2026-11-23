@@ -8,9 +8,10 @@
 # default; docs/usage.md lists the few you must set.
 
 ## Input/output options
-# input: null   # Path to a comma-separated samplesheet. Required.
-# outdir: null  # The output directory where the results will be saved. Required.
-# email: null   # Email address for completion summary.
+# pixel_size: null  # µm per pixel of the image (OME PhysicalSizeX).
+# input: null       # Path to a comma-separated samplesheet. Required.
+# outdir: null      # The output directory where the results will be saved. Required.
+# email: null       # Email address for completion summary.
 
 ## Preprocessing
 # use_preprocessing: true            # Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below.
@@ -91,9 +92,13 @@
 ## InstanSeg
 # use_instanseg: null         # Segment with InstanSeg.
 # instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
-# instanseg_pixel_size: null  # Image resolution in microns per pixel.
+# instanseg_pixel_size: null  # Deprecated: use pixel_size.
 # instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
+
+## Learned features
+# use_nimbus: null       # Score per-cell marker positivity with Nimbus.
+# nimbus_channels: null  # Channel(s) to score with Nimbus.
 
 ## QC report
 # use_qc: true         # Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report.

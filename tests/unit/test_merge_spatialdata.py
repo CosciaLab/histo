@@ -106,6 +106,52 @@ class TestMergeTwoTablesInOneCore:
             assert set(t.obs["region"]) == {want}
 
 
+class TestMergeLearnedFeaturesTable:
+    def test_nimbus_table_keeps_uns_and_is_retargeted(self, tmp_path):
+        sd = pytest.importorskip("spatialdata", reason="merge() needs spatialdata")
+        import anndata as ad
+        import geopandas as gpd
+        import numpy as np
+        from merge_spatialdata import merge
+        from shapely.geometry import Point
+        from spatialdata.models import Image2DModel, ShapesModel, TableModel
+
+        core, n = "slide_c1", 3
+        prov = {
+            "channels": ["CD45", "FOXP3"],
+            "factors": {"CD45": 1.5, "FOXP3": 2.5},
+            "halo": 96,
+            "test_time_aug": True,
+        }
+        sdata = sd.SpatialData()
+        sdata[core] = Image2DModel.parse(np.zeros((1, 8, 8), dtype="uint16"), dims=("c", "y", "x"))
+        gdf = gpd.GeoDataFrame(geometry=[Point(i, i) for i in range(n)])
+        gdf["radius"] = 1.0
+        sdata["m_cells"] = ShapesModel.parse(gdf)
+        for name in ("m_table", "m_nimbus"):
+            adata = ad.AnnData(np.ones((n, 2), dtype="float32"))
+            adata.obs["region"] = "m_cells"
+            adata.obs["cell_id"] = np.arange(n)
+            if name == "m_nimbus":
+                adata.uns["nimbus"] = prov
+            sdata[name] = TableModel.parse(
+                adata, region="m_cells", region_key="region", instance_key="cell_id"
+            )
+        core_dir = tmp_path / f"{core}.zarr"
+        sdata.write(core_dir)
+
+        out = tmp_path / "merged.zarr"
+        merge(out, [core_dir])
+        t = sd.read_zarr(out).tables[f"{core}{SEP}m_nimbus"]
+
+        want = f"{core}{SEP}m_cells"
+        assert t.uns["spatialdata_attrs"]["region"] == want
+        assert set(t.obs["region"]) == {want}
+        assert list(t.uns["nimbus"]["channels"]) == prov["channels"]
+        assert dict(t.uns["nimbus"]["factors"]) == prov["factors"]
+        assert t.uns["nimbus"]["halo"] == 96
+
+
 class TestElementNaming:
     """The rule that keeps core identity visible without doubling it."""
 

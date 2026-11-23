@@ -12,6 +12,11 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
+                "pixel_size": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "µm per pixel of the image (OME PhysicalSizeX). Required by InstanSeg and Nimbus."
+                },
                 "input": {
                     "type": "string",
                     "format": "file-path",
@@ -448,7 +453,7 @@
                 "use_instanseg": {
                     "type": "boolean",
                     "description": "Segment with InstanSeg. May be combined with use_cellpose.",
-                    "help_text": "**Requires:** `instanseg_pixel_size`, `instanseg_channels` when `use_preprocessing` is false, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true. **Conflicts:** `use_gpu` on more than 10 channels."
+                    "help_text": "**Requires:** `pixel_size`, `instanseg_channels` when `use_preprocessing` is false, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true. **Conflicts:** `use_gpu` on more than 10 channels."
                 },
                 "instanseg_model_type": {
                     "type": "string",
@@ -456,8 +461,9 @@
                 },
                 "instanseg_pixel_size": {
                     "type": "number",
-                    "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells",
-                    "help_text": "**Ignored unless:** `use_instanseg` is true."
+                    "description": "Deprecated: use pixel_size",
+                    "help_text": "**Conflicts:** `pixel_size` with a different value.",
+                    "hidden": true
                 },
                 "instanseg_channels": {
                     "type": ["string", "integer"],
@@ -470,6 +476,25 @@
                 }
             },
             "fa_icon": "fas fa-tools"
+        },
+        "learned_features": {
+            "title": "Learned features",
+            "type": "object",
+            "description": "Parameters related to learned-features models, which score each segmented cell",
+            "default": "",
+            "properties": {
+                "use_nimbus": {
+                    "type": "boolean",
+                    "description": "Score per-cell marker positivity with Nimbus.",
+                    "help_text": "**Requires:** `pixel_size`, `segment_cells`, and `nimbus_channels` when `use_preprocessing` is false."
+                },
+                "nimbus_channels": {
+                    "type": ["string", "integer"],
+                    "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters.",
+                    "help_text": "**Ignored unless:** `use_nimbus`."
+                }
+            },
+            "fa_icon": "fas fa-brain"
         },
         "qc_report": {
             "title": "QC report",
@@ -532,6 +557,9 @@
         },
         {
             "$ref": "#/$defs/instanseg"
+        },
+        {
+            "$ref": "#/$defs/learned_features"
         },
         {
             "$ref": "#/$defs/qc_report"

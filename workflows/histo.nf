@@ -16,11 +16,12 @@ include { SET_CHANNEL_NAMES       } from '../modules/local/set_channel_names'
 include { PROJECT_CHANNELS        } from '../modules/local/project_channels'
 include { PUBLISH_SPATIALDATA     } from '../modules/local/publish_spatialdata'
 include { SEGMENTATION            } from '../subworkflows/local/segmentation'
+include { LEARNED_FEATURES        } from '../subworkflows/local/learned_features'
 include { QC                      } from '../subworkflows/local/qc'
 include { COMPARE_SEGMENTATIONS   } from '../modules/local/compare_segmentations'
 
 
-include { argsCLI; segmentationSpecs } from '../modules/local/utils'
+include { argsCLI; featureSpecs; segmentationSpecs } from '../modules/local/utils'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -108,26 +109,37 @@ workflow HISTO {
         ch_segmented = SEGMENTATION.out.sdata
         ch_versions = ch_versions.mix(SEGMENTATION.out.versions)
 
+        // Learned features are written after segmentation and before QC, which reads the store.
+        def feature_specs = featureSpecs(params)
+        if (feature_specs) {
+            LEARNED_FEATURES(ch_segmented, ch_markers, feature_specs, specs*.method.unique())
+            ch_featured = LEARNED_FEATURES.out.sdata
+            ch_versions = ch_versions.mix(LEARNED_FEATURES.out.versions)
+        }
+        else {
+            ch_featured = ch_segmented
+        }
+
         // Ashlar's QC directory, keyed by its own meta.id (sample, or slide on a TMA).
         def ch_registration_qc = params.use_preprocessing
             ? PREPROCESS_IMAGES.out.registration_qc
             : channel.empty()
 
-        // QC needs the aggregated tables. Nothing writes to the store after WRITE_SEGMENTATIONS,
+        // QC needs the aggregated tables. Nothing writes to the store after the last write,
         // so QC and the merge can read it concurrently.
         if (params.use_qc) {
             def ch_unsubtracted = params.use_preprocessing
                 ? PREPROCESS_IMAGES.out.unsubtracted
                 : channel.empty()
 
-            QC(ch_segmented, ch_markers, ch_unsubtracted, ch_registration_qc, specs*.method.unique())
+            QC(ch_featured, ch_markers, ch_unsubtracted, ch_registration_qc, specs*.method.unique())
             ch_versions = ch_versions.mix(QC.out.versions)
 
             // A second opinion when both methods segmented cells; reads the written store beside QC.
             // From the specs, so it follows segmentationTargets' truthiness (a bare flag is "true").
             def cell_methods = specs.findAll { spec -> spec.target == 'cells' }*.method as Set
             if (cell_methods == ['cellpose', 'instanseg'] as Set) {
-                COMPARE_SEGMENTATIONS(ch_segmented)
+                COMPARE_SEGMENTATIONS(ch_featured)
                 ch_versions = ch_versions.mix(COMPARE_SEGMENTATIONS.out.versions)
             }
         }
@@ -135,7 +147,7 @@ workflow HISTO {
         // TMA cores are merged last so each core is segmented and QCed on its own.
         // `sample` is set because downstream processes tag on meta.sample.
         if (params.use_tma_dearray) {
-            ch_cores_by_slide = ch_segmented
+            ch_cores_by_slide = ch_featured
                 .map { meta, sdata -> [[id: meta.slide, sample: meta.slide], sdata] }
                 .groupTuple()
 
@@ -169,7 +181,7 @@ workflow HISTO {
             }
         }
         else {
-            ch_publish = ch_segmented
+            ch_publish = ch_featured
         }
 
         PUBLISH_SPATIALDATA(ch_publish)
