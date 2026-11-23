@@ -9,7 +9,7 @@ include { RESOLVE                                  } from '../../../modules/loca
 include { LINK_COMPARTMENTS                        } from '../../../modules/local/link_compartments'
 include { AGGREGATE                                } from '../../../modules/local/aggregate'
 include { WRITE_SEGMENTATIONS                      } from '../../../modules/local/write_segmentations'
-include { defaultInstansegChannels; instansegMaxPatchWidth; instansegMemoryGB } from '../../../modules/local/utils'
+include { defaultInstansegChannels; instansegMaxPatchWidth; instansegMemoryGB; pixelSize } from '../../../modules/local/utils'
 
 workflow SEGMENTATION {
     take:
@@ -48,7 +48,7 @@ workflow SEGMENTATION {
                 error("Sample '${meta.sample}': no channels for ${spec.name}. Set instanseg_channels, or give the marker sheet a 'dna' channel.")
             }
             // Memory per spec, as channel counts differ; conf/base.config reads spec.memory_gb.
-            def memory_gb = instansegMemoryGB(channels.size(), params.patch_width_pixel, params.instanseg_pixel_size)
+            def memory_gb = instansegMemoryGB(channels.size(), params.patch_width_pixel, pixelSize(params))
             [meta, sdata, spec + [channels: channels, memory_gb: memory_gb], n_patches]
         }
     }
@@ -60,11 +60,11 @@ workflow SEGMENTATION {
         .map { _meta, _sdata, spec, _n_patches -> spec.channels.size() }
         .unique()
         .subscribe { n_channels ->
-            def gigabytes = instansegMemoryGB(n_channels, params.patch_width_pixel, params.instanseg_pixel_size)
+            def gigabytes = instansegMemoryGB(n_channels, params.patch_width_pixel, pixelSize(params))
             if (gigabytes > warn_gb) {
                 log.warn "InstanSeg on ${n_channels} channels asks for ${gigabytes} GB per patch task (twice that on retry) " +
-                    "at patch_width_pixel ${params.patch_width_pixel} and ${params.instanseg_pixel_size} µm/px. To stay under ${warn_gb} GB, " +
-                    "set patch_width_pixel to ${instansegMaxPatchWidth(n_channels, warn_gb, params.instanseg_pixel_size)} or name fewer instanseg_channels."
+                    "at patch_width_pixel ${params.patch_width_pixel} and ${pixelSize(params)} µm/px. To stay under ${warn_gb} GB, " +
+                    "set patch_width_pixel to ${instansegMaxPatchWidth(n_channels, warn_gb, pixelSize(params))} or name fewer instanseg_channels."
             }
         }
 

@@ -1,0 +1,14 @@
+{
+    "name": "histo-docs",
+    "version": "1.0.0",
+    "private": true,
+    "description": "MyST documentation site for CosciaLab/histo",
+    "scripts": {
+        "build": "./build.sh",
+        "start": "myst start",
+        "check": "python3 ../tools/site_check_links.py _build/html"
+    },
+    "dependencies": {
+        "mystmd": "1.12.0"
+    }
+}

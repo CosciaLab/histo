@@ -1,0 +1,35 @@
+{
+    "title": "fixture",
+    "type": "object",
+    "$defs": {
+        "tiling": {
+            "title": "Tiling options",
+            "type": "object",
+            "description": "Patch geometry.",
+            "properties": {
+                "patch_width_pixel": {
+                    "type": "integer",
+                    "default": 2000,
+                    "description": "Patch width in pixels."
+                },
+                "patch_overlap": {
+                    "type": "integer",
+                    "description": "Overlap between patches.",
+                    "help_text": "Pick at least the largest expected cell diameter."
+                },
+                "method": {
+                    "type": "string",
+                    "default": "cellpose",
+                    "enum": ["cellpose", "instanseg"],
+                    "description": "Segmentation method."
+                },
+                "hidden_flag": {
+                    "type": "boolean",
+                    "hidden": true,
+                    "description": "An internal switch."
+                }
+            }
+        }
+    },
+    "allOf": [{ "$ref": "#/$defs/tiling" }]
+}

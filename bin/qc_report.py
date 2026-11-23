@@ -860,6 +860,27 @@ def linking_section(linking: dict[str, Any]) -> str:
 """
 
 
+def nimbus_section(nimbus: dict[str, Any]) -> str:
+    """Per marker, the share of cells Nimbus calls positive and its median score."""
+    rows = [
+        [
+            esc(marker),
+            "n/a" if v["fraction_positive"] is None else f"{v['fraction_positive'] * 100:.1f}%",
+            "n/a" if v["median"] is None else f"{v['median']:.2f}",
+        ]
+        for marker, v in nimbus.items()
+    ]
+    return f"""
+<section>
+  <h2>Nimbus marker scores</h2>
+  <p class="note">Nimbus scores each cell for each marker from 0 (absent) to 1 (present).
+  A cell above 0.5 counts as positive. Cells Nimbus could not score are left out;
+  &ldquo;n/a&rdquo; means no cell was scored for that marker.</p>
+  {table(["Marker", "Cells positive", "Median score"], rows)}
+</section>
+"""
+
+
 def inline_png(path: Path) -> str:
     """Return a PNG or JPEG file as a base64 data URI."""
     import base64
@@ -1803,6 +1824,8 @@ def build(
 </section>
 
 {linking_section(metrics["linking"]) if metrics.get("linking") else ""}
+
+{nimbus_section(metrics["nimbus"]) if "nimbus" in metrics else ""}
 
 {patch_block}
 

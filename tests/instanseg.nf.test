@@ -18,7 +18,7 @@ nextflow_pipeline {
                 outdir = "$outputDir"
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
                 instanseg_channels = "DAPI"
             }
         }
@@ -60,7 +60,7 @@ nextflow_pipeline {
                 use_cellpose = false
                 use_instanseg = true
                 // Small, so the memory request stays under the tests' 6 GB cap (tests/nextflow.config).
-                instanseg_pixel_size = 0.1
+                pixel_size = 0.1
             }
         }
 
@@ -92,7 +92,7 @@ nextflow_pipeline {
                 use_cellpose = false
                 use_instanseg = true
                 // 5000 px at 1 µm/px is 10000 px at the model's 0.5: 132 GB for one channel.
-                instanseg_pixel_size = 1.0
+                pixel_size = 1.0
                 instanseg_channels = "DAPI"
             }
         }
@@ -122,7 +122,7 @@ nextflow_pipeline {
         then {
             assertAll(
                 { assert workflow.failed },
-                { assert (workflow.stdout + workflow.stderr).join("\n").contains("instanseg_pixel_size") }
+                { assert (workflow.stdout + workflow.stderr).join("\n").contains("pixel_size") }
             )
         }
     }
@@ -134,7 +134,7 @@ nextflow_pipeline {
                 outdir = "$outputDir"
                 use_cellpose = false
                 use_instanseg = true
-                instanseg_pixel_size = 0.65
+                pixel_size = 0.65
             }
         }
 

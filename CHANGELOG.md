@@ -3,19 +3,47 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## v3.2.0 - [unreleased]
+
+### Added
+
+- `use_nimbus`: per-cell marker positivity scores from Nimbus, one `{method}_nimbus` table per
+  segmentation method, tiled so memory does not grow with the image. `nimbus_channels` picks the
+  markers. Provenance is published to `learned_features/`.
+- `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive,
+  named for Nextflow's cache, outside the shared cache.
 
 ### Changed
 
 - Cellpose uses `cpsam_v2` (cellpose's own default); cell counts shift. `pretrained_model: cpsam`
   restores the old model.
 
-## v3.0.0 - [unreleased]
+### Deprecated
+
+- `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still
+  works and warns; setting both to different values is an error.
+
+## v3.1.0 - [2026-11-07]
+
+### Added
+
+- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
+  reports, tutorials on the exemplar data, one page per module, and a parameter reference
+  generated from the schema. Parameter rules
+  (requires, conflicts, ignored unless) are in the schema `help_text`.
+
+### Changed
+
+- Docs site navigation restructured: inputs, outputs by kind, tutorials on the exemplar data, one
+  page per module; how-to guides dropped.
+- Metro map redrawn as two lines on two rows, larger and with higher contrast.
+
+## v3.0.0 - [2026-11-07]
 
 ### Breaking
 
 - Table `var_names` are `{marker}_{statistic}` (`CD3_mean`), with `var` columns `marker` and
-  `statistic`; 2.x had one column per marker. See [output.md](docs/output.md#from-2x).
+  `statistic`; 2.x had one column per marker. See [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-2x).
 - `obs['area']` is `obs['cell_area']` (`nucleus_area` in a nuclei-only run).
 - `X` and the layers are float32.
 - QC reads the `mean` columns, so it needs a 3.0 table.
@@ -45,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `coreograph_args` to run Coreograph exactly as given. `coreograph_args` has no default.
 - Tables and shapes are per method `{m}`: `tables/table` is now `tables/{m}_table`, and
   `shapes/{m}_boundaries` is `shapes/{m}_cells`. Table rows are indexed by the shapes' cell ids
-  (`{image}_{m}_{target}_{n}`), not renumbered. See [output.md](docs/output.md#from-1x).
+  (`{image}_{m}_{target}_{n}`), not renumbered. See [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-1x).
 - QC files carry the method: `qc/{sample}_{m}_qc.json`, `_qc_report.html`, `_qc_images/`, and
   `qc/{slide}_{m}_slide_report.html`.
 - Removed parameters stop the run at startup: `use_stardist`, `stardist_model_type`,
@@ -76,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One task writes the store, `WRITE_SEGMENTATIONS`; patch, resolve, link and aggregate tasks
   write files. Aggregation is our own copy of sopa's, with polygon holes honoured.
 - `WRITE_SEGMENTATIONS` removes pipeline-named shapes and tables the run no longer produces,
-  e.g. after dropping a method. See [output.md](docs/output.md#spatialdata-directory).
+  e.g. after dropping a method. See [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#spatialdata-directory).
 - `use_gpu` with `use_instanseg` runs InstanSeg on CPU and warns, instead of stopping.
 - Cells are never dropped at aggregation. A cell covering no pixel centre has NaN intensities
   (was 0); `obs.area` and centroids are of the unexpanded cell under `expand_radius_ratio`.
@@ -255,7 +283,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 First release. Both halves run end to end on real data: raw cycles through illumination
 correction, stitching, optional background subtraction and TMA dearray, then segmentation,
 aggregation and a QC report. Verified on mIF, TMA and WSI slides; see
-[ROADMAP.md](ROADMAP.md) for what each run measured and what is deliberately absent.
+[ROADMAP.md](https://github.com/CosciaLab/histo/blob/dev/ROADMAP.md) for what each run measured and what is deliberately absent.
 
 ### Compatibility
 
@@ -293,7 +321,7 @@ limitations.
   `conf/slurm.config`.
 
 - A container manifest (`tools/container_manifest.py`) and pre-staging instructions in
-  [docs/usage.md](docs/usage.md#staging-images-into-the-shared-cache).
+  [docs/usage.md](https://github.com/CosciaLab/histo/blob/dev/docs/usage.md#staging-images-into-the-shared-cache).
 
 - Tests: pytest, validation and stub nf-tests in CI, and two exemplar runs on the cluster (`tests/exemplar00{1,2}.nf.test`) with cell-count baselines.
 
@@ -326,7 +354,7 @@ limitations.
   renders segmentation overlays and clusters the cells, and `QC_REPORT` renders both as one
   self-contained HTML file. Published to `<outdir>/qc`. `--use_qc` and `--use_qc_images` switch
   them; everything else is `ext.args` in `conf/modules.config`. See
-  [docs/output.md](docs/output.md).
+  [docs/output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md).
 
 ### Changed
 
@@ -357,7 +385,7 @@ limitations.
   samplesheet without the column fails at startup. A marker sheet describes a sample, and two
   samples in one run may have different channel layouts, which one parameter could not express.
   Every cycle row of a sample must name the same file, since the sheet describes the whole
-  stitched image rather than one cycle of it. See [docs/usage.md](docs/usage.md).
+  stitched image rather than one cycle of it. See [docs/usage.md](https://github.com/CosciaLab/histo/blob/dev/docs/usage.md).
 
 - The marker sheet gained two columns. `channel_role` is required and is one of `dna`, `marker`,
   `autofluorescence` or `blank`; `channel_compartment` is optional and is `nuclear`, `cytoplasm`,
@@ -408,7 +436,7 @@ limitations.
   any pipeline code runs, so the value cannot be recovered or corrected afterwards. `--use_qc=false`
   arrived as a truthy string. All three are rejected with a message naming the parameter, and for a
   misspelling, the parameter that was probably meant. Booleans belong in a params file; a bare flag
-  switches one on. See [docs/usage.md](docs/usage.md).
+  switches one on. See [docs/usage.md](https://github.com/CosciaLab/histo/blob/dev/docs/usage.md).
 
 - The marker sheet reached `SET_CHANNEL_NAMES` as a queue channel holding one item whenever
   background subtraction was off, so Nextflow paired it element-wise against the stores and stopped

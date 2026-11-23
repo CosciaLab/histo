@@ -82,6 +82,8 @@ lint:
     - tests/args_cli.nf.test
     - tests/instanseg_memory.nf.test
     - tests/segmentation_specs.nf.test
+    - tests/feature_specs.nf.test
+    - tests/pixel_size.nf.test
 
   multiqc_config: false
 

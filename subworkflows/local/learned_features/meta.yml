@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+name: "learned_features"
+description: Score every segmented cell with learned models (Nimbus) per segmentation method and write the tables into the store once per sample
+keywords:
+  - nimbus
+  - features
+  - spatial
+  - imaging
+components:
+  - nimbus
+  - write/features
+  - defaultnimbuschannels
+input:
+  - ch_sdata:
+      type: file
+      description: |
+        Channel containing a SpatialData Zarr store with segmentations written.
+        Structure: [ val(meta), path(sdata_path) ]
+  - ch_markers:
+      type: file
+      description: |
+        Channel containing each sample's marker sheet, read for the default Nimbus channels
+        when nimbus_channels is unset. May be empty otherwise.
+        Structure: [ val(meta), path(csv) ]
+  - specs:
+      type: list
+      description: |
+        Feature spec maps from featureSpecs(params) in modules/local/utils.nf.
+  - methods:
+      type: list
+      description: |
+        Segmentation methods; each is scored separately.
+output:
+  - sdata:
+      type: file
+      description: |
+        Channel containing the SpatialData Zarr store with tables {method}_nimbus written.
+        Structure: [ val(meta), path(sdata_path) ]
+  - versions:
+      type: file
+      description: |
+        Channel containing software versions.
+        Structure: [ path(versions.yml) ]
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

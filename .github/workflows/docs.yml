@@ -1,0 +1,77 @@
+name: Docs site
+on:
+  pull_request:
+  push:
+    branches: [dev, main, feat/docs-site]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Generate reference pages
+        run: uv run tools/site_reference.py
+      - name: Install
+        working-directory: site
+        run: npm ci
+      - name: Build
+        working-directory: site
+        run: BASE_URL=/histo npm run build
+      - name: Check internal links
+        working-directory: site
+        run: npm run check
+      - if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/docs-site')
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/_build/html
+
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - name: Generate reference pages
+        run: uv run tools/site_reference.py
+      - working-directory: site
+        run: npm ci
+      - name: Check links
+        working-directory: site
+        run: BASE_URL=/histo npx myst build --html --check-links
+
+  # Temporary preview deploy from feat/docs-site; revert before merging.
+  deploy:
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/docs-site')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

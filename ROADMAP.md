@@ -19,10 +19,15 @@ logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
 
 ### 3.1: documentation website
 
-For curious users: one page per module with what it does and why, its tool and version, inputs,
-outputs, parameters and defaults, and an exemplar-001 figure. Generate what it can from
-`meta.yml` and the schema so it cannot drift. The repo is public, so GitHub Pages can host it.
-1–2 weeks.
+The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What remains:
+
+1. **Figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
+   screenshots.
+2. **Odon.** Document it under Viewers in `site/outputs/reports.md`.
+3. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
+   (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
+   `docs/output.md` calls the profiles "fitted".
+4. **Pages.** Set GitHub Pages source to "GitHub Actions" in the repo settings (one-time, owner).
 
 ### 3.2: tiling and resources
 
@@ -51,10 +56,9 @@ outputs, parameters and defaults, and an exemplar-001 figure. Generate what it c
 
 ### 3.4 onward: learned features
 
-Nimbus, KRONOS and VirTues, one per release; Nimbus first, as its per-cell marker positivity
-feeds filtering. One interface: image and shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing
-and 3.3's baked weights. None is in bioconda, so expect private images. Check weight licences
-first.
+KRONOS and VirTues, one per release, on the stage Nimbus added in 3.2. One interface: image and
+shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing and 3.3's baked weights. Neither is in
+bioconda, so expect private images. Check weight licences first.
 
 ### Then: QC report overhaul
 
@@ -137,6 +141,9 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
    only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 3.3 item 2, which sets
    the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
+7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
+   channel across all cores, so a core with no positive cells is not stretched to [0, 1].
+8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
@@ -153,6 +160,12 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   resolution, so it always picks the coarsest. Still reported; selection uses seed stability.
 - **Every `-stub` run warns about a positional argument `true`.** Nextflow 26.04.6 leaves it in
   the args for both `-stub` and `-stub-run`. Harmless.
+- **An unchanged `-resume` reruns everything from `MAKE_IMAGE_PATCHES`.** Only `TO_SPATIALDATA`
+  is cached (seen in the Nimbus Mac run, 2026-11-12). Suspect the in-place Zarr mutation.
+- **A spaced boolean (`--use_qc false`) is reported as a samplesheet error.** The startup check
+  above catches it, but the message points at the wrong thing.
+- **`QC_IMAGES` on prestitched input needs a channel named `DAPI`.** `--nuclear-pattern` is not
+  exposed as a parameter.
 
 ### Known limitations
 
@@ -176,9 +189,8 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   Use a one-patch crop of exemplar-001: stubs cover the wiring, and Cellpose-SAM takes 40 to
   55 min per 1600 px patch under Rosetta. See [CONTRIBUTING](docs/CONTRIBUTING.md#on-the-mac).
 - **`bin/set_channel_names.py` element selection is untested.** Make it a pure function; test it.
-- **nf-metro.** 2.1.0 renders the `ASHLAR -->|backsub| QC_METRICS` edge that 1.1.0 could not,
-  but fails on the current map without it. Add the edge, pin 2.1.0, check the SVG by eye. Until
-  then re-render with `nf-metro==1.1.0`, which is pinned nowhere.
+- **nf-metro.** The map needs 2.1.0, pinned only in CONTRIBUTING. Decide whether the
+  pre-subtraction edge into QC belongs on the map.
 - **Offer upstream to sopa** (decisions.md, Segmentation): `--image-key` for staining
   segmentation, then drop `bin/segment_patch.py`; hole-aware rasterize.
 
