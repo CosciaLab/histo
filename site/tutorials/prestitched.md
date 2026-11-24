@@ -53,9 +53,6 @@ use_preprocessing: false
 
 use_cellpose: true
 cellpose_channels: "CD45 DAPI"
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 
 patch_width_pixel: 5000
 ```
@@ -67,8 +64,6 @@ patch_width_pixel: 5000
   [Channel projection](../modules/projection.md) is not available here: it needs the marker
   sheet. For [InstanSeg](../modules/instanseg.md), set
   [`instanseg_channels`](../inputs/parameters-full.md#instanseg_channels) for the same reason.
-- The three thresholds are Cellpose's own values. Left unset, sopa's defaults tile the whole
-  tissue into cells, whatever the image shows.
 - `patch_width_pixel: 5000` assumes 25 000 × 25 000 pixels: 25 patches. See
   [Patch size](../inputs/parameters.md#patch-size).
 

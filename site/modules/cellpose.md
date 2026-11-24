@@ -20,12 +20,13 @@ retraining.
 - [`segment_cells`](../inputs/parameters-full.md#segment_cells) and
   [`segment_nuclei`](../inputs/parameters-full.md#segment_nuclei): cells, nuclei or both.
 - [`flow_threshold`](../inputs/parameters-full.md#flow_threshold) and
-  [`cellprob_threshold`](../inputs/parameters-full.md#cellprob_threshold). Set them to Cellpose's
-  own values, `0.4` and `0`, with [`clip_limit`](../inputs/parameters-full.md#clip_limit) `0`:
-  left unset, sopa's values (2, -6 and contrast enhancement 0.2) tile the tissue into cells.
+  [`cellprob_threshold`](../inputs/parameters-full.md#cellprob_threshold), default `0.6` and
+  `-1`, set by the [segmentation benchmark](../benchmark.md). sopa's values, 2 and -6, tile the
+  tissue into cells.
 - Before the model: [`clip_limit`](../inputs/parameters-full.md#clip_limit) and
   [`clahe_kernel_size`](../inputs/parameters-full.md#clahe_kernel_size) (contrast enhancement),
-  [`gaussian_sigma`](../inputs/parameters-full.md#gaussian_sigma) (smoothing).
+  [`gaussian_sigma`](../inputs/parameters-full.md#gaussian_sigma) (smoothing). Both off by
+  default: in the benchmark each lowered F1.
 - [`pretrained_model`](../inputs/parameters-full.md#pretrained_model) and
   [`cellpose_kwargs`](../inputs/parameters-full.md#cellpose_kwargs) for other Cellpose options.
 - [`use_gpu`](../inputs/parameters-full.md#use_gpu): segment on a GPU; see

@@ -81,9 +81,6 @@ use_backsub: true
 
 use_cellpose: true
 cellpose_channels: "CD45 DNA_1"
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 
 patch_width_pixel: 8000
 ```
@@ -93,8 +90,6 @@ patch_width_pixel: 8000
 - [`cellpose_channels`](../inputs/parameters-full.md#cellpose_channels) gives
   [Cellpose](../modules/cellpose.md) one membrane marker and the DNA stain, nuclear stain last.
   A channel that `remove` drops cannot be used here; the run stops at the start if it is.
-- The three thresholds are Cellpose's own values. Left unset, sopa's defaults tile the whole
-  tissue into cells, whatever the image shows.
 - `patch_width_pixel: 8000` assumes a stitched image of about 100 000 × 60 000 pixels: about 100
   patches. See [Patch size](../inputs/parameters.md#patch-size).
 

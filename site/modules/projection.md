@@ -21,7 +21,8 @@ only those one marker labels.
 - [`projection_low_percentile`](../inputs/parameters-full.md#projection_low_percentile) and
   [`projection_high_percentile`](../inputs/parameters-full.md#projection_high_percentile),
   default 1 and 99.9: each marker's brightness range.
-- [`projection_sigma`](../inputs/parameters-full.md#projection_sigma), default 1 px: smoothing.
+- [`projection_sigma`](../inputs/parameters-full.md#projection_sigma), default 0: smoothing, off
+  since the [segmentation benchmark](../benchmark.md).
 - The [marker sheet](../inputs/markers.md) decides which marker goes where; see below.
 
 More in [Many markers with Cellpose](../inputs/parameters.md#many-markers-with-cellpose).
@@ -34,7 +35,7 @@ More in [Many markers with Cellpose](../inputs/parameters.md#many-markers-with-c
 For each of the two output images, `nuclear` and `cell`, every marker in its group is:
 
 1. rescaled to 0–1 between its own low and high percentile, with pixels of exactly 0 left out;
-2. smoothed with a Gaussian;
+2. smoothed with a Gaussian, if `projection_sigma` is above 0;
 3. combined with the group's other markers, pixel by pixel, by maximum (or mean).
 
 The groups come from the marker sheet's `segmentation` column if any row has a value. Otherwise
@@ -85,6 +86,8 @@ with metrics as support; there was no ground truth.
   floor below the background, and one dim marker then lit up the glass.
 - **Nuclear is the first `dna` channel**: the stitching reference, the best aligned, and free of
   the cell loss later cycles show.
+- **No smoothing.** The later [segmentation benchmark](../benchmark.md), against manual outlines,
+  found that any `projection_sigma` lowered F1.
 
 % source: docs/decisions.md#channel-projection
 
