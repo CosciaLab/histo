@@ -19,9 +19,9 @@ import tifffile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from segmentation_benchmark.preprocess import pad_to, project, sopa_preprocess, unpad  # noqa: E402
+from segmentation_benchmark.preprocess import cell_channels, pad_to, project, sopa_preprocess, unpad  # noqa: E402
 from segmentation_benchmark.scoring import score  # noqa: E402
-from segmentation_benchmark.settings import build_settings  # noqa: E402
+from segmentation_benchmark.settings import GRIDS  # noqa: E402
 
 SCOPES = {
     "raw": ["crossplatform", "tonsil"],
@@ -58,12 +58,14 @@ def prepare_input(image: np.ndarray, crop: pd.Series, setting: pd.Series) -> tup
     if crop["dataset"] == "tissuenet":  # its projection factors do not vary
         projected = project(image, nuclear, "max", 1, 0)
     else:
+        names = str(crop["channels"]).split("|")
         projected = project(
             image,
             nuclear,
             setting["projection_method"],
             setting["low_percentile"],
             setting["projection_sigma"],
+            cell_idx=cell_channels(names, nuclear, setting["cell_channels"]),
         )
     if setting["target"] == "nuclei":
         projected, channels = projected[1:2], ["nuclear"]
@@ -79,13 +81,14 @@ def run(
     gpu: bool = False,
     limit_crops: int | None = None,
     dataset: str | None = None,
+    grid: str = "round1",
 ) -> None:
     partial = bool(limit_crops or dataset)  # partial runs must never look complete
     final = out / "results" / (f"{index}.partial.csv" if partial else f"{index}.csv")
     if not partial and final.exists():
         print(f"setting {index}: {final} exists, skipping", flush=True)
         return
-    setting = build_settings().set_index("index").loc[index]
+    setting = GRIDS[grid]().set_index("index").loc[index]
     crops = pd.read_csv(data / "crops.csv", dtype={"crop": str})
     crops = crops[crops["dataset"].isin(SCOPES[setting["scope"]])]
     if dataset:
@@ -148,8 +151,9 @@ def main() -> None:
     p.add_argument("--gpu", action="store_true")
     p.add_argument("--limit-crops", type=int)
     p.add_argument("--dataset", choices=["crossplatform", "tonsil", "tissuenet"])
+    p.add_argument("--grid", choices=GRIDS, default="round1")
     a = p.parse_args()
-    run(a.data, a.setting_index, a.out, a.gpu, a.limit_crops, a.dataset)
+    run(a.data, a.setting_index, a.out, a.gpu, a.limit_crops, a.dataset, a.grid)
 
 
 if __name__ == "__main__":

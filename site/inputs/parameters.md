@@ -81,17 +81,14 @@ channels:
 ```yaml
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 ```
 
 - [`use_projection`](parameters-full.md#use_projection) builds the nuclear channel from the first
   `dna` channel and the cell channel from every `marker` whose compartment is `membrane` or
   `cytoplasm`. To choose by hand, use the marker sheet's
   [`segmentation` column](markers.md#optional-columns).
-- **Keep the three thresholds.** Without them, Cellpose runs with settings that divide the whole
-  tissue into cells, whatever the image shows.
+- The default grouping leaves autofluorescence and nuclear markers out of the cell channel, as
+  the [segmentation benchmark](../benchmark.md) favours. Keep them out when choosing by hand.
 - After the run, open `qc/{sample}_projection.png`, what Cellpose saw. If one marker is listed
   under `dominant` in `qc/{sample}_projection.json`, it drowns the others: set its
   `segmentation` to `none` and run again.

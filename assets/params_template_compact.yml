@@ -75,7 +75,7 @@
 # projection_method: "max"          # How the rescaled markers of a channel are combined. max keeps markers that stain only one cell type at full brightness; mean averages out noise but dims them. One of: max, mean.
 # projection_low_percentile: 1.0    # Per-marker percentile mapped to 0 before combining.
 # projection_high_percentile: 99.9  # Per-marker percentile mapped to 1 before combining.
-# projection_sigma: 1.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
+# projection_sigma: 0.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
 
 ## Segmentation targets
 # segment_cells: true   # Segment whole cells with each enabled method: shapes `{method}_cells`.

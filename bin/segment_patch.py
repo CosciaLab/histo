@@ -21,12 +21,13 @@ SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTAT
 METHOD_BUILDERS = {"cellpose": "cellpose_patch", "instanseg": "instanseg_patch"}
 # The builders name the device choice differently.
 DEVICE_ARGUMENT = {"cellpose": "gpu", "instanseg": "device"}
-# Defaults copied from sopa 2.3.0 cli/segmentation.py, so unset params segment as the CLI does.
+# Defaults for unset params: sopa 2.3.0 cli/segmentation.py, except Cellpose's thresholds and
+# preprocessing, which come from tools/segmentation_benchmark (docs/decisions.md#segmentation-benchmark).
 METHOD_DEFAULTS = {
     # cli/segmentation.py:18-27 (diameter has no default; gpu is set by --device)
     "cellpose": {
-        "flow_threshold": 2,
-        "cellprob_threshold": -6,
+        "flow_threshold": 0.6,  # ours; sopa 2
+        "cellprob_threshold": -1,  # ours; sopa -6
         "model_type": "cyto3",
         "pretrained_model": "cpsam_v2",  # ours, not sopa's (None)
         "gpu": False,
@@ -41,7 +42,8 @@ METHOD_DEFAULTS = {
 }
 SEGMENTATION_DEFAULTS = {
     # cli/segmentation.py:28-39 (cellpose) and :160-172 (instanseg)
-    "cellpose": {"min_area": 0, "clip_limit": 0.2, "clahe_kernel_size": None, "gaussian_sigma": 1},
+    # clip_limit and gaussian_sigma are ours; sopa 0.2 and 1
+    "cellpose": {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0},
     "instanseg": {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0},
 }
 

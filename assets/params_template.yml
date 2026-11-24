@@ -435,13 +435,13 @@
 ## Image preprocessing
 ## =============================================================================
 ## Image preprocessing applied before segmentation (Cellpose, InstanSeg).
-## Unset: sopa's per-method defaults (they differ for InstanSeg).
+## Unset: none for either method.
 
 ## -----------------------------------------------------------------------------
 ## gaussian_sigma
 ## -----------------------------------------------------------------------------
 ##     Parameter for scipy gaussian_filter (applied before running the
-##     segmentation method)
+##     segmentation method). Unset: 0, no smoothing.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # gaussian_sigma: null
@@ -450,7 +450,7 @@
 ## clip_limit
 ## -----------------------------------------------------------------------------
 ##     Parameter for skimage.exposure.equalize_adapthist (applied before
-##     running the segmentation method)
+##     running the segmentation method). Unset: 0, no CLAHE.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # clip_limit: null
@@ -525,7 +525,7 @@
 ##     0 for none.
 ##     Type: number
 ## -----------------------------------------------------------------------------
-# projection_sigma: 1.0
+# projection_sigma: 0.0
 
 
 ## =============================================================================
@@ -580,7 +580,8 @@
 ## -----------------------------------------------------------------------------
 ## flow_threshold
 ## -----------------------------------------------------------------------------
-##     Cellpose `flow_threshold` parameter
+##     Cellpose `flow_threshold` parameter. Unset: 0.6, from the segmentation
+##     benchmark.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # flow_threshold: null
@@ -588,7 +589,8 @@
 ## -----------------------------------------------------------------------------
 ## cellprob_threshold
 ## -----------------------------------------------------------------------------
-##     Cellpose `cellprob_threshold` parameter
+##     Cellpose `cellprob_threshold` parameter. Unset: -1, from the
+##     segmentation benchmark.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # cellprob_threshold: null

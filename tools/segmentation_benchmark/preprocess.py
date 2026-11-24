@@ -15,6 +15,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "bin"))
 
 from project_channels import combine, percentile_bounds, rescale  # noqa: E402
 
+# Nuclear-localised markers in the Cross-platform and CODEX panels; left out of `membrane`.
+NUCLEAR_MARKERS = {"ki67", "foxp3", "tcf1", "tox", "mum1", "pax8", "p63"}
+SELECTIONS = ("all", "markers", "membrane")
+
+
+def _marker(name: str) -> str:
+    """'Foxp3 (Opal 620)' -> 'foxp3'."""
+    return name.split("(")[0].strip().lower().replace("-", "")
+
+
+def cell_channels(names: list[str], nuclear: int, selection: str) -> list[int]:
+    """Indices combined into the cell plane: every non-DNA channel, minus autofluorescence
+    (`markers`), minus nuclear-localised markers too (`membrane`)."""
+    if selection not in SELECTIONS:
+        raise ValueError(f"unknown cell channel selection {selection!r}; expected one of {SELECTIONS}")
+    keep = []
+    for i, name in enumerate(names):
+        marker = _marker(name)
+        if i == nuclear:
+            continue
+        if selection != "all" and marker.startswith("autofluorescence"):
+            continue
+        if selection == "membrane" and marker in NUCLEAR_MARKERS:
+            continue
+        keep.append(i)
+    if not keep:
+        raise ValueError(f"no cell channels left for selection {selection!r} in {names}")
+    return keep
+
 
 def _group(planes: np.ndarray, method: str, low: float, high: float, sigma: float) -> np.ndarray:
     """One projected plane as uint16; flat channels are left out, none left gives zeros."""
@@ -33,10 +62,16 @@ def _group(planes: np.ndarray, method: str, low: float, high: float, sigma: floa
 
 
 def project(
-    image: np.ndarray, nuclear: int, method: str, low: float, sigma: float, high: float = 99.9
+    image: np.ndarray,
+    nuclear: int,
+    method: str,
+    low: float,
+    sigma: float,
+    high: float = 99.9,
+    cell_idx: list[int] | None = None,
 ) -> np.ndarray:
-    """(2, Y, X) uint16 [cell, nuclear]; cell is every channel but `nuclear`."""
-    cells = np.delete(image, nuclear, axis=0)
+    """(2, Y, X) uint16 [cell, nuclear]; cell is `cell_idx`, by default every channel but `nuclear`."""
+    cells = np.delete(image, nuclear, axis=0) if cell_idx is None else image[cell_idx]
     return np.stack(
         [_group(cells, method, low, high, sigma), _group(image[[nuclear]], method, low, high, sigma)]
     )

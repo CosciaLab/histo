@@ -192,21 +192,22 @@ Cellpose takes a nuclear and a cell channel, but an mIF panel spreads cell bound
 markers, each on some cell types only. `--use_projection` builds the two channels from the marker
 sheet (see `segmentation` above) and segments those; quantification still reads every marker.
 
-Each marker is rescaled between its 1st and 99.9th percentile (zero padding ignored), smoothed with
-σ = 1 px, then combined per channel by maximum. Maximum keeps a marker found on one cell type at
-full brightness; `projection_method: mean` dims it and loses those cells. On hazy raw images,
+Each marker is rescaled between its 1st and 99.9th percentile (zero padding ignored), then
+combined per channel by maximum. Maximum keeps a marker found on one cell type at full
+brightness; `projection_method: mean` dims it and loses those cells. On hazy raw images,
 `projection_low_percentile: 50` removes the haze from the cell channel.
 
-**Set the Cellpose thresholds when projecting.** Unset, sopa's `flow_threshold: 2`,
-`cellprob_threshold: -6` and CLAHE (`clip_limit: 0.2`) tile the whole tissue into cells whatever
-the image shows. Cellpose's own values follow the membranes:
+**The Cellpose defaults suit projection.** `flow_threshold: 0.6`, `cellprob_threshold: -1`, no
+CLAHE and no smoothing come from a
+[benchmark](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#segmentation-benchmark)
+against manual outlines. sopa's own values (2, -6, CLAHE 0.2) tile the whole tissue into cells
+whatever the image shows. The default cell channel already leaves out autofluorescence and
+nuclear markers, which the benchmark favoured; keep them out when you set the `segmentation`
+column.
 
 ```yaml
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 ```
 
 Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in

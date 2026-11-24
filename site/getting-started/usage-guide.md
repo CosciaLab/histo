@@ -113,9 +113,6 @@ outdir: /data/myproject/results
 
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 
 segment_nuclei: true
 patch_width_pixel: 3000

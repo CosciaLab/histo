@@ -52,9 +52,6 @@ outdir: /path/to/results/exemplar-001-both
 
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 
 use_instanseg: true
 pixel_size: 0.65
@@ -67,8 +64,6 @@ patch_width_pixel: 1500
   built from the marker sheet ([Channel projection](../modules/projection.md)): `DNA_6` as
   nuclear, and every `marker` whose `channel_compartment` is `membrane` or `cytoplasm` as cell.
   `FOXP3` is nuclear, so it stays out.
-- The three thresholds are Cellpose's own values. Left unset, sopa's defaults tile the whole
-  tissue into cells, whatever the image shows.
 - [`segment_nuclei`](../inputs/parameters-full.md#segment_nuclei) adds nuclei to the cells.
   Each nucleus is then [linked](../modules/linking.md) to its cell, and the cytoplasm is the cell
   minus its nuclei.

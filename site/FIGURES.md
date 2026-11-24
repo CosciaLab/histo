@@ -15,6 +15,7 @@ Paper figures are reused only under CC BY 4.0, checked on the publisher page.
 
 - modules/tiling: `images/modules/tiling.svg` — two overlapping patches and a resolved cell, drawn for this site
 - modules/linking: `images/modules/linking.svg` — a linked and an unlinked nucleus, drawn for this site
+- benchmark: `images/benchmark/old-vs-new.png`, `images/benchmark/thresholds.png` — from the benchmark results, `scripts/site_figures.py` in the lab's Segmentation_Benchmark folder
 
 ## Slots
 

@@ -442,3 +442,196 @@ def test_vectra_dapi_methods_disagree_skips_crop(tmp_path):
 
     Image.fromarray((img[1] * 255).astype(np.uint8)).save(tmp_path / "x-Crop_Dapi_Png.png")
     assert _vectra_nuclear(img, tmp_path, []) == (1, "agree")
+
+
+def _imagej_tif(path, info):
+    import tifffile
+
+    tifffile.imwrite(
+        path, np.zeros((3, 8, 8), np.float32), imagej=True, metadata={"axes": "CYX", "Info": info}
+    )
+
+
+def test_vectra_channel_names_from_imagej_info(tmp_path):
+    from segmentation_benchmark.prepare import vectra_channel_names
+
+    _imagej_tif(
+        tmp_path / "a.tif",
+        "Foo = 1\nName #1 = CD8 (Opal 650)\nName #2 = Hoechst (DAPI)\nName #3 = Autofluorescence\n",
+    )
+    assert vectra_channel_names(tmp_path / "a.tif") == [
+        "CD8 (Opal 650)",
+        "Hoechst (DAPI)",
+        "Autofluorescence",
+    ]
+    _imagej_tif(tmp_path / "b.tif", "Name #1 = CD8\nName #3 = DAPI\n")  # gap: not trusted
+    assert vectra_channel_names(tmp_path / "b.tif") is None
+    _imagej_tif(tmp_path / "c.tif", "no names here")
+    assert vectra_channel_names(tmp_path / "c.tif") is None
+
+
+def test_is_dna_name():
+    from segmentation_benchmark.prepare import is_dna_name
+
+    assert is_dna_name("DAPI") and is_dna_name("Hoechst (DAPI)") and is_dna_name("DAPI1")
+    assert not is_dna_name("CD8 (Opal 650)") and not is_dna_name("Autofluorescence")
+
+
+P01 = "GITR (Opal 520)|IDO (Opal 570)|Ki67 (Opal 540)|Foxp3 (Opal 620)|CD8 (Opal 650)|DAPI|panCK (Opal 690)|Autofluorescence"
+
+
+@pytest.mark.parametrize(
+    ("selection", "expected"),
+    [("all", [0, 1, 2, 3, 4, 6, 7]), ("markers", [0, 1, 2, 3, 4, 6]), ("membrane", [0, 1, 4, 6])],
+)
+def test_cell_channel_selection(selection, expected):
+    from segmentation_benchmark.preprocess import cell_channels
+
+    assert cell_channels(P01.split("|"), 5, selection) == expected
+
+
+def test_cell_channel_selection_rejects_unknown_and_empty():
+    from segmentation_benchmark.preprocess import cell_channels
+
+    with pytest.raises(ValueError, match="selection"):
+        cell_channels(["CD8", "DAPI"], 1, "nope")
+    with pytest.raises(ValueError, match="no cell channels"):
+        cell_channels(["Ki67", "DAPI", "Autofluorescence"], 1, "membrane")
+
+
+def test_project_uses_only_selected_channels():
+    from segmentation_benchmark.preprocess import project
+
+    rng = np.random.default_rng(0)
+    image = rng.random((3, 32, 32)).astype(np.float32)  # [marker, DAPI, autofluorescence]
+    image[2, 5, 5] = 100.0  # bright only in the autofluorescence channel
+    every = project(image, 1, "max", 1, 0)
+    marker_only = project(image, 1, "max", 1, 0, cell_idx=[0])
+    assert every[0, 5, 5] == 65535
+    assert marker_only[0, 5, 5] < 65535
+    np.testing.assert_array_equal(every[1], marker_only[1])
+
+
+# --- round 2 --------------------------------------------------------------------------------
+
+
+def test_round2_layout():
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    assert len(s) == 307 and list(s["index"]) == list(range(307))
+    blocks = s.groupby(["target", "scope", "cell_channels", "clip_limit"], sort=False).size()
+    assert blocks.to_dict() == {
+        ("cells", "raw", "markers", 0.0): 56,
+        ("cells", "raw", "all", 0.0): 56,
+        ("cells", "raw", "membrane", 0.0): 56,
+        ("cells", "tissuenet", "markers", 0.0): 56,
+        ("nuclei", "all", "markers", 0.0): 56,
+        ("cells", "raw", "markers", 0.01): 9,
+        ("cells", "tissuenet", "markers", 0.01): 9,
+        ("nuclei", "all", "markers", 0.01): 9,
+    }
+    fixed = s[["projection_method", "low_percentile", "projection_sigma", "gaussian_sigma"]]
+    assert (fixed.drop_duplicates().values.tolist()) == [["max", 1, 0, 0]]
+    assert not s.drop(columns="index").duplicated().any()
+
+
+def test_round2_keeps_round1_pairs_in_every_block():
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    for _, block in s[s["clip_limit"] == 0].groupby(["target", "scope", "cell_channels"]):
+        pairs = set(zip(block["flow_threshold"], block["cellprob_threshold"], strict=True))
+        assert {(2, -6), (0.4, 0)} <= pairs
+
+
+def test_committed_round2_csv_matches():
+    from segmentation_benchmark.settings import build_round2
+
+    committed = pd.read_csv(Path(settings.__file__).with_name("settings_round2.csv"))
+    pd.testing.assert_frame_equal(committed, build_round2(), check_dtype=False)
+
+
+def test_round1_rows_combine_all_channels():
+    assert (build_settings()["cell_channels"] == "all").all()
+
+
+def test_run_uses_round2_grid_and_channel_selection(bench, monkeypatch):
+    run, data, out, _ = bench
+    seen = []
+    real = run.project
+
+    def spy(image, nuclear, *args, cell_idx=None, **kwargs):
+        seen.append(cell_idx)
+        return real(image, nuclear, *args, cell_idx=cell_idx, **kwargs)
+
+    monkeypatch.setattr(run, "project", spy)
+    crops = pd.read_csv(data / "crops.csv")
+    crops["channels"] = "DAPI|CD8|Autofluorescence"
+    crops.to_csv(data / "crops.csv", index=False)
+    run.run(data, 0, out, grid="round2")  # cells, raw, markers
+    assert seen == [[1], [1]]
+    assert (out / "results" / "0.csv").exists()
+
+
+def _threshold_table(f1):
+    """{key: {(flow, prob): f1}} -> long table as report_round2.pick expects."""
+    return pd.DataFrame(
+        [
+            {"key": key, "flow_threshold": flow, "cellprob_threshold": prob, "mean_f1": v}
+            for key, by_pair in f1.items()
+            for (flow, prob), v in by_pair.items()
+        ]
+    )
+
+
+def test_pick_minimises_worst_shortfall():
+    from segmentation_benchmark.report_round2 import pick
+
+    table = _threshold_table(
+        {
+            "a": {(2, -6): 0.90, (0.4, 0): 0.50, (1, -2): 0.85},
+            "b": {(2, -6): 0.40, (0.4, 0): 0.80, (1, -2): 0.75},
+        }
+    )
+    p = pick(table)
+    assert p["pair"] == [1, -2]  # worst shortfall 0.05, against 0.40 for either corner
+    assert p["worst_shortfall"] == pytest.approx(0.05)
+    assert p["best"]["a"] == {"pair": [2, -6], "f1": 0.90}
+    assert p["missing_pairs"] == []
+
+
+def test_pick_ignores_pairs_missing_a_key():
+    from segmentation_benchmark.report_round2 import pick
+
+    table = _threshold_table({"a": {(1, 0): 0.9, (2, 0): 0.5}, "b": {(2, 0): 0.5}})
+    p = pick(table)
+    assert p["pair"] == [2, 0] and p["missing_pairs"] == [[1, 0]]
+
+
+def test_round2_report_writes_outputs(tmp_path):
+    from segmentation_benchmark.report_round2 import build_report
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    rng = np.random.default_rng(0)
+    rows = []
+    for _, r in s.iterrows():
+        datasets = {"raw": ["crossplatform", "tonsil"], "tissuenet": ["tissuenet"]}.get(
+            r["scope"], ["crossplatform", "tonsil", "tissuenet"]
+        )
+        for d in datasets:
+            for c in range(2):
+                platform = "Vectra" if d == "crossplatform" else "unknown"
+                f1 = rng.random()
+                rows.append({"index": r["index"], "target": r["target"], "dataset": d, "crop": f"c{c}",
+                             "platform": platform, "f1": f1, "mean_ap": f1 / 2})  # fmt: skip
+    results = tmp_path / "results"
+    results.mkdir()
+    for index, g in pd.DataFrame(rows).groupby("index"):
+        g.to_csv(results / f"{index}.csv", index=False)
+    out = tmp_path / "report"
+    build_report(results, out)
+    for name in ["summary_round2.csv", "pick.json", "channels.csv", "clahe.csv", "heatmaps.png",
+                 "channels.png", "clahe.png"]:  # fmt: skip
+        assert (out / name).exists(), name
