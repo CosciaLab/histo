@@ -9,11 +9,12 @@ Findings from inspecting the data (Cross-platform = Aleynick et al. 2023, Sci Da
   share boundary pixels, so 5-15% of foreground is covered twice; the later ROI wins and the
   share is reported. The dataset's own *_Mask_Png.png draws cells with a 1-px gap, so it
   matches our fill in the interior only (see the report for agreement numbers).
-- Vectra crop TIFFs are (8, 400, 400) float32 with no channel names; the xlsx lists markers by
-  colour in an order that is not the file order. DAPI is blue in every panel, so it is the
-  channel best correlated with the pure-blue part (B - max(R, G)) of the crop's own
-  *_Cell_Png.png composite; *_Dapi_Png.png is only a cross-check (fallback if no composite).
-  Other channels are named ch<i>. P05's CD40L is poor quality per the xlsx; kept. 0.5 um/px.
+- Vectra crop TIFFs are (8, 400, 400) float32 ImageJ hyperstacks; the inForm channel names
+  (marker, Opal dye, DAPI or Hoechst, Autofluorescence) are in the ImageJ Info field as
+  `Name #k = ...`. DAPI is found independently: the channel best correlated with the pure-blue
+  part (B - max(R, G)) of the crop's own *_Cell_Png.png composite; *_Dapi_Png.png is only a
+  cross-check. A crop whose DAPI channel is not named DAPI/Hoechst is skipped. Without names,
+  channels are ch<i>. P05's CD40L is poor quality per the xlsx; kept. 0.5 um/px.
 - CODEX crop TIFFs are (T, 4, 400, 400) uint16, T cycles x 4 channels; flattening t*4+c gives
   the "Channel Name" order of the xlsx Markers sheet. We keep DAPI1 (index 0) and the real
   markers and drop Blank/Empty channels and the repeat DAPI cycles, so "every non-DNA channel"
@@ -46,6 +47,7 @@ TISSUENET_TEST = "tissuenet_v1.1_test.npz"
 TISSUENET_MONTAGE_MIN_CELLS = 20
 DAPI_MIN_BLUE_CORR = 0.5
 DAPI_MIN_MARGIN = 0.1
+DNA_NAMES = ("dapi", "hoechst")
 COLUMNS = [
     "dataset", "crop", "platform", "tissue", "pixel_size_um", "channels", "nuclear",
     "height", "width", "montage", "n_cells", "n_nuclei",
@@ -203,6 +205,20 @@ def _vectra_nuclear(img: np.ndarray, folder: Path, skipped: list) -> tuple[int |
     return index, "agree"
 
 
+def vectra_channel_names(tif: Path) -> list[str] | None:
+    """inForm channel names from the ImageJ Info field, or None when absent or not 1..N."""
+    with tifffile.TiffFile(tif) as t:
+        info = (t.imagej_metadata or {}).get("Info", "")
+    found = {int(k): v.strip() for k, v in re.findall(r"^Name #(\d+) = (.*)$", info, flags=re.M)}
+    if not found or sorted(found) != list(range(1, len(found) + 1)):
+        return None
+    return [found[k] for k in sorted(found)]
+
+
+def is_dna_name(name: str) -> bool:
+    return name.strip().lower().startswith(DNA_NAMES)
+
+
 def read_crossplatform(root: Path, skipped: list | None = None):
     """Yield (row, image, cells, nuclei) per Vectra/CODEX crop; skips are appended to `skipped`."""
     root = Path(root)
@@ -233,8 +249,13 @@ def read_crossplatform(root: Path, skipped: list | None = None):
             nuclear, check = _vectra_nuclear(img, folder, skipped)
             if nuclear is None:
                 continue
-            names = [f"ch{i}" for i in range(len(img))]
-            names[nuclear] = "DAPI"
+            names = vectra_channel_names(tif)
+            if names is None or len(names) != len(img):
+                names = [f"ch{i}" for i in range(len(img))]
+                names[nuclear] = "DAPI"
+            elif not is_dna_name(names[nuclear]):
+                skipped.append((folder.name, f"DAPI found at ch{nuclear}, which is named {names[nuclear]!r}"))
+                continue
         shape = img.shape[-2:]
         cells, overlap_c = _read_rois(cell_zip, shape)
         nuclei, overlap_n = _read_rois(dapi_zip, shape)

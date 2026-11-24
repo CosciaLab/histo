@@ -442,3 +442,36 @@ def test_vectra_dapi_methods_disagree_skips_crop(tmp_path):
 
     Image.fromarray((img[1] * 255).astype(np.uint8)).save(tmp_path / "x-Crop_Dapi_Png.png")
     assert _vectra_nuclear(img, tmp_path, []) == (1, "agree")
+
+
+def _imagej_tif(path, info):
+    import tifffile
+
+    tifffile.imwrite(
+        path, np.zeros((3, 8, 8), np.float32), imagej=True, metadata={"axes": "CYX", "Info": info}
+    )
+
+
+def test_vectra_channel_names_from_imagej_info(tmp_path):
+    from segmentation_benchmark.prepare import vectra_channel_names
+
+    _imagej_tif(
+        tmp_path / "a.tif",
+        "Foo = 1\nName #1 = CD8 (Opal 650)\nName #2 = Hoechst (DAPI)\nName #3 = Autofluorescence\n",
+    )
+    assert vectra_channel_names(tmp_path / "a.tif") == [
+        "CD8 (Opal 650)",
+        "Hoechst (DAPI)",
+        "Autofluorescence",
+    ]
+    _imagej_tif(tmp_path / "b.tif", "Name #1 = CD8\nName #3 = DAPI\n")  # gap: not trusted
+    assert vectra_channel_names(tmp_path / "b.tif") is None
+    _imagej_tif(tmp_path / "c.tif", "no names here")
+    assert vectra_channel_names(tmp_path / "c.tif") is None
+
+
+def test_is_dna_name():
+    from segmentation_benchmark.prepare import is_dna_name
+
+    assert is_dna_name("DAPI") and is_dna_name("Hoechst (DAPI)") and is_dna_name("DAPI1")
+    assert not is_dna_name("CD8 (Opal 650)") and not is_dna_name("Autofluorescence")
