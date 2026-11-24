@@ -42,17 +42,11 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 ### 3.3: segmentation defaults
 
-1. **`cpsam_v2`.** cellpose 4.2.1.1 defaults to it ("fewer spurious masks in low-contrast
-   regions"), but sopa passes `cpsam`, the only weights in `josenimo/sopa:2.3.0`. Bake both
-   in, select with `pretrained_model`, compare on exemplar-001 (or with item 2). ~1 day.
-2. **Preprocessing benchmark with ground truth**, on `cpsam_v2` (item 1). Score
-   permutations of the steps before the model: combining (max, sum), smoothing
-   (`projection_sigma`, `gaussian_sigma`), normalisation and CLAHE, and thresholds (sopa's,
-   Cellpose's), against annotated cells: TissueNet (mIF, nuclear and whole-cell labels) and a
-   few in-house crops. Extends `tools/benchmark_projection.py`; on Apple MPS one setting takes
-   ~1.5 min per exemplar-001. Decides the defaults and item 3. 1–2 weeks.
-3. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
-   and cytoplasm. The cellpose docs say a third channel needs retraining; item 2 tests it first.
+1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
+   and cytoplasm. The cellpose docs say a third channel needs retraining; test it with
+   `tools/segmentation_benchmark` first.
+2. **Nuclear smoothing at the new thresholds.** `projection_sigma: 1` helped nuclei at 0.4 / 0
+   in the benchmark but was not tested at 0.6 / -1: two settings on the cluster.
 
 ### 3.4 onward: learned features
 
@@ -139,8 +133,8 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
    `clip_limit`, and with projection max or sum. An HTML sheet, settings by crops, shows each
    row's cell count, median area and nuclei inside cells, and a params snippet to paste; a rerun
    with `-resume` then reuses preprocessing. Works on copied crops, never the run's store. GPU
-   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements 3.3 item 2, which sets
-   the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
+   only: 3 × 3 × 2 settings on 5 crops is ~30 min on an A40. Complements the segmentation benchmark,
+   which set the defaults. Starts from `tools/benchmark_projection.py`. 1–2 weeks.
 7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
    channel across all cores, so a core with no positive cells is not stretched to [0, 1].
 8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.

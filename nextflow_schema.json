@@ -327,16 +327,16 @@
         "image_preprocessing": {
             "title": "Image preprocessing",
             "type": "object",
-            "description": "Image preprocessing applied before segmentation (Cellpose, InstanSeg). Unset: sopa's per-method defaults (they differ for InstanSeg).",
+            "description": "Image preprocessing applied before segmentation (Cellpose, InstanSeg). Unset: none for either method.",
             "default": "",
             "properties": {
                 "gaussian_sigma": {
                     "type": "number",
-                    "description": "Parameter for scipy gaussian_filter (applied before running the segmentation method)"
+                    "description": "Parameter for scipy gaussian_filter (applied before running the segmentation method). Unset: 0, no smoothing."
                 },
                 "clip_limit": {
                     "type": "number",
-                    "description": "Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method)"
+                    "description": "Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method). Unset: 0, no CLAHE."
                 },
                 "clahe_kernel_size": {
                     "type": "number",
@@ -383,7 +383,7 @@
                 },
                 "projection_sigma": {
                     "type": "number",
-                    "default": 1.0,
+                    "default": 0.0,
                     "minimum": 0,
                     "description": "Gaussian smoothing in pixels applied to each marker before combining; 0 for none."
                 }
@@ -427,11 +427,11 @@
                 },
                 "flow_threshold": {
                     "type": "number",
-                    "description": "Cellpose `flow_threshold` parameter"
+                    "description": "Cellpose `flow_threshold` parameter. Unset: 0.6, from the segmentation benchmark."
                 },
                 "cellprob_threshold": {
                     "type": "number",
-                    "description": "Cellpose `cellprob_threshold` parameter"
+                    "description": "Cellpose `cellprob_threshold` parameter. Unset: -1, from the segmentation benchmark."
                 },
                 "pretrained_model": {
                     "type": "string",

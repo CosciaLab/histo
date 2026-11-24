@@ -37,11 +37,11 @@ def test_missing_full_image_lists_the_images():
         require_image("img", {"other": None}, "full")
 
 
-def test_cellpose_defaults_follow_sopa_cli_except_model():
+def test_cellpose_defaults_follow_sopa_cli_except_model_and_benchmarked():
     spec = {"method": "cellpose", "channels": ["a"], "method_kwargs": {"diameter": 30}}
     kw = method_arguments(spec)
-    assert kw["flow_threshold"] == 2
-    assert kw["cellprob_threshold"] == -6
+    assert kw["flow_threshold"] == 0.6
+    assert kw["cellprob_threshold"] == -1
     assert kw["model_type"] == "cyto3"
     assert kw["pretrained_model"] == "cpsam_v2"  # ours; sopa's is None
     assert kw["gpu"] is False
@@ -109,7 +109,7 @@ def test_extra_kwargs_must_be_a_dict_literal(text):
 
 def test_segmentation_defaults_per_method():
     cp = segmentation_arguments({"method": "cellpose"})
-    assert cp == {"min_area": 0, "clip_limit": 0.2, "clahe_kernel_size": None, "gaussian_sigma": 1}
+    assert cp == {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0}
     ins = segmentation_arguments({"method": "instanseg", "segmentation_kwargs": {}})
     assert ins == {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0}
 

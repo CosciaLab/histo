@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cellpose uses `cpsam_v2` (cellpose's own default); cell counts shift. `pretrained_model: cpsam`
   restores the old model.
+- Cellpose defaults from a segmentation benchmark against manual outlines: `flow_threshold`
+  0.6, `cellprob_threshold` -1, no CLAHE (`clip_limit` 0), no smoothing (`gaussian_sigma` 0,
+  `projection_sigma` 0). Mean F1 rises from 0.53 to 0.73 on mIF crops; cell counts shift. sopa's
+  old values: `flow_threshold: 2`, `cellprob_threshold: -6`, `clip_limit: 0.2`,
+  `gaussian_sigma: 1`, `projection_sigma: 1`.
 
 ### Deprecated
 

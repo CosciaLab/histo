@@ -311,7 +311,7 @@ def main() -> int:
     p.add_argument("--low-percentile", type=float, default=1.0, help="maps to 0 (default: 1)")
     p.add_argument("--high-percentile", type=float, default=99.9, help="maps to 1 (default: 99.9)")
     p.add_argument(
-        "--sigma", type=float, default=1.0, help="Gaussian sigma in pixels, 0 for none (default: 1)"
+        "--sigma", type=float, default=0.0, help="Gaussian sigma in pixels, 0 for none (default: 0)"
     )
 
     args = ap.parse_args()

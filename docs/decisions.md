@@ -73,9 +73,7 @@ panel (0.35 µm/px, raw). No ground truth; outlines were judged by eye, with met
 - **Low percentile 1.** 50 changed little once zeros were excluded; it helps hazy raw images.
 - **Thresholds matter more than projection.** sopa's `flow_threshold: 2`,
   `cellprob_threshold: -6` and CLAHE 0.2 tile the tissue into cells with or without
-  projection (cells cover 94 to 96% of the crop). Cellpose's 0.4 and 0 with CLAHE off follow
-  membranes. Documented, not defaulted, since changing them would change runs without
-  projection.
+  projection (cells cover 94 to 96% of the crop). The segmentation benchmark set new ones.
 - **Projection over DNA only**, both at Cellpose thresholds, exemplar-001: nuclei inside a cell
   rose from 86% to 99%; CD45-positive pixels inside a cell from 65% to 84%.
 - Cellpose-SAM took about 24 s per 1200 px crop on Apple MPS, against 3 s for `cyto3`.
@@ -113,8 +111,9 @@ benchmarked against `cpsam`.
 ## Segmentation
 
 **One spec per method × target**, built once from params (`segmentationSpecs`), so a new
-method is one more entry. Unset options keep sopa's per-method CLI defaults:
-`StainingSegmentation`'s own would blur and equalise InstanSeg's input.
+method is one more entry. Unset options keep sopa's per-method CLI defaults, except Cellpose's
+thresholds and preprocessing (Segmentation benchmark, below): `StainingSegmentation`'s own would
+blur and equalise InstanSeg's input.
 
 **One writer per store.** `sopa resolve` and `sopa aggregate` write into the store, and parallel
 writers race on its root metadata: last writer wins, silently. So patch, resolve, link and
@@ -151,6 +150,28 @@ Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, a
 the kwargs JSON fails sopa in every patch task.
 
 **StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
+
+## Segmentation benchmark
+
+Cellpose's defaults come from `tools/segmentation_benchmark`: 475 settings of `cpsam_v2` scored
+by F1 at IoU 0.5 against manual outlines. Data: Cross-platform mIF (119 Vectra and 10 CODEX
+crops), TissueNet 1.1 test (1324 tiles) and 10 tonsil crops, partly annotated, used as a check
+only. Deck and results: `3_Projects/Segmentation_Benchmark` (lab share).
+
+- **No smoothing, no CLAHE.** Round 1 (168 settings): `projection_sigma`, `gaussian_sigma` and
+  CLAHE 0.2 each lowered F1, and the smoothings add up; Cellpose-SAM normalises each patch itself.
+  Round 2: CLAHE 0.01 also lost near good thresholds. Max and percentile 1 stay.
+- **`flow_threshold: 0.6`, `cellprob_threshold: -1`.** Round 2 scored 7 × 8 pairs. Flow is flat
+  from 0.6; on cellprob, Cross-platform nuclei want -1 or less and TissueNet nuclei 0 or more.
+  The pair is the one with the smallest largest shortfall from each target's own best, a rule set
+  before the run: within 0.065 of the best for cells and nuclei on both datasets. Separate
+  nuclear thresholds would gain about 0.02 and add two parameters.
+- **Gain.** Cells on Cross-platform 0.53 to 0.73 (128 of 129 crops better), on TissueNet 0.60
+  to 0.87; nuclei 0.42 to 0.80 and 0.39 to 0.76.
+- **Leave autofluorescence out of the cell channel** (+0.012 F1, Vectra only); nuclear markers
+  too (+0.004). The marker sheet already chooses, so this is advice, not code.
+- **Open:** nuclear projection smoothing at -1 is untested (it helped at 0.4 / 0); percentiles
+  were per crop, not per slide.
 
 ## Learned features
 
