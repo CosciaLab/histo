@@ -510,3 +510,65 @@ def test_project_uses_only_selected_channels():
     assert every[0, 5, 5] == 65535
     assert marker_only[0, 5, 5] < 65535
     np.testing.assert_array_equal(every[1], marker_only[1])
+
+
+# --- round 2 --------------------------------------------------------------------------------
+
+
+def test_round2_layout():
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    assert len(s) == 307 and list(s["index"]) == list(range(307))
+    blocks = s.groupby(["target", "scope", "cell_channels", "clip_limit"], sort=False).size()
+    assert blocks.to_dict() == {
+        ("cells", "raw", "markers", 0.0): 56,
+        ("cells", "raw", "all", 0.0): 56,
+        ("cells", "raw", "membrane", 0.0): 56,
+        ("cells", "tissuenet", "markers", 0.0): 56,
+        ("nuclei", "all", "markers", 0.0): 56,
+        ("cells", "raw", "markers", 0.01): 9,
+        ("cells", "tissuenet", "markers", 0.01): 9,
+        ("nuclei", "all", "markers", 0.01): 9,
+    }
+    fixed = s[["projection_method", "low_percentile", "projection_sigma", "gaussian_sigma"]]
+    assert (fixed.drop_duplicates().values.tolist()) == [["max", 1, 0, 0]]
+    assert not s.drop(columns="index").duplicated().any()
+
+
+def test_round2_keeps_round1_pairs_in_every_block():
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    for _, block in s[s["clip_limit"] == 0].groupby(["target", "scope", "cell_channels"]):
+        pairs = set(zip(block["flow_threshold"], block["cellprob_threshold"], strict=True))
+        assert {(2, -6), (0.4, 0)} <= pairs
+
+
+def test_committed_round2_csv_matches():
+    from segmentation_benchmark.settings import build_round2
+
+    committed = pd.read_csv(Path(settings.__file__).with_name("settings_round2.csv"))
+    pd.testing.assert_frame_equal(committed, build_round2(), check_dtype=False)
+
+
+def test_round1_rows_combine_all_channels():
+    assert (build_settings()["cell_channels"] == "all").all()
+
+
+def test_run_uses_round2_grid_and_channel_selection(bench, monkeypatch):
+    run, data, out, _ = bench
+    seen = []
+    real = run.project
+
+    def spy(image, nuclear, *args, cell_idx=None, **kwargs):
+        seen.append(cell_idx)
+        return real(image, nuclear, *args, cell_idx=cell_idx, **kwargs)
+
+    monkeypatch.setattr(run, "project", spy)
+    crops = pd.read_csv(data / "crops.csv")
+    crops["channels"] = "DAPI|CD8|Autofluorescence"
+    crops.to_csv(data / "crops.csv", index=False)
+    run.run(data, 0, out, grid="round2")  # cells, raw, markers
+    assert seen == [[1], [1]]
+    assert (out / "results" / "0.csv").exists()
