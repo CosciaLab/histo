@@ -53,8 +53,9 @@ you" list is the user's decisions; do not reopen them.
 - **Licence.** Only the `sp32` weights. Never copy spora-bench code (CC BY-NC-ND). Upstream
   `virtues` and spora-io are MIT; their functions are called, not copied, except the one test
   reference in Task 4, which cites the commit.
-- **Order.** Task 1 is a gate for Tasks 5 and 11. Tasks 2, 3, 4 and 6 do not need the image and
-  may proceed while the user runs Task 1's cluster check.
+- **Order.** Building the image is quick; converting it to a `.sif` for the cluster takes the user
+  about 2 hours. Never wait for it: after Task 1's local build, Tasks 2 to 10 proceed. Only Task 11
+  needs the cluster check to have passed.
 
 ## Review Focus
 
@@ -76,7 +77,7 @@ you" list is the user's decisions; do not reopen them.
 ### Task 1: VirTues image spike and upstream facts
 
 **Gate.** If the image cannot import `flash_attn` and run the forward pass on a cluster GPU, stop
-and report before Task 5. If backsub writes a float image or drops extra marker-sheet columns,
+and report before Task 11; work on Tasks 2 to 10 continues meanwhile. If backsub writes a float image or drops extra marker-sheet columns,
 record it and report before Task 8; the user decides.
 
 **Files:**
