@@ -572,3 +572,66 @@ def test_run_uses_round2_grid_and_channel_selection(bench, monkeypatch):
     run.run(data, 0, out, grid="round2")  # cells, raw, markers
     assert seen == [[1], [1]]
     assert (out / "results" / "0.csv").exists()
+
+
+def _threshold_table(f1):
+    """{key: {(flow, prob): f1}} -> long table as report_round2.pick expects."""
+    return pd.DataFrame(
+        [
+            {"key": key, "flow_threshold": flow, "cellprob_threshold": prob, "mean_f1": v}
+            for key, by_pair in f1.items()
+            for (flow, prob), v in by_pair.items()
+        ]
+    )
+
+
+def test_pick_minimises_worst_shortfall():
+    from segmentation_benchmark.report_round2 import pick
+
+    table = _threshold_table(
+        {
+            "a": {(2, -6): 0.90, (0.4, 0): 0.50, (1, -2): 0.85},
+            "b": {(2, -6): 0.40, (0.4, 0): 0.80, (1, -2): 0.75},
+        }
+    )
+    p = pick(table)
+    assert p["pair"] == [1, -2]  # worst shortfall 0.05, against 0.40 for either corner
+    assert p["worst_shortfall"] == pytest.approx(0.05)
+    assert p["best"]["a"] == {"pair": [2, -6], "f1": 0.90}
+    assert p["missing_pairs"] == []
+
+
+def test_pick_ignores_pairs_missing_a_key():
+    from segmentation_benchmark.report_round2 import pick
+
+    table = _threshold_table({"a": {(1, 0): 0.9, (2, 0): 0.5}, "b": {(2, 0): 0.5}})
+    p = pick(table)
+    assert p["pair"] == [2, 0] and p["missing_pairs"] == [[1, 0]]
+
+
+def test_round2_report_writes_outputs(tmp_path):
+    from segmentation_benchmark.report_round2 import build_report
+    from segmentation_benchmark.settings import build_round2
+
+    s = build_round2()
+    rng = np.random.default_rng(0)
+    rows = []
+    for _, r in s.iterrows():
+        datasets = {"raw": ["crossplatform", "tonsil"], "tissuenet": ["tissuenet"]}.get(
+            r["scope"], ["crossplatform", "tonsil", "tissuenet"]
+        )
+        for d in datasets:
+            for c in range(2):
+                platform = "Vectra" if d == "crossplatform" else "unknown"
+                f1 = rng.random()
+                rows.append({"index": r["index"], "target": r["target"], "dataset": d, "crop": f"c{c}",
+                             "platform": platform, "f1": f1, "mean_ap": f1 / 2})  # fmt: skip
+    results = tmp_path / "results"
+    results.mkdir()
+    for index, g in pd.DataFrame(rows).groupby("index"):
+        g.to_csv(results / f"{index}.csv", index=False)
+    out = tmp_path / "report"
+    build_report(results, out)
+    for name in ["summary_round2.csv", "pick.json", "channels.csv", "clahe.csv", "heatmaps.png",
+                 "channels.png", "clahe.png"]:  # fmt: skip
+        assert (out / name).exists(), name
