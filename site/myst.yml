@@ -51,6 +51,7 @@ project:
         - file: modules/linking.md
         - file: modules/quantification.md
         - file: modules/qc-report.md
+    - file: benchmark.md
     - file: mdc.md
     - title: Reference
       children:
