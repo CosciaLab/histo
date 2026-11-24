@@ -475,3 +475,38 @@ def test_is_dna_name():
 
     assert is_dna_name("DAPI") and is_dna_name("Hoechst (DAPI)") and is_dna_name("DAPI1")
     assert not is_dna_name("CD8 (Opal 650)") and not is_dna_name("Autofluorescence")
+
+
+P01 = "GITR (Opal 520)|IDO (Opal 570)|Ki67 (Opal 540)|Foxp3 (Opal 620)|CD8 (Opal 650)|DAPI|panCK (Opal 690)|Autofluorescence"
+
+
+@pytest.mark.parametrize(
+    ("selection", "expected"),
+    [("all", [0, 1, 2, 3, 4, 6, 7]), ("markers", [0, 1, 2, 3, 4, 6]), ("membrane", [0, 1, 4, 6])],
+)
+def test_cell_channel_selection(selection, expected):
+    from segmentation_benchmark.preprocess import cell_channels
+
+    assert cell_channels(P01.split("|"), 5, selection) == expected
+
+
+def test_cell_channel_selection_rejects_unknown_and_empty():
+    from segmentation_benchmark.preprocess import cell_channels
+
+    with pytest.raises(ValueError, match="selection"):
+        cell_channels(["CD8", "DAPI"], 1, "nope")
+    with pytest.raises(ValueError, match="no cell channels"):
+        cell_channels(["Ki67", "DAPI", "Autofluorescence"], 1, "membrane")
+
+
+def test_project_uses_only_selected_channels():
+    from segmentation_benchmark.preprocess import project
+
+    rng = np.random.default_rng(0)
+    image = rng.random((3, 32, 32)).astype(np.float32)  # [marker, DAPI, autofluorescence]
+    image[2, 5, 5] = 100.0  # bright only in the autofluorescence channel
+    every = project(image, 1, "max", 1, 0)
+    marker_only = project(image, 1, "max", 1, 0, cell_idx=[0])
+    assert every[0, 5, 5] == 65535
+    assert marker_only[0, 5, 5] < 65535
+    np.testing.assert_array_equal(every[1], marker_only[1])
