@@ -1,5 +1,7 @@
 """Tiled VirTues runner core, with a fake encoder: crops, windows, cells, niches."""
 
+import json
+
 import numpy as np
 import pytest
 from shapely.geometry import box
@@ -257,3 +259,215 @@ def test_no_niche_gives_nan_tissue():
     assert origins == [] and frac.shape == (0,) and emb.shape == (0, C)
     tissue = vc.tissue_embedding(emb)
     assert tissue.shape == (C,) and np.isnan(tissue).all()
+
+
+# --- CLI, with a fake encoder ---
+
+PANEL = [("CD45", "P08575"), ("CD3", "P07766"), ("PanCK", "P05787")]
+FASTA = (
+    ">sp|P08575|PTPRC_HUMAN Receptor-type tyrosine-protein phosphatase C\nMYLWLKLLAF\nGFAFLDTEVF\n"
+    ">sp|P08575-8|PTPRC_HUMAN Isoform 8\nMYLWLK\n"
+    ">sp|P07766|CD3E_HUMAN T-cell surface glycoprotein CD3 epsilon chain\nMQSGTHWRVL\n"
+    ">sp|P05787|K2C8_HUMAN Keratin, type II cytoskeletal 8\nMSIRVTQKSY\nKVSTSGPRAF\n"
+)
+
+
+def fake_encode_512(crops):
+    """fake_encode padded to the model's 512 columns."""
+    tokens = fake_encode(crops)
+    return np.pad(tokens, ((0, 0), (0, 0), (0, 0), (0, 512 - tokens.shape[-1])))
+
+
+def write_stats(path, panel=PANEL):
+    markers = {
+        n: {"uniprot_id": u, "cap": 5000.0, "mean": 5.0, "sd": 1.5, "tissue_pixels": 100} for n, u in panel
+    }
+    path.write_text(json.dumps({"format": 1, "slide": "S", "markers": markers}))
+    return path
+
+
+def make_virtues_store(tmp_path, roi):
+    """300 x 520 image px at 0.5 um/px (model 150 x 260): two methods, CD45 bright in cp_1 only."""
+    import anndata as ad
+    import geopandas as gpd
+    import pandas as pd
+    import spatialdata as sd
+    from spatialdata.models import Image2DModel, ShapesModel, TableModel
+
+    rng = np.random.default_rng(0)
+    data = rng.integers(0, 200, (4, 300, 520)).astype(np.uint16)
+    data[1, 100:150, 200:260] = 4000  # CD45 inside cp_1
+    image = Image2DModel.parse(
+        data, dims=("c", "y", "x"), c_coords=["DNA", "CD45", "CD3", "PanCK"], scale_factors=[2]
+    )
+    cells = {
+        "cellpose": {
+            "cp_0": box(10, 10, 40, 40),
+            "cp_1": box(200, 100, 260, 150),
+            "cp_2": box(400, 200, 460, 260),
+            "cp_3": box(100.2, 100, 100.4, 140),  # between pixel centres at 0.5 um/px: no pixel
+        },
+        "stardist": {"sd_0": box(15, 15, 35, 35), "sd_1": box(210, 110, 250, 140)},
+    }
+    shapes, tables = {}, {}
+    for m, geoms in cells.items():
+        ids = list(geoms)[::-1]  # table order differs from the shapes'
+        shapes[f"{m}_cells"] = ShapesModel.parse(
+            gpd.GeoDataFrame(geometry=list(geoms.values()), index=pd.Index(list(geoms)))
+        )
+        obs = pd.DataFrame(
+            {
+                "region": pd.Categorical([f"{m}_cells"] * len(ids)),
+                "slide": pd.Categorical(["S"] * len(ids)),
+                "core_id": pd.Categorical(["A1"] * len(ids)),
+                "cell_id": ids,
+            },
+            index=ids,
+        )
+        tables[f"{m}_table"] = TableModel.parse(
+            ad.AnnData(np.zeros((len(ids), 1), dtype=np.float32), obs=obs, var=pd.DataFrame(index=["x"])),
+            region=f"{m}_cells",
+            region_key="region",
+            instance_key="cell_id",
+        )
+    shapes["region_of_interest"] = ShapesModel.parse(gpd.GeoDataFrame(geometry=[roi]))
+    sdata = sd.SpatialData(images={"img": image}, shapes=shapes, tables=tables)
+    sdata.attrs["cell_segmentation_image"] = "img"
+    path = tmp_path / "s.zarr"
+    sdata.write(path)
+    return path
+
+
+def run_cli(tmp_path, monkeypatch, roi, panel=PANEL, stats_panel=PANEL, device="cuda"):
+    pytest.importorskip("spatialdata")
+    fasta = tmp_path / "uniprot.fasta"
+    fasta.write_text(FASTA)
+    monkeypatch.setenv("VIRTUES_UNIPROT", str(fasta))
+    path = make_virtues_store(tmp_path, roi)
+    out = tmp_path / "out"
+    argv = [
+        "--sdata", str(path), "--methods", "cellpose,stardist",
+        "--channels", ",".join(f"{n}:{u}" for n, u in panel), "--unembedded", "DNA",
+        "--stats", str(write_stats(tmp_path / "S_virtues_stats.json", stats_panel)),
+        "--pixel-size", "0.5", "--device", device, "--outdir", str(out),
+    ]  # fmt: skip
+    return vc.main(argv, encode=fake_encode_512), out
+
+
+UNS_KEYS = {
+    "virtues_commit", "weights", "weights_sha256", "esm_model", "uniprot_release", "channels",
+    "unembedded", "stats", "pixel_size", "model_um_per_px", "crop_size", "crop_step", "patch_size",
+    "padding", "tile_size", "batch_size", "device", "n_cells", "n_cells_without_pixel",
+    "n_niches_kept", "n_niches_dropped",
+}  # fmt: skip
+
+
+def test_cli_outputs_layout(tmp_path, monkeypatch):
+    rc, out = run_cli(tmp_path, monkeypatch, roi=box(0, 0, 260, 300))  # left half: square 0 only
+    assert rc == 0
+    import anndata as ad
+    import geopandas as gpd
+
+    names = [f"virtues_{i}" for i in range(512)]
+    cp = ad.read_h5ad(out / "cellpose_virtues.h5ad")
+    assert list(cp.obs_names) == ["cp_3", "cp_2", "cp_1", "cp_0"]
+    assert cp.X.dtype == np.float16 and list(cp.var_names) == names
+    assert {"region", "slide", "core_id", "cell_id"} <= set(cp.obs.columns)
+    assert set(cp.obs["region"]) == {"cellpose_cells"}
+    assert cp.uns["spatialdata_attrs"]["instance_key"] == "cell_id"
+    x = np.asarray(cp.X, dtype=np.float32)
+    assert np.isnan(x[0]).all() and np.isfinite(x[1:]).all()
+    # CD45 (column 0) is bright only in cp_1: a misaligned shape/table join breaks this
+    assert x[2, 0] > x[1, 0] + 1 and x[2, 0] > x[3, 0] + 1
+    sdist = ad.read_h5ad(out / "stardist_virtues.h5ad")
+    assert list(sdist.obs_names) == ["sd_1", "sd_0"] and np.isfinite(np.asarray(sdist.X, np.float32)).all()
+
+    uns = cp.uns["virtues"]
+    assert set(uns) == UNS_KEYS
+    assert dict(uns["channels"]) == dict(PANEL) and list(uns["unembedded"]) == ["DNA"]
+    assert dict(uns["n_cells"]) == {"cellpose": 4, "stardist": 2}
+    assert dict(uns["n_cells_without_pixel"]) == {"cellpose": 1, "stardist": 0}
+    assert uns["n_niches_kept"] == 1 and uns["n_niches_dropped"] == 1
+    assert uns["pixel_size"] == 0.5 and uns["batch_size"] == vc.BATCH and uns["device"] == "cuda"
+    assert set(json.loads((out / "virtues.json").read_text())) == UNS_KEYS
+
+    niches = gpd.read_parquet(out / "virtues_niches.parquet")
+    assert list(niches.index) == ["niche_0"]
+    assert niches.geometry.iloc[0].equals(box(0, 0, 256, 256))  # model 128 px at 0.5 um/px
+    nt = ad.read_h5ad(out / "virtues_niches_table.h5ad")
+    assert list(nt.obs_names) == ["niche_0"] and list(nt.obs["niche_id"]) == ["niche_0"]
+    assert nt.obs["tissue_fraction"].iloc[0] == 1.0
+    assert nt.obs["slide"].iloc[0] == "S" and nt.obs["core_id"].iloc[0] == "A1"
+    assert nt.X.dtype == np.float16 and nt.X.shape == (1, 512)
+    assert nt.uns["spatialdata_attrs"]["region"] == "virtues_niches"
+    assert nt.uns["spatialdata_attrs"]["instance_key"] == "niche_id"
+    assert set(nt.uns["virtues"]) == UNS_KEYS
+
+    tissue = ad.read_h5ad(out / "virtues_tissue.h5ad")
+    assert tissue.n_obs == 1 and tissue.X.dtype == np.float16
+    assert tissue.obs["slide"].iloc[0] == "S" and tissue.obs["core_id"].iloc[0] == "A1"
+    assert tissue.obs["n_niches"].iloc[0] == 1
+    assert np.array_equal(tissue.X, nt.X)
+    assert set(tissue.uns["virtues"]) == UNS_KEYS
+
+
+def test_cli_no_niche_writes_no_niche_files(tmp_path, monkeypatch):
+    rc, out = run_cli(tmp_path, monkeypatch, roi=box(0, 0, 20, 20))
+    assert rc == 0
+    import anndata as ad
+
+    assert not (out / "virtues_niches.parquet").exists()
+    assert not (out / "virtues_niches_table.h5ad").exists()
+    tissue = ad.read_h5ad(out / "virtues_tissue.h5ad")
+    assert tissue.X.shape == (1, 512) and np.isnan(np.asarray(tissue.X, np.float32)).all()
+    assert tissue.obs["n_niches"].iloc[0] == 0
+    uns = tissue.uns["virtues"]
+    assert uns["n_niches_kept"] == 0 and uns["n_niches_dropped"] == 2
+    assert (out / "cellpose_virtues.h5ad").exists()
+
+
+def test_unknown_uniprot_id_exits_naming_it(tmp_path, monkeypatch, capsys):
+    panel = [*PANEL[:2], ("PanCK", "Q99999")]
+    with pytest.raises(SystemExit) as e:
+        run_cli(tmp_path, monkeypatch, roi=box(0, 0, 260, 300), panel=panel, stats_panel=panel)
+    assert e.value.code == 1 and "Q99999" in capsys.readouterr().err
+
+
+def test_stats_mismatch_exits(tmp_path, monkeypatch, capsys):
+    stats_panel = [*PANEL[:2], ("PanCK", "P08575-8")]
+    with pytest.raises(SystemExit) as e:
+        run_cli(tmp_path, monkeypatch, roi=box(0, 0, 260, 300), stats_panel=stats_panel)
+    err = capsys.readouterr().err
+    assert e.value.code == 1 and "PanCK" in err and "P08575-8" in err
+
+
+def test_unknown_channel_exits_naming_it(tmp_path, monkeypatch, capsys):
+    panel = [*PANEL, ("NOPE", "P08575")]
+    with pytest.raises(SystemExit) as e:
+        run_cli(tmp_path, monkeypatch, roi=box(0, 0, 260, 300), panel=panel, stats_panel=panel)
+    err = capsys.readouterr().err
+    assert e.value.code == 1 and "NOPE" in err and "DNA" in err
+
+
+def test_non_cuda_device_exits(tmp_path, monkeypatch, capsys):
+    with pytest.raises(SystemExit) as e:
+        run_cli(tmp_path, monkeypatch, roi=box(0, 0, 260, 300), device="cpu")
+    assert e.value.code == 1 and "cpu" in capsys.readouterr().err
+
+
+def test_uniprot_sequences(tmp_path):
+    fasta = tmp_path / "u.fasta"
+    fasta.write_text(FASTA)
+    seqs = vc.uniprot_sequences(fasta, ["P05787", "P08575-8", "P08575"])
+    assert seqs == {"P05787": "MSIRVTQKSYKVSTSGPRAF", "P08575-8": "MYLWLK", "P08575": "MYLWLKLLAFGFAFLDTEVF"}
+    with pytest.raises(KeyError, match="Q99999"):
+        vc.uniprot_sequences(fasta, ["P05787", "Q99999"])
+
+
+def test_cell_source_clips_to_model_grid():
+    # 1003 image px at 0.65 um/px is 651 model px; model row 651's centre (image y 1002.3) is in the image
+    h = vs.model_shape((1003, 40), 0.65)
+    src = vc.cell_source([box(0, 990, 20, 1003), box(0, 1010, 20, 1020)], 0.65, h)
+    labels = src.read_labels(vc.PAD + 640, vc.PAD + 660, vc.PAD, vc.PAD + 20)
+    assert (labels[: 651 - 640] == 1).any() and not labels[651 - 640 :].any()
+    assert src.bboxes[0, 1] == vc.PAD + 651 and (src.bboxes[1] == 0).all()
