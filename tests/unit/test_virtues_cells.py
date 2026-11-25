@@ -342,7 +342,8 @@ def make_virtues_store(tmp_path, roi, roi_scale=1, cell_scale=1):
             region_key="region",
             instance_key="cell_id",
         )
-    shapes["region_of_interest"] = scaled(gpd.GeoDataFrame(geometry=[roi]), roi_scale)
+    if roi is not None:
+        shapes["region_of_interest"] = scaled(gpd.GeoDataFrame(geometry=[roi]), roi_scale)
     sdata = sd.SpatialData(images={"img": image}, shapes=shapes, tables=tables)
     sdata.attrs["cell_segmentation_image"] = "img"
     path = tmp_path / "s.zarr"
@@ -450,6 +451,20 @@ def test_cli_no_niche_writes_no_niche_files(tmp_path, monkeypatch):
     uns = tissue.uns["virtues"]
     assert uns["n_niches_kept"] == 0 and uns["n_niches_dropped"] == 2
     assert (out / "cellpose_virtues.h5ad").exists()
+
+
+def test_cli_missing_roi_embeds_cells_with_nan_tissue(tmp_path, monkeypatch, capsys):
+    # sopa writes no ROI when it finds no tissue, e.g. a nearly empty TMA core
+    rc, out = run_cli(tmp_path, monkeypatch, roi=None)
+    assert rc == 0
+    import anndata as ad
+
+    assert "tissue segmentation found no tissue in" in capsys.readouterr().err
+    assert not (out / "virtues_niches_table.h5ad").exists()
+    tissue = ad.read_h5ad(out / "virtues_tissue.h5ad")
+    assert np.isnan(np.asarray(tissue.X, np.float32)).all() and tissue.obs["n_niches"].iloc[0] == 0
+    cp = ad.read_h5ad(out / "cellpose_virtues.h5ad")
+    assert np.isfinite(np.asarray(cp.X, np.float32)[1:]).all()
 
 
 def test_unknown_uniprot_id_exits_naming_it(tmp_path, monkeypatch, capsys):

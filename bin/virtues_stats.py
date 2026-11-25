@@ -94,6 +94,17 @@ def to_image_pixels(shapes, image):
     return list(shapely.transform(geoms, lambda c: c @ m[:2, :2].T + m[:2, 2]))
 
 
+def tissue_polygons(sdata, image, store):
+    """The ROI in image pixels; none when sopa found no tissue, as it then writes no ROI."""
+    if TISSUE_KEY not in sdata.shapes:
+        print(
+            f"[virtues] warning: tissue segmentation found no tissue in {store}; counting zero tissue pixels",
+            file=sys.stderr,
+        )
+        return []
+    return to_image_pixels(sdata.shapes[TISSUE_KEY], image)
+
+
 def histogram(image, polygons, channels, pixel_size, rows=2048):
     """int64 (len(channels), N_BINS) counts of rounded model values over tissue pixels."""
     if not np.issubdtype(image.dtype, np.unsignedinteger):
@@ -174,6 +185,11 @@ def combine(paths, slide, pixel_size, output):
                 f"but {first[0]} has {list(zip(first[1], first[2], strict=True))}"
             )
     total = sum(c for *_, c in loaded)
+    if not total.any():
+        raise ValueError(
+            f"tissue segmentation found no tissue on slide {slide}, so it has no statistics; "
+            "check its tissue segmentation, or pass virtues_stats"
+        )
     result = {}
     for i, (name, uid) in enumerate(zip(first[1], first[2], strict=True)):
         try:
@@ -198,8 +214,6 @@ def _histogram_cli(args):
 
     pairs = [c.rsplit(":", 1) for c in args.channels.split(",")]
     sdata = sd.read_zarr(args.sdata)
-    if TISSUE_KEY not in sdata.shapes:
-        sys.exit(f"[virtues_stats] {args.sdata} has no '{TISSUE_KEY}' shapes element")
     image = sdata.images[store_image_key(args.sdata)]
     if hasattr(image, "children"):  # multiscale: full resolution is scale0
         image = image["scale0"]["image"]
@@ -210,7 +224,7 @@ def _histogram_cli(args):
     try:
         counts = histogram(
             image.data,
-            to_image_pixels(sdata.shapes[TISSUE_KEY], image),
+            tissue_polygons(sdata, image, args.sdata),
             [available.index(n) for n, _ in pairs],
             args.pixel_size,
         )

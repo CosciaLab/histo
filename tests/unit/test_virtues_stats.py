@@ -205,8 +205,25 @@ def test_cli_float_image_exits_naming_dtype(tmp_path):
     assert "float32" in str(e.value)
 
 
-def test_cli_missing_roi_exits_naming_element(tmp_path):
-    _, _, run = run_cli(tmp_path, roi=None)
+def test_cli_missing_roi_counts_zero_tissue(tmp_path, capsys):
+    # sopa writes no ROI when it finds no tissue, e.g. a nearly empty TMA core
+    out, _, run = run_cli(tmp_path, roi=None)
+    run()
+    with np.load(out) as z:
+        assert z["counts"].shape == (2, vs.N_BINS) and z["counts"].sum() == 0
+    assert f"tissue segmentation found no tissue in {tmp_path / 's.zarr'}" in capsys.readouterr().err
+
+
+def test_combine_slide_without_tissue_names_it(tmp_path):
+    empty = np.zeros((1, vs.N_BINS), dtype=np.int64)
+    np.savez(
+        tmp_path / "a.npz",
+        counts=empty,
+        markers=np.array(["CD3"]),
+        uniprot_ids=np.array(["P07766"]),
+        sample="A",
+    )
+    args = ["combine", "--slide", "SL", "--pixel-size", "1.0", "--output", str(tmp_path / "s.json")]
     with pytest.raises(SystemExit) as e:
-        run()
-    assert "region_of_interest" in str(e.value)
+        vs.main([*args, str(tmp_path / "a.npz")])
+    assert "tissue segmentation found no tissue on slide SL" in str(e.value)

@@ -20,11 +20,11 @@ import numpy as np
 
 from virtues_stats import (
     MODEL_UM_PER_PX,
-    TISSUE_KEY,
     load_stats,
     model_shape,
     resample_window,
     tissue_mask,
+    tissue_polygons,
     to_image_pixels,
 )
 
@@ -422,8 +422,6 @@ def main(argv=None, encode=None) -> int:
     unknown = [n for n in names + args.unembedded if n not in available]
     if unknown:
         fail(f"unknown channels {unknown}; the store has {available}")
-    if TISSUE_KEY not in sdata.shapes:
-        fail(f"{args.sdata} has no '{TISSUE_KEY}' shapes element")
     try:
         entries = load_stats(args.stats, args.channels)
     except ValueError as e:
@@ -461,9 +459,9 @@ def main(argv=None, encode=None) -> int:
         return model_input(read_raw, st, y0, y1, x0, x1, padded)
 
     try:
-        tissue_polys = to_image_pixels(sdata.shapes[TISSUE_KEY], image)
+        tissue_polys = tissue_polygons(sdata, image, args.sdata)
     except ValueError as e:
-        fail(f"{TISSUE_KEY}: {e}")
+        fail(f"tissue ROI: {e}")
 
     def read_tissue(y0, y1, x0, x1):
         return tissue_mask(tissue_polys, y0, y1, x0, x1, ps)
