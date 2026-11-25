@@ -1,0 +1,45 @@
+name: "virtues_stats"
+description: Combine the histograms of one slide into the VirTues normalisation statistics.
+keywords:
+  - virtues
+  - spatialdata
+  - imaging
+tools:
+  - "virtues":
+      description: "VirTues"
+      homepage: "https://github.com/bunnelab/virtues"
+      documentation: "https://github.com/bunnelab/virtues"
+      tool_dev_url: "https://github.com/bunnelab/virtues"
+      licence:
+        - "MIT"
+      identifier: ""
+input:
+  - - slide:
+        type: string
+        description: Slide name
+    - hists:
+        type: file
+        description: Per-core histograms of the slide
+        pattern: "*_virtues_hist.npz"
+    - spec:
+        type: map
+        description: Resolved spec with pixel_size
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  stats:
+    - - slide:
+          type: string
+          description: Slide name
+      - "${slide}_virtues_stats.json":
+          type: file
+          description: Slide statistics (quantile and SD per channel)
+          pattern: "*_virtues_stats.json"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

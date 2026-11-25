@@ -1,0 +1,8 @@
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  # Built from tools/containers/virtues; torch, flash-attn and ESM-2 weights are in the image, not conda.
+  - pip:
+      - torch==2.5.1
