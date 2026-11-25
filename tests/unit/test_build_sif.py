@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -21,7 +22,9 @@ from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_LOG"], "a") as fh:
     fh.write(json.dumps({{"argv": args, "tmpdir": os.environ.get("APPTAINER_TMPDIR"),
-                         "cachedir": os.environ.get("APPTAINER_CACHEDIR")}}) + "\\n")
+                         "cachedir": os.environ.get("APPTAINER_CACHEDIR"),
+                         "s_tmpdir": os.environ.get("SINGULARITY_TMPDIR"),
+                         "s_cachedir": os.environ.get("SINGULARITY_CACHEDIR")}}) + "\\n")
 if args == ["--version"]:
     print("apptainer version 1.4.0-fake"); sys.exit(0)
 if args[:2] == ["build", "--help"]:
@@ -36,6 +39,8 @@ if args[0] == "build":
         out.write_text("half-written")
         print("FATAL: fake network error", file=sys.stderr); sys.exit(255)
     out.write_text("SIF_MAGIC fake image " + os.environ.get("FAKE_CONTENT", ""))
+    if os.environ.get("FAKE_RACE"):  # a parallel job finishes first
+        Path(os.environ["FAKE_RACE"]).write_text("theirs")
 sys.exit(0)
 """
 
@@ -66,9 +71,9 @@ def env(tmp_path):
 BASH = shutil.which("bash")
 
 
-def run(env, *args, cwd):
+def run(env, *args, cwd, **overrides):
     cmd = [BASH, str(SCRIPT), "--need-gb", "0", *args]
-    return subprocess.run(cmd, env=env, cwd=cwd, capture_output=True, text=True)  # noqa: S603  our script, test args
+    return subprocess.run(cmd, env={**env, **overrides}, cwd=cwd, capture_output=True, text=True)  # noqa: S603  our script, test args
 
 
 def calls(env):
@@ -228,18 +233,67 @@ def test_registry_retries_transient_failure(env, tmp_path):
     assert (out / "docker.io-josenimo-nimbus-0.0.5.img").read_text().startswith("SIF_MAGIC")
 
 
-def test_never_writes_to_nxf_cache(env, tmp_path):
+def test_default_out_dir_is_nxf_cache(env, tmp_path):
+    cache = tmp_path / "shared_cache"
+    env["NXF_SINGULARITY_CACHEDIR"] = str(cache)
+    r = run(env, "docker.io/josenimo/nimbus:0.0.5", cwd=tmp_path)
+    assert r.returncode == 0, r.stderr
+    assert [p.name for p in cache.iterdir()] == ["docker.io-josenimo-nimbus-0.0.5.img"]
+    assert "(shared cache)" in r.stdout and "rsync" not in r.stdout
+
+
+def test_cache_image_never_replaced(env, tmp_path):
+    cache = tmp_path / "shared_cache"
+    cache.mkdir()
+    existing = cache / "docker.io-josenimo-nimbus-0.0.5.img"
+    existing.write_text("old")
+    env["NXF_SINGULARITY_CACHEDIR"] = str(cache)
+    r = run(env, "--force", "docker.io/josenimo/nimbus:0.0.5", cwd=tmp_path)
+    assert r.returncode != 0 and "already in the cache" in r.stderr
+    assert existing.read_text() == "old"
+    assert builds(env) == []
+
+
+def test_cache_image_appearing_mid_build_is_kept(env, tmp_path):
+    cache = tmp_path / "shared_cache"
+    theirs = cache / "docker.io-josenimo-nimbus-0.0.5.img"
+    env["NXF_SINGULARITY_CACHEDIR"] = str(cache)
+    r = run(env, "--force", "docker.io/josenimo/nimbus:0.0.5", cwd=tmp_path, FAKE_RACE=str(theirs))
+    assert r.returncode != 0 and "appeared during the build" in r.stderr
+    assert [p.name for p in cache.iterdir()] == [theirs.name], "no partial file left behind"
+    assert theirs.read_text() == "theirs"
+
+
+def test_temp_dirs_kept_out_of_cache(env, tmp_path):
     cache = tmp_path / "shared_cache"
     cache.mkdir()
     env["NXF_SINGULARITY_CACHEDIR"] = str(cache)
-    assert run(env, "docker.io/josenimo/nimbus:0.0.5", str(tmp_path / "out"), cwd=tmp_path).returncode == 0
-    for target in (cache, cache / "sub"):
-        r = run(env, "docker.io/josenimo/nimbus:0.0.5", str(target), cwd=tmp_path)
-        assert r.returncode != 0 and "inside NXF_SINGULARITY_CACHEDIR" in r.stderr
-    env["TMPDIR"] = str(cache)
-    assert run(env, "docker.io/josenimo/nimbus:0.0.5", str(tmp_path / "out2"), cwd=tmp_path).returncode != 0
+    r = run(env, "docker.io/josenimo/nimbus:0.0.5", str(cache / "sub"), cwd=tmp_path)
+    assert r.returncode != 0 and "below the cache" in r.stderr
+    for var, value in (("TMPDIR", cache), ("APPTAINER_CACHEDIR", cache / "sub")):
+        r = run(
+            env, "docker.io/josenimo/nimbus:0.0.5", str(tmp_path / "out"), cwd=tmp_path, **{var: str(value)}
+        )
+        assert r.returncode != 0 and "is inside the cache" in r.stderr, var
     assert list(cache.iterdir()) == []
-    assert all(not str(a).startswith(str(cache)) for c in calls(env) for a in c["argv"])
+    assert builds(env) == []
+
+
+def test_apptainer_tmpdir_wins_and_singularity_vars_match(env, tmp_path):
+    env["APPTAINER_TMPDIR"] = str(tmp_path / "apptmp")
+    env["SINGULARITY_TMPDIR"] = str(tmp_path / "other")  # stale value from the user's shell
+    assert run(env, "docker.io/josenimo/nimbus:0.0.5", str(tmp_path / "out"), cwd=tmp_path).returncode == 0
+    (b,) = builds(env)
+    assert b["tmpdir"] == b["s_tmpdir"] == str(tmp_path / "apptmp" / f"build_sif.{JOB}")
+    assert b["cachedir"] == b["s_cachedir"] == str(tmp_path / "cache")
+
+
+def test_slurm_log_goes_to_default_cache_logs():
+    """#SBATCH lines cannot read variables, so the log path is spelled out twice."""
+    text = SCRIPT.read_text()
+    (cache,) = re.findall(r"^default_cache=(\S+)$", text, re.MULTILINE)
+    for stream in ("output", "error"):
+        assert f"#SBATCH --{stream}={cache}/logs/%x.%j.log" in text.splitlines()
 
 
 def test_credentials_never_printed(env, tmp_path):

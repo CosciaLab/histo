@@ -372,8 +372,10 @@ Our own images (`docker.io/josenimo/sopa:2.3.0-1`, `docker.io/josenimo/nimbus:0.
 same way. The Nimbus image is needed for `use_nimbus`, and has the weights (`V1.pt`) inside.
 
 To build one SIF yourself, from a registry or a `docker save` tar, submit
-`tools/build_sif.sbatch`. It writes to `/fast/AG_Coscia/$USER/sif` under the name Nextflow looks for,
-never to the cache, and prints the `rsync` line to copy it in (`--help` for options):
+`tools/build_sif.sbatch` after sourcing the histo `setup.sh`. It builds straight into
+`$NXF_SINGULARITY_CACHEDIR` under the name Nextflow looks for, renames the file only once it is
+verified, and refuses to replace an image already there. The log goes to the cache's `logs/`
+(`--help` for options, including building elsewhere):
 
 ```bash
 sbatch tools/build_sif.sbatch docker.io/josenimo/nimbus:0.0.5
