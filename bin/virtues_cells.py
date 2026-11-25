@@ -256,15 +256,7 @@ def uniprot_sequences(fasta, ids):
 
 def esm_embeddings(sequences, device):
     """float32 (n, 640) ESM-2 marker embeddings: upstream ESMWrapper's model and its mean over residues."""
-    import types
-
     import torch
-
-    # upstream's module imports Bio.SeqIO for a FASTA helper only; the image has no biopython
-    try:
-        import Bio  # noqa: F401
-    except ImportError:
-        sys.modules["Bio"] = types.SimpleNamespace(SeqIO=None)
     from virtues.utils.compute_esm_embeddings import ESMWrapper
 
     esm = ESMWrapper(ESM_MODEL, device)

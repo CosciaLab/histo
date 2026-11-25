@@ -1,4 +1,4 @@
-# VirTues image (docker.io/josenimo/virtues:d2c25e1)
+# VirTues image (docker.io/josenimo/virtues:d2c25e1-2)
 
 [bunnelab/virtues](https://github.com/bunnelab/virtues) at `d2c25e1` and spora-io at `ef15868`, with
 FlashAttention 2, the `sp32` weights, ESM-2 150M and human UniProt (reviewed, with isoforms) baked in,
@@ -6,12 +6,12 @@ so no run needs the network. `check_image.py` is at `/opt/check_image.py`.
 
 - Build (`UNIPROT_RELEASE` must match what UniProt serves, or the build fails; ~20 min under emulation):
   `REL=$(curl -sI 'https://rest.uniprot.org/uniprotkb/stream?format=fasta&includeIsoform=true&query=(organism_id:9606)+AND+(reviewed:true)' | tr -d '\r' | awk -F': ' 'tolower($1)=="x-uniprot-release"{print $2}')`
-  then `docker buildx build --platform linux/amd64 --build-arg UNIPROT_RELEASE=$REL --load -t docker.io/josenimo/virtues:d2c25e1 tools/containers/virtues`
-- Mac check (offline, no CUDA): `docker run --rm --platform linux/amd64 --network none docker.io/josenimo/virtues:d2c25e1 python /opt/check_image.py --cpu-only`
-- Save: `docker save docker.io/josenimo/virtues:d2c25e1 -o virtues_d2c25e1.tar`
-- SIF on the cluster: `sbatch tools/build_sif.sbatch docker.io/josenimo/virtues:d2c25e1`, or from the tar with `--name docker.io-josenimo-virtues-d2c25e1.img virtues_d2c25e1.tar`
+  then `docker buildx build --platform linux/amd64 --build-arg UNIPROT_RELEASE=$REL --load -t docker.io/josenimo/virtues:d2c25e1-2 tools/containers/virtues`
+- Mac check (offline, no CUDA): `docker run --rm --platform linux/amd64 --network none docker.io/josenimo/virtues:d2c25e1-2 python /opt/check_image.py --cpu-only`
+- Save: `docker save docker.io/josenimo/virtues:d2c25e1-2 -o virtues_d2c25e1-2.tar`
+- SIF on the cluster: `sbatch tools/build_sif.sbatch docker.io/josenimo/virtues:d2c25e1-2`, or from the tar with `--name docker.io-josenimo-virtues-d2c25e1-2.img virtues_d2c25e1-2.tar`
 - Cluster check (GPU node, as an `sbatch` or interactive job; the example core is read from the image):
-  `apptainer exec --nv --containall "$NXF_SINGULARITY_CACHEDIR/docker.io-josenimo-virtues-d2c25e1.img" python /opt/check_image.py`
+  `apptainer exec --nv --containall "$NXF_SINGULARITY_CACHEDIR/docker.io-josenimo-virtues-d2c25e1-2.img" python /opt/check_image.py`
   It imports `flash_attn`, runs `compute_cell_tokens` on the bundled example core as notebook 2 does,
   and prints the token shapes. Send the output back.
 
@@ -27,6 +27,7 @@ Environment (read by the pipeline): `VIRTUES_WEIGHTS`, `VIRTUES_UNIPROT`, `VIRTU
 - **Versions.** torch 2.5.1+cu124, FlashAttention 2.7.4.post1, spatialdata 0.8.0, anndata 0.13.4,
   geopandas 1.2.0, numpy 2.5.4, pandas 3.1.1, zarr 3.4.2 (same as `sopa:2.3.0`), fair-esm 2.0.0,
   safetensors 0.7.0, omegaconf 2.3.0, einops 0.8.1.
+  Tag `d2c25e1-2` adds biopython 1.88 (upstream's ESM module imports it) and pytest 9.2.0 (model tests).
 - **Editable install.** Upstream's `pyproject.toml` has `include = ["virtues"]`, so a normal install
   drops `virtues.modules`. The image installs `/opt/virtues-src` with `-e`.
 - **flash_attn imports on CPU.** `virtues.modules.multiplex_virtues` imports and the weights load

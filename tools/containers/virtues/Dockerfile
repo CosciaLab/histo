@@ -46,6 +46,9 @@ RUN test -n "${UNIPROT_RELEASE}" && mkdir -p /opt/uniprot && curl -fsSL -D /tmp/
     'https://rest.uniprot.org/uniprotkb/stream?format=fasta&includeIsoform=true&query=(organism_id:9606)+AND+(reviewed:true)' \
     && grep -i "^x-uniprot-release: ${UNIPROT_RELEASE}[[:space:]]*$" /tmp/h.txt && rm /tmp/h.txt
 
+# After the UniProt layer so a rebuild reuses it: upstream's ESM module imports Bio; pytest runs the model tests.
+RUN pip install --no-cache-dir biopython==1.88 pytest==9.2.0
+
 ENV VIRTUES_WEIGHTS=/opt/virtues/sp32/model.safetensors \
     VIRTUES_UNIPROT=/opt/uniprot/human_sprot_isoforms.fasta \
     VIRTUES_UNIPROT_RELEASE=${UNIPROT_RELEASE} \

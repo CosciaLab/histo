@@ -25,7 +25,7 @@ you" list is the user's decisions; do not reopen them.
 
 - **No network at run time.** Weights, ESM-2 and UniProt sequences are baked into the image, which
   sets `HF_HUB_OFFLINE=1`.
-- **Images.** `docker.io/josenimo/virtues:d2c25e1` for `VIRTUES`; `docker.io/josenimo/sopa:2.3.0`
+- **Images.** `docker.io/josenimo/virtues:d2c25e1-2` for `VIRTUES`; `docker.io/josenimo/sopa:2.3.0`
   for `VIRTUES_HISTOGRAM`, `VIRTUES_STATS` and `WRITE_FEATURES`. The user pushes images. Agents
   never `docker push`, `git push`, `sbatch` or `srun`; they write the command for the user.
 - **`bin/virtues_stats.py` imports no torch**, so it runs in the sopa image.
@@ -88,7 +88,7 @@ record it and report before Task 8; the user decides.
 
 **Interfaces:**
 
-- Produces: the local image `docker.io/josenimo/virtues:d2c25e1`, with these environment
+- Produces: the local image `docker.io/josenimo/virtues:d2c25e1-2`, with these environment
   variables, read by Task 5:
   - `VIRTUES_WEIGHTS=/opt/virtues/sp32/model.safetensors`
   - `VIRTUES_UNIPROT=/opt/uniprot/human_sprot_isoforms.fasta`
@@ -120,7 +120,7 @@ record it and report before Task 8; the user decides.
     `esm.pretrained.esm2_t30_150M_UR50D()`, and
     `https://rest.uniprot.org/uniprotkb/stream?format=fasta&includeIsoform=true&query=(organism_id:9606)+AND+(reviewed:true)`.
 - [ ] **Step 2: Build it.**
-      Run: `docker buildx build --platform linux/amd64 -t docker.io/josenimo/virtues:d2c25e1 tools/containers/virtues`
+      Run: `docker buildx build --platform linux/amd64 -t docker.io/josenimo/virtues:d2c25e1-2 tools/containers/virtues`
       Expected: success.
 - [ ] **Step 3: Check offline on the Mac.** `check_image.py --cpu-only` with `--network none`:
       imports `virtues`, spatialdata and `esm`; loads the safetensors into
@@ -489,7 +489,7 @@ instance_key="cell_id")`, `X` float16, `var_names` `virtues_0` … `virtues_511`
 - [ ] **Step 1: Write the modules and config.**
 - [ ] **Step 2: Regenerate and check the manifest.**
       Run: `tools/container_manifest.py && tools/container_manifest.py --check && prek run --all-files`
-      Expected: a `josenimo/virtues:d2c25e1` row; clean.
+      Expected: a `josenimo/virtues:d2c25e1-2` row; clean.
 - [ ] **Step 3: Commit.** `Add VIRTUES, VIRTUES_HISTOGRAM and VIRTUES_STATS`
 
 ### Task 8: `LEARNED_FEATURES` wiring
