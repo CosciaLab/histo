@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
 #
-# Build an Apptainer SIF from a Docker image, named for Nextflow's singularity cache.
+# Build an Apptainer SIF from a Docker image, straight into Nextflow's singularity cache.
 #
-# Usage (from the repo root, on the cluster):
+# Usage (from the repo root, on the cluster, after sourcing histo's setup.sh):
 #   sbatch tools/build_sif.sbatch [--name FILE] [--force] [--need-gb N] <source> [out_dir]
 #   bash tools/build_sif.sbatch --help
 #
 #   <source>   a registry ref, e.g. docker.io/josenimo/nimbus:0.0.5 (docker:// optional),
 #              or a local docker-save tar, OCI archive, or OCI layout directory (no network).
-#   out_dir    default /fast/AG_Coscia/$USER/sif. Never NXF_SINGULARITY_CACHEDIR: copy in yourself.
+#   out_dir    default $NXF_SINGULARITY_CACHEDIR, else the histo cache:
+#              /fast/AG_Coscia/software/pipelines/histo/singularity-images
 #   --name     output file name. Default for a ref: Nextflow's cache name, e.g.
 #              docker.io-josenimo-nimbus-0.0.5.img. Required for a local source.
-#   --force    replace an existing file in out_dir.
+#   --force    replace an existing file in out_dir. Refused in the shared cache: use a new tag.
 #   --need-gb  free space to require (default 60 for a ref, 4x the source size for a file).
 #
-# The output is a SIF either way; `.img` is only the name Nextflow looks for.
-# Log: build_sif.<jobid>.log in the submit directory. Tests set BUILD_SIF_ATTEMPTS and
-# BUILD_SIF_RETRY_SLEEP (default 4 attempts, 60 s doubling).
+# The output is a SIF either way; `.img` is only the name Nextflow looks for. It is built as
+# <name>.partial.<jobid> and renamed once verified, so Nextflow never sees half an image.
+# Log:   <histo cache>/logs/build_sif.<jobid>.log (sbatch -o elsewhere.log to change).
+# Temp:  $APPTAINER_TMPDIR and $APPTAINER_CACHEDIR (setup.sh sets both), else
+#        /fast/AG_Coscia/software/nextflow/$USER/apptainer_{tmp,cache}.
+# Tests set BUILD_SIF_ATTEMPTS and BUILD_SIF_RETRY_SLEEP (default 4 attempts, 60 s doubling).
 
 # mksquashfs scales to ~16 threads; past that the /fast write is the limit.
 #SBATCH --cpus-per-task=16
@@ -29,15 +33,16 @@
 # /fast is only mounted on Ceph nodes.
 #SBATCH --constraint=ceph
 #SBATCH --job-name=build_sif
-# Submit directory: SLURM does not create log directories, and this one always exists.
-#SBATCH --output=build_sif.%j.log
-#SBATCH --error=build_sif.%j.log
+# SLURM expands no variables here and creates no directories: keep in step with default_cache.
+#SBATCH --output=/fast/AG_Coscia/software/pipelines/histo/singularity-images/logs/%x.%j.log
+#SBATCH --error=/fast/AG_Coscia/software/pipelines/histo/singularity-images/logs/%x.%j.log
 
 set -euo pipefail
 # Colleagues read the copy in the shared cache; rsync -a keeps these permissions.
 umask 022
 
-usage() { sed -n '3,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+# The header comment, up to the first blank line.
+usage() { awk 'NR > 2 && /^#/ { sub(/^# ?/, ""); print; next } NR > 2 { exit }' "${BASH_SOURCE[0]}"; }
 stage() { printf '\n==== [%s] %s\n' "$(date '+%F %T')" "$*"; }
 info() { printf '  %s\n' "$*"; }
 die() {
@@ -54,7 +59,8 @@ resolve() {
         rest="/$(basename "$p")$rest"
         p="$(dirname "$p")"
     done
-    printf '%s%s' "$(cd "$p" && pwd -P)" "$rest"
+    p="$(cd "$p" && pwd -P)"
+    printf '%s%s' "${p%/}" "$rest"
 }
 
 # Nextflow SingularityCache.simpleName: '.img' unless the name carries '.sif'.
@@ -102,8 +108,10 @@ done
 [[ -z "$need_gb" || "$need_gb" =~ ^[0-9]+$ ]] || die "--need-gb must be a whole number of GB, got '$need_gb'"
 
 source_arg="${positional[0]}"
-fast_base="/fast/AG_Coscia/${USER:?USER is not set}"
-out_dir="${positional[1]:-$fast_base/sif}"
+default_cache=/fast/AG_Coscia/software/pipelines/histo/singularity-images
+# Where generic_setup.sh puts each user's apptainer dirs.
+user_base="/fast/AG_Coscia/software/nextflow/${USER:?USER is not set}"
+out_dir="${positional[1]:-${NXF_SINGULARITY_CACHEDIR:-${NXF_APPTAINER_CACHEDIR:-$default_cache}}}"
 job_id="${SLURM_JOB_ID:-local.$$}"
 cpus="${SLURM_CPUS_PER_TASK:-4}"
 mem_mb="${SLURM_MEM_PER_NODE:-8192}"
@@ -173,33 +181,54 @@ fi
 
 # ---------------------------------------------------------------------------- paths
 
-# Not /tmp: it is small and shared on login and compute nodes.
-under_tmp() { [[ "$1" == /tmp || "$1" == /tmp/* ]]; }
-tmp_base="${TMPDIR:-}"
-if [[ -z "$tmp_base" ]] || under_tmp "$tmp_base"; then tmp_base="$fast_base/tmp"; fi
-export APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-$fast_base/apptainer_cache}"
-if under_tmp "$APPTAINER_CACHEDIR"; then export APPTAINER_CACHEDIR="$fast_base/apptainer_cache"; fi
+# First candidate that is set and not under /tmp (small, and shared on login and compute nodes).
+first_off_tmp() {
+    local d
+    for d in "$@"; do
+        if [[ -n "$d" && "$d" != /tmp && "$d" != /tmp/* ]]; then
+            printf '%s' "$d"
+            return
+        fi
+    done
+}
+tmp_base="$(first_off_tmp "${APPTAINER_TMPDIR:-}" "${TMPDIR:-}" "$user_base/apptainer_tmp")"
+APPTAINER_CACHEDIR="$(first_off_tmp "${APPTAINER_CACHEDIR:-}" "$user_base/apptainer_cache")"
 
 out_dir="$(resolve "$out_dir")"
 tmp_base="$(resolve "$tmp_base")"
 APPTAINER_CACHEDIR="$(resolve "$APPTAINER_CACHEDIR")"
+# Same value under both names, or apptainer warns that they differ.
+export APPTAINER_CACHEDIR SINGULARITY_CACHEDIR="$APPTAINER_CACHEDIR"
 
-# Shared cache: colleagues' running jobs read it, so this script never writes there.
-nxf_cache=""
-if [[ -n "${NXF_SINGULARITY_CACHEDIR:-}" ]]; then nxf_cache="$(resolve "$NXF_SINGULARITY_CACHEDIR")"; fi
-for d in "$out_dir" "$tmp_base" "$APPTAINER_CACHEDIR"; do
-    if [[ -n "$nxf_cache" && ("$d" == "$nxf_cache" || "$d" == "$nxf_cache"/*) ]]; then
-        die "$d is inside NXF_SINGULARITY_CACHEDIR ($nxf_cache)" \
-            "build elsewhere (default $fast_base/sif) and copy in with rsync --ignore-existing"
+# Shared caches: Nextflow reads them, and colleagues' running jobs may hold their images.
+shared_caches=()
+for c in "${NXF_SINGULARITY_CACHEDIR:-}" "${NXF_APPTAINER_CACHEDIR:-}" "$default_cache"; do
+    if [[ -n "$c" ]]; then shared_caches+=("$(resolve "$c")"); fi
+done
+in_cache=0
+for c in "${shared_caches[@]}"; do
+    if [[ "$out_dir" == "$c" ]]; then
+        in_cache=1
+    elif [[ "$out_dir" == "$c"/* ]]; then
+        die "$out_dir is below the cache $c" "Nextflow only looks in $c itself; pass that, or a directory outside it"
     fi
+    for d in "$tmp_base" "$APPTAINER_CACHEDIR"; do
+        if [[ "$d" == "$c" || "$d" == "$c"/* ]]; then
+            die "$d is inside the cache $c" "point APPTAINER_TMPDIR, TMPDIR or APPTAINER_CACHEDIR elsewhere"
+        fi
+    done
 done
 
 final="$out_dir/$name"
 partial="$out_dir/$name.partial.$job_id"
 job_tmp="$tmp_base/build_sif.$job_id"
-export APPTAINER_TMPDIR="$job_tmp"
+export APPTAINER_TMPDIR="$job_tmp" SINGULARITY_TMPDIR="$job_tmp"
 
-if [[ -e "$final" && "$force" -eq 0 ]]; then
+if [[ -e "$final" && "$in_cache" -eq 1 ]]; then
+    # Each Nextflow task opens the image by name, so a replacement would mix images within a run.
+    die "$final is already in the cache" "nothing to build; to change the image, push a new tag" \
+        "or build elsewhere (pass an out_dir) and compare sha256 first"
+elif [[ -e "$final" && "$force" -eq 0 ]]; then
     die "$final already exists" "pass --force to replace it, or choose another out_dir or --name"
 fi
 
@@ -225,7 +254,10 @@ command -v apptainer >/dev/null ||
     die "apptainer is not on PATH" "load it (e.g. module load apptainer) or check the node; see 'which apptainer'"
 info "apptainer:   $(apptainer --version)"
 info "source:      $bootstrap"
-info "output:      $final"
+info "output:      $final$( ((in_cache)) && printf ' (shared cache)')"
+if [[ -n "${SLURM_JOB_ID:-}" ]] && command -v scontrol >/dev/null; then
+    info "log:         $(scontrol show job "$SLURM_JOB_ID" 2>/dev/null | sed -n 's/^ *StdOut=//p')"
+fi
 info "tmp:         $APPTAINER_TMPDIR"
 info "cache:       $APPTAINER_CACHEDIR"
 if [[ "$mode" == registry ]]; then
@@ -238,6 +270,10 @@ fi
 
 for d in "$out_dir" "$job_tmp" "$APPTAINER_CACHEDIR"; do
     mkdir -p -- "$d" || die "cannot create $d" "check the path and that you can write there"
+done
+# A killed job (OOM, node failure) skips the cleanup trap; a parallel job is building the same name.
+for stale in "$final".partial.*; do
+    if [[ -e "$stale" ]]; then info "WARNING: found $stale (a running build, or a killed one's leftover)"; fi
 done
 
 # ---------------------------------------------------------------------------- disk space
@@ -296,7 +332,9 @@ apptainer inspect "$partial" || die "apptainer inspect failed on the new image" 
 apptainer exec "$partial" /bin/bash -c true ||
     die "the image cannot run /bin/bash" "Nextflow needs bash in the image; check the Dockerfile"
 
-[[ ! -e "$final" || "$force" -eq 1 ]] || die "$final appeared during the build" "check for a parallel job; rerun with --force"
+if [[ -e "$final" ]] && ((in_cache || !force)); then
+    die "$final appeared during the build" "check for a parallel job; the new image is discarded"
+fi
 mv -f -- "$partial" "$final"
 
 stage "Done"
@@ -304,9 +342,16 @@ info "file:     $final"
 info "size:     $(du -h -- "$final" | cut -f1) ($(wc -c <"$final" | tr -d ' ') bytes)"
 info "sha256:   $(sha256 "$final" | cut -d' ' -f1)"
 info "format:   SIF (the .img suffix is only Nextflow's cache naming)"
-if [[ -n "$nxf_cache" && -e "$nxf_cache/$name" ]]; then
-    info "NOTE: $name is already in the shared cache; rsync below will skip it. Compare sha256 first."
+if ((in_cache)); then
+    echo
+    echo "Nextflow will use it from $out_dir."
+    exit 0
 fi
+for c in "${shared_caches[@]}"; do
+    if [[ -e "$c/$name" ]]; then
+        info "NOTE: $name is already in $c; rsync below will skip it. Compare sha256 first."
+    fi
+done
 echo
 echo "Copy into the shared cache yourself (never overwrites an existing image):"
 echo "  rsync -av --ignore-existing $final \"\$NXF_SINGULARITY_CACHEDIR/\""
