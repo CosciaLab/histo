@@ -29,16 +29,14 @@ def core_id_from_path(zarr_path: Path) -> str:
 def retarget_table(table, rename_map: dict[str, str], core: str):
     """Rewrite a table's region in uns['spatialdata_attrs'] and its obs region_key column.
 
-    Both must agree or SpatialData refuses to link the table.
+    Both must agree or SpatialData refuses to link the table. A table without a region is returned as is.
     """
     import pandas as pd
 
     attrs = table.uns.get("spatialdata_attrs")
-    if not attrs:
-        raise ValueError(
-            f"[{core}] table has no uns['spatialdata_attrs']; it was not written "
-            f"by SpatialData and cannot be relinked safely."
-        )
+    # A table with no region annotates nothing, so there is nothing to retarget.
+    if not attrs or attrs.get("region") is None:
+        return table
 
     region = attrs.get("region")
     if isinstance(region, str):
