@@ -50,9 +50,16 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 ### 3.4 onward: learned features
 
-KRONOS and VirTues, one per release, on the stage Nimbus added in 3.2. One interface: image and
-shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing and 3.3's baked weights. Neither is in
-bioconda, so expect private images. Check weight licences first.
+KRONOS, on the stage Nimbus added in 3.2. One interface: image and shapes in, `obs`/`obsm` out.
+Reuses 3.2's GPU sizing and 3.3's baked weights. Not in bioconda, so expect a private image.
+Check weight licences first. VirTues shipped in 3.2.
+
+**VirTues follow-ups:**
+
+1. **QC plots** for the embeddings, after real-data validation. Only facts are in the QC report now.
+2. **Per-tile tasks**, one GPU job per tile then a gather, if one task per store is too slow.
+3. **A crop-step parameter**, now fixed at upstream's 42 px.
+4. **Pre-stitched input**, which has no marker sheet and so no UniProt IDs.
 
 ### Then: QC report overhaul
 

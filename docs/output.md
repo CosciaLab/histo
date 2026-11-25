@@ -130,6 +130,8 @@ HTML report then, so `{sample}_ashlar_qc/{sample}_ashlar_report.pdf` is where to
     non-empty cytoplasm only, indexed by their cell ids.
   - `tables/{m}_table`: one row per cell, or per nucleus in a nuclei-only run. Below.
   - `tables/{m}_nimbus` (`use_nimbus`): Nimbus scores, one row per cell. See [Nimbus scores](#nimbus-scores).
+  - `tables/{m}_virtues` (`use_virtues`): VirTues embeddings, one row per cell. See [VirTues embeddings](#virtues-embeddings).
+  - `shapes/virtues_niches`, `tables/virtues_niches_table`, `tables/virtues_tissue` (`use_virtues`): 128 µm tissue squares and their embeddings, and one embedding per store.
 - `{slide}_merged.zarr/` and `{slide}_merge_manifest.json`
   - **Dearrayed slides only**, instead of per-core stores: every core's elements in one store,
     and the manifest of what was merged.
@@ -229,6 +231,53 @@ sdata["cellpose_nimbus"][:, "CD3"].X
 
 The same keys are published as `learned_features/{sample}_{m}_nimbus.json`, so provenance can be read without
 opening the store.
+
+#### VirTues embeddings
+
+`use_virtues` adds three kinds of table, each row a 512-number embedding:
+
+- `tables/{m}_virtues`, for each method: the same cells as `{m}_table`.
+- `shapes/virtues_niches` and `tables/virtues_niches_table`: non-overlapping 128 × 128 µm squares
+  with at least 30% tissue, one row each, with `tissue_fraction` in `obs`. Neither exists when no
+  square qualifies.
+- `tables/virtues_tissue`: one row per store (a core on a TMA, else the image): the mean of the kept
+  squares, with `n_niches` in `obs`. NaN when no square is kept.
+
+```python
+sdata["cellpose_virtues"].X  # cells x 512, float16
+```
+
+- `X`: float16. NaN for a cell covering no pixel at 1 µm/px, counted in `n_cells_without_pixel`.
+- `var_names`: `virtues_0` to `virtues_511`. The columns have no marker meaning.
+- `obs`: `region`, `slide`, `core_id` and `cell_id` where present, copied from `{m}_table`. The
+  cell table's region is `{m}_cells` and its instance key `cell_id`; the squares' is `niche_id`.
+- `uns['virtues']`: how the embeddings were made, the same on all of them.
+
+| `uns['virtues']` key     | Meaning                                                                |
+| ------------------------ | ---------------------------------------------------------------------- |
+| `virtues_commit`         | VirTues code commit.                                                   |
+| `weights`                | Weights file (`sp32`).                                                 |
+| `weights_sha256`         | sha256 of the weights file.                                            |
+| `esm_model`              | ESM-2 model that embeds each marker's sequence.                        |
+| `uniprot_release`        | UniProt release of the sequences.                                      |
+| `channels`               | Marker name to `uniprot_id`, for channels embedded.                    |
+| `unembedded`             | Channels without an ID, left out.                                      |
+| `stats`                  | Per marker: `uniprot_id`, `cap`, `mean`, `sd`, `tissue_pixels`.        |
+| `pixel_size`             | µm per pixel given by `pixel_size`.                                    |
+| `model_um_per_px`        | µm per model pixel (1.0).                                              |
+| `crop_size`, `crop_step` | Crop edge (128) and step between a cell's crops (42), in model pixels. |
+| `patch_size`             | Patch edge (8), in model pixels.                                       |
+| `padding`                | Zeros added round the image edge (120), in model pixels.               |
+| `tile_size`              | Tile edge (2048), in model pixels.                                     |
+| `batch_size`             | Crops per GPU batch.                                                   |
+| `device`                 | `cuda`.                                                                |
+| `n_cells`                | Cells per method.                                                      |
+| `n_cells_without_pixel`  | Cells per method with a NaN row.                                       |
+| `n_niches_kept`          | Squares kept.                                                          |
+| `n_niches_dropped`       | Squares dropped for too little tissue.                                 |
+
+Also published to `learned_features/`: `{sample}_virtues.json` with these keys, and
+`{slide}_virtues_stats.json` with the statistics used, one per slide.
 
 #### From 1.x
 
