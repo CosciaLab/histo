@@ -71,7 +71,7 @@ are saved as `virtues_stats.json` in `learned_features/`.
 The image is then resampled to 1 µm per pixel and cut into 128 µm crops. The model embeds each
 crop in patches of 8 µm, and a cell's numbers are the average over the patches it covers. Large
 images are processed in [tiles](tiling.md) so memory does not grow with the image. Each cell gets
-the same crops as a run on the whole image, so tiling does not change a cell's numbers.
+the same crops as a run on the whole image; a test encoder confirms this exactly, and the real GPU model is still being checked on the cluster.
 
 Each square is the average of its patches, and the whole core or image is the average of its
 squares. A square is kept if at least 30% of it is tissue.
