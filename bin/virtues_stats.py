@@ -76,14 +76,15 @@ def histogram(image, polygons, channels, pixel_size, rows=2048):
     h, w = model_shape(image.shape[1:], pixel_size)
     counts = np.zeros((len(channels), N_BINS), dtype=np.int64)
     for y0 in range(0, h, rows):
-        y1 = min(y0 + rows, h)
-        mask = tissue_mask(polygons, y0, y1, 0, w, pixel_size)
-        if not mask.any():
-            continue
-        for i, channel in enumerate(channels):
-            values = resample_window(image, channel, y0, y1, 0, w, pixel_size)[mask]
-            bins = np.clip(np.rint(values), 0, N_BINS - 1).astype(np.int64)
-            counts[i] += np.bincount(bins, minlength=N_BINS)
+        for x0 in range(0, w, rows):  # square windows bound memory by tile size, not image width
+            y1, x1 = min(y0 + rows, h), min(x0 + rows, w)
+            mask = tissue_mask(polygons, y0, y1, x0, x1, pixel_size)
+            if not mask.any():
+                continue
+            for i, channel in enumerate(channels):
+                values = resample_window(image, channel, y0, y1, x0, x1, pixel_size)[mask]
+                bins = np.clip(np.rint(values), 0, N_BINS - 1).astype(np.int64)
+                counts[i] += np.bincount(bins, minlength=N_BINS)
     return counts
 
 

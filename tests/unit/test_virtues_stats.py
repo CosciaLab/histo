@@ -118,3 +118,58 @@ def test_load_stats_id_mismatch(tmp_path):
     vs.combine([tmp_path / "a.npz"], "SL", 1.0, tmp_path / "s.json")
     with pytest.raises(ValueError, match="P11111"):
         vs.load_stats(tmp_path / "s.json", [("CD3", "P11111")])
+
+
+def test_histogram_tiling_independent():
+    rng = np.random.default_rng(4)
+    img = rng.integers(0, 4000, (2, 150, 170)).astype(np.uint16)
+    poly = [box(10, 5, 120, 140), box(130, 20, 165, 60)]
+    assert np.array_equal(
+        vs.histogram(img, poly, [0, 1], 0.65, rows=16), vs.histogram(img, poly, [0, 1], 0.65)
+    )
+
+
+class FakeStore:
+    def __init__(self, image, shapes):
+        self.images = {"img": image}
+        self.shapes = shapes
+
+
+def run_cli(monkeypatch, tmp_path, dtype=np.uint16, shapes=True):
+    import spatialdata as sd
+    import xarray as xr
+
+    import resolve_segmentation
+
+    data = np.random.default_rng(5).integers(0, 500, (2, 40, 40)).astype(dtype)
+    image = xr.DataArray(data, dims=("c", "y", "x"), coords={"c": ["CD3", "CD8"]})
+    roi = type("G", (), {"geometry": [box(0, 0, 40, 40)]})()
+    store = FakeStore(image, {"region_of_interest": roi} if shapes else {})
+    monkeypatch.setattr(sd, "read_zarr", lambda _p: store)
+    monkeypatch.setattr(resolve_segmentation, "store_image_key", lambda _p: "img")
+    out = tmp_path / "S1_virtues_hist.npz"
+    args = ["histogram", "--sdata", "x.zarr", "--channels", "CD3:P07766,CD8:P01732", "--pixel-size", "1.0"]
+    return out, lambda: vs.main([*args, "--output", str(out)])
+
+
+def test_cli_histogram_writes_npz(monkeypatch, tmp_path):
+    out, run = run_cli(monkeypatch, tmp_path)
+    run()
+    with np.load(out) as z:
+        assert z["counts"].shape == (2, vs.N_BINS) and z["counts"].sum() == 2 * 40 * 40
+        assert list(z["markers"]) == ["CD3", "CD8"] and list(z["uniprot_ids"]) == ["P07766", "P01732"]
+        assert str(z["sample"]) == "S1"
+
+
+def test_cli_float_image_exits_naming_dtype(monkeypatch, tmp_path):
+    _, run = run_cli(monkeypatch, tmp_path, dtype=np.float32)
+    with pytest.raises(SystemExit) as e:
+        run()
+    assert "float32" in str(e.value)
+
+
+def test_cli_missing_roi_exits_naming_element(monkeypatch, tmp_path):
+    _, run = run_cli(monkeypatch, tmp_path, shapes=False)
+    with pytest.raises(SystemExit) as e:
+        run()
+    assert "region_of_interest" in str(e.value)
