@@ -42,9 +42,9 @@ p = hf_hub_download('bunnelab/virtues', 'virtues-sp32/model.safetensors', local_
 shutil.move(p, '/opt/virtues/sp32.tmp')" \
     && mkdir -p /opt/virtues/sp32 && mv /opt/virtues/sp32.tmp /opt/virtues/sp32/model.safetensors && rm -rf /opt/virtues/dl
 
-RUN mkdir -p /opt/uniprot && curl -fsSL -D /tmp/h.txt -o /opt/uniprot/human_sprot_isoforms.fasta \
+RUN test -n "${UNIPROT_RELEASE}" && mkdir -p /opt/uniprot && curl -fsSL -D /tmp/h.txt -o /opt/uniprot/human_sprot_isoforms.fasta \
     'https://rest.uniprot.org/uniprotkb/stream?format=fasta&includeIsoform=true&query=(organism_id:9606)+AND+(reviewed:true)' \
-    && grep -i "^x-uniprot-release: ${UNIPROT_RELEASE}" /tmp/h.txt && rm /tmp/h.txt
+    && grep -i "^x-uniprot-release: ${UNIPROT_RELEASE}[[:space:]]*$" /tmp/h.txt && rm /tmp/h.txt
 
 ENV VIRTUES_WEIGHTS=/opt/virtues/sp32/model.safetensors \
     VIRTUES_UNIPROT=/opt/uniprot/human_sprot_isoforms.fasta \
