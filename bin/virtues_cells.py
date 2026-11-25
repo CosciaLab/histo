@@ -175,9 +175,9 @@ def cell_embeddings(read_input, sources, padded_shape, encode, tile=TILE, batch=
     for m in sources:
         if sums[m] is None:
             sums[m] = np.zeros((len(weights[m]), _embed_dim(read_input, encode)), dtype=np.float32)
-        with np.errstate(invalid="ignore", divide="ignore"):
-            emb = (sums[m] / weights[m][:, None]).astype(np.float32)
-        emb[weights[m] == 0] = np.nan
+        emb, has = sums[m], weights[m][:, None] > 0
+        np.divide(emb, weights[m][:, None], out=emb, where=has)  # in place: no (n, D) float64 copy
+        emb[~has[:, 0]] = np.nan
         out[m] = (emb, weights[m])
     return out
 
