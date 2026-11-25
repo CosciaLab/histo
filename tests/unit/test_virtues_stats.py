@@ -227,3 +227,17 @@ def test_combine_slide_without_tissue_names_it(tmp_path):
     with pytest.raises(SystemExit) as e:
         vs.main([*args, str(tmp_path / "a.npz")])
     assert "tissue segmentation found no tissue on slide SL" in str(e.value)
+
+
+def test_combine_constant_marker_names_remedy(tmp_path):
+    counts = np.zeros((1, vs.N_BINS), dtype=np.int64)
+    counts[0, 100] = 50
+    np.savez(
+        tmp_path / "a.npz",
+        counts=counts,
+        markers=np.array(["CD3"]),
+        uniprot_ids=np.array(["P07766"]),
+        sample="A",
+    )
+    with pytest.raises(ValueError, match="slide SL, marker CD3: .*constant.*uniprot_id.*virtues_stats"):
+        vs.combine([tmp_path / "a.npz"], "SL", 1.0, tmp_path / "s.json")

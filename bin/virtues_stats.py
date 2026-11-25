@@ -166,25 +166,24 @@ def load_stats(path, channels):
 
 def combine(paths, slide, pixel_size, output):
     """Sum per-core histograms and write the slide statistics file."""
-    loaded = []
+    first, cores, total = None, [], None
     for p in paths:
         with np.load(p, allow_pickle=False) as z:
-            loaded.append(
-                (
-                    str(z["sample"]),
-                    [str(m) for m in z["markers"]],
-                    [str(u) for u in z["uniprot_ids"]],
-                    z["counts"],
+            sample, markers, ids = (
+                str(z["sample"]),
+                [str(m) for m in z["markers"]],
+                [str(u) for u in z["uniprot_ids"]],
+            )
+            if first is None:
+                first, total = (sample, markers, ids), z["counts"].astype(np.int64)
+            elif markers != first[1] or ids != first[2]:
+                raise ValueError(
+                    f"{sample} has markers/IDs {list(zip(markers, ids, strict=True))}, "
+                    f"but {first[0]} has {list(zip(first[1], first[2], strict=True))}"
                 )
-            )
-    first = loaded[0]
-    for sample, markers, ids, _ in loaded[1:]:
-        if markers != first[1] or ids != first[2]:
-            raise ValueError(
-                f"{sample} has markers/IDs {list(zip(markers, ids, strict=True))}, "
-                f"but {first[0]} has {list(zip(first[1], first[2], strict=True))}"
-            )
-    total = sum(c for *_, c in loaded)
+            else:
+                total += z["counts"]  # running sum: one core in memory at a time
+        cores.append(sample)
     if not total.any():
         raise ValueError(
             f"tissue segmentation found no tissue on slide {slide}, so it has no statistics; "
@@ -195,11 +194,13 @@ def combine(paths, slide, pixel_size, output):
         try:
             result[name] = {"uniprot_id": uid, **stats_from_histogram(total[i])}
         except ValueError as e:
-            raise ValueError(f"slide {slide}, marker {name}: {e}") from e
+            raise ValueError(
+                f"slide {slide}, marker {name}: {e}; remove its uniprot_id from the marker sheet, or pass virtues_stats"
+            ) from e
     doc = {
         "format": STATS_FORMAT,
         "slide": slide,
-        "cores": sorted(s for s, *_ in loaded),
+        "cores": sorted(cores),
         "model_um_per_px": MODEL_UM_PER_PX,
         "pixel_size": pixel_size,
         "markers": result,
@@ -231,7 +232,7 @@ def _histogram_cli(args):
     except (TypeError, ValueError) as e:
         sys.exit(f"[virtues_stats] {e}")
     sample = Path(args.output).name.removesuffix("_virtues_hist.npz")
-    np.savez(
+    np.savez_compressed(
         args.output,
         counts=counts,
         markers=np.array([n for n, _ in pairs]),
