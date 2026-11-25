@@ -129,31 +129,42 @@ def test_histogram_tiling_independent():
     )
 
 
-class FakeStore:
-    def __init__(self, image, shapes):
-        self.images = {"img": image}
-        self.shapes = shapes
+WHOLE = box(0, 0, 40, 40)
 
 
-def run_cli(monkeypatch, tmp_path, dtype=np.uint16, shapes=True):
+def write_store(tmp_path, data, roi=WHOLE, roi_scale=1):
+    """A real store; the ROI is kept 1/roi_scale in size with Scale(roi_scale), as sopa's tissue() does."""
+    import geopandas as gpd
     import spatialdata as sd
-    import xarray as xr
+    from shapely.affinity import scale
+    from spatialdata.models import Image2DModel, ShapesModel
+    from spatialdata.transformations import Scale
 
-    import resolve_segmentation
+    shapes = {}
+    if roi is not None:
+        shapes[vs.TISSUE_KEY] = ShapesModel.parse(
+            gpd.GeoDataFrame(geometry=[scale(roi, 1 / roi_scale, 1 / roi_scale, origin=(0, 0))]),
+            transformations={"global": Scale([roi_scale, roi_scale], axes=("x", "y"))},
+        )
+    image = Image2DModel.parse(data, dims=("c", "y", "x"), c_coords=["CD3", "CD8"])
+    sdata = sd.SpatialData(images={"img": image}, shapes=shapes)
+    sdata.attrs["cell_segmentation_image"] = "img"
+    path = tmp_path / "s.zarr"
+    sdata.write(path)
+    return path
 
-    data = np.random.default_rng(5).integers(0, 500, (2, 40, 40)).astype(dtype)
-    image = xr.DataArray(data, dims=("c", "y", "x"), coords={"c": ["CD3", "CD8"]})
-    roi = type("G", (), {"geometry": [box(0, 0, 40, 40)]})()
-    store = FakeStore(image, {"region_of_interest": roi} if shapes else {})
-    monkeypatch.setattr(sd, "read_zarr", lambda _p: store)
-    monkeypatch.setattr(resolve_segmentation, "store_image_key", lambda _p: "img")
+
+def run_cli(tmp_path, dtype=np.uint16, shape=(2, 40, 40), pixel_size=1.0, **store):
+    pytest.importorskip("spatialdata")
+    data = np.random.default_rng(5).integers(0, 500, shape).astype(dtype)
+    path = write_store(tmp_path, data, **store)
     out = tmp_path / "S1_virtues_hist.npz"
-    args = ["histogram", "--sdata", "x.zarr", "--channels", "CD3:P07766,CD8:P01732", "--pixel-size", "1.0"]
-    return out, lambda: vs.main([*args, "--output", str(out)])
+    argv = ["histogram", "--sdata", str(path), "--channels", "CD3:P07766,CD8:P01732"]
+    return out, data, lambda: vs.main([*argv, "--pixel-size", str(pixel_size), "--output", str(out)])
 
 
-def test_cli_histogram_writes_npz(monkeypatch, tmp_path):
-    out, run = run_cli(monkeypatch, tmp_path)
+def test_cli_histogram_writes_npz(tmp_path):
+    out, _, run = run_cli(tmp_path)
     run()
     with np.load(out) as z:
         assert z["counts"].shape == (2, vs.N_BINS) and z["counts"].sum() == 2 * 40 * 40
@@ -161,15 +172,41 @@ def test_cli_histogram_writes_npz(monkeypatch, tmp_path):
         assert str(z["sample"]) == "S1"
 
 
-def test_cli_float_image_exits_naming_dtype(monkeypatch, tmp_path):
-    _, run = run_cli(monkeypatch, tmp_path, dtype=np.float32)
+def test_to_image_pixels_undoes_roi_scale():
+    import geopandas as gpd
+    from spatialdata.models import Image2DModel, ShapesModel
+    from spatialdata.transformations import Scale
+
+    image = Image2DModel.parse(np.zeros((1, 8, 8), np.uint16), dims=("c", "y", "x"))
+    roi = ShapesModel.parse(
+        gpd.GeoDataFrame(geometry=[box(4, 6, 14, 16)]),
+        transformations={"global": Scale([16, 16], axes=("x", "y"))},
+    )
+    assert vs.to_image_pixels(roi, image)[0].equals(box(64, 96, 224, 256))
+
+
+@pytest.mark.parametrize("pixel_size", [1.0, 0.65])
+def test_cli_roi_on_coarse_level_counts_scale0_pixels(tmp_path, pixel_size):
+    # sopa's tissue() keeps the ROI in its coarsest level's pixels, with a scale to global
+    truth = box(64, 96, 224, 256)
+    out, data, run = run_cli(tmp_path, shape=(2, 320, 320), pixel_size=pixel_size, roi=truth, roi_scale=16)
+    run()
+    with np.load(out) as z:
+        counts = z["counts"]
+    assert np.array_equal(counts, vs.histogram(data, [truth], [0, 1], pixel_size))
+    if pixel_size == 1.0:
+        assert counts.sum(axis=1).tolist() == [160 * 160] * 2
+
+
+def test_cli_float_image_exits_naming_dtype(tmp_path):
+    _, _, run = run_cli(tmp_path, dtype=np.float32)
     with pytest.raises(SystemExit) as e:
         run()
     assert "float32" in str(e.value)
 
 
-def test_cli_missing_roi_exits_naming_element(monkeypatch, tmp_path):
-    _, run = run_cli(monkeypatch, tmp_path, shapes=False)
+def test_cli_missing_roi_exits_naming_element(tmp_path):
+    _, _, run = run_cli(tmp_path, roi=None)
     with pytest.raises(SystemExit) as e:
         run()
     assert "region_of_interest" in str(e.value)

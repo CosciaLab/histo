@@ -69,6 +69,31 @@ def tissue_mask(polygons, y0, y1, x0, x1, pixel_size):
     return mask
 
 
+def to_image_pixels(shapes, image):
+    """A shapes element's geometries in the image's pixel coordinates, in row order.
+
+    sopa's tissue() keeps the ROI in its coarsest level's pixels, with a scale to global.
+    """
+    import shapely
+    from spatialdata.transformations import get_transformation
+
+    from_shapes = get_transformation(shapes, get_all=True)
+    from_image = get_transformation(image, get_all=True)
+    shared = sorted(set(from_shapes) & set(from_image), key=lambda cs: cs != "global")  # global first
+    if not shared:
+        raise ValueError(
+            f"shapes and image share no coordinate system: {sorted(from_shapes)}, {sorted(from_image)}"
+        )
+    xy = ("x", "y")
+    shapes_to_cs = from_shapes[shared[0]].to_affine_matrix(xy, xy)
+    image_to_cs = from_image[shared[0]].to_affine_matrix(xy, xy)
+    m = np.linalg.inv(image_to_cs) @ shapes_to_cs  # shape px -> coordinate system -> image px
+    geoms = np.asarray(shapes.geometry, dtype=object)
+    if np.array_equal(m, np.eye(3)):
+        return list(geoms)  # untouched, so coordinates stay bit-identical
+    return list(shapely.transform(geoms, lambda c: c @ m[:2, :2].T + m[:2, 2]))
+
+
 def histogram(image, polygons, channels, pixel_size, rows=2048):
     """int64 (len(channels), N_BINS) counts of rounded model values over tissue pixels."""
     if not np.issubdtype(image.dtype, np.unsignedinteger):
@@ -185,11 +210,11 @@ def _histogram_cli(args):
     try:
         counts = histogram(
             image.data,
-            list(sdata.shapes[TISSUE_KEY].geometry),
+            to_image_pixels(sdata.shapes[TISSUE_KEY], image),
             [available.index(n) for n, _ in pairs],
             args.pixel_size,
         )
-    except TypeError as e:
+    except (TypeError, ValueError) as e:
         sys.exit(f"[virtues_stats] {e}")
     sample = Path(args.output).name.removesuffix("_virtues_hist.npz")
     np.savez(

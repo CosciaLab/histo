@@ -286,13 +286,25 @@ def write_stats(path, panel=PANEL):
     return path
 
 
-def make_virtues_store(tmp_path, roi):
+def scaled(geoms, factor):
+    """geoms kept 1/factor in size, with Scale(factor) to global, as sopa stores a coarser level."""
+    import geopandas as gpd
+    from shapely.affinity import scale
+    from spatialdata.models import ShapesModel
+    from spatialdata.transformations import Scale
+
+    gdf = gpd.GeoDataFrame(geometry=[scale(g, 1 / factor, 1 / factor, origin=(0, 0)) for g in geoms.geometry])
+    gdf.index = geoms.index
+    return ShapesModel.parse(gdf, transformations={"global": Scale([factor, factor], axes=("x", "y"))})
+
+
+def make_virtues_store(tmp_path, roi, roi_scale=1, cell_scale=1):
     """300 x 520 image px at 0.5 um/px (model 150 x 260): two methods, CD45 bright in cp_1 only."""
     import anndata as ad
     import geopandas as gpd
     import pandas as pd
     import spatialdata as sd
-    from spatialdata.models import Image2DModel, ShapesModel, TableModel
+    from spatialdata.models import Image2DModel, TableModel
 
     rng = np.random.default_rng(0)
     data = rng.integers(0, 200, (4, 300, 520)).astype(np.uint16)
@@ -312,8 +324,8 @@ def make_virtues_store(tmp_path, roi):
     shapes, tables = {}, {}
     for m, geoms in cells.items():
         ids = list(geoms)[::-1]  # table order differs from the shapes'
-        shapes[f"{m}_cells"] = ShapesModel.parse(
-            gpd.GeoDataFrame(geometry=list(geoms.values()), index=pd.Index(list(geoms)))
+        shapes[f"{m}_cells"] = scaled(
+            gpd.GeoDataFrame(geometry=list(geoms.values()), index=pd.Index(list(geoms))), cell_scale
         )
         obs = pd.DataFrame(
             {
@@ -330,7 +342,7 @@ def make_virtues_store(tmp_path, roi):
             region_key="region",
             instance_key="cell_id",
         )
-    shapes["region_of_interest"] = ShapesModel.parse(gpd.GeoDataFrame(geometry=[roi]))
+    shapes["region_of_interest"] = scaled(gpd.GeoDataFrame(geometry=[roi]), roi_scale)
     sdata = sd.SpatialData(images={"img": image}, shapes=shapes, tables=tables)
     sdata.attrs["cell_segmentation_image"] = "img"
     path = tmp_path / "s.zarr"
@@ -338,12 +350,13 @@ def make_virtues_store(tmp_path, roi):
     return path
 
 
-def run_cli(tmp_path, monkeypatch, roi, panel=PANEL, stats_panel=PANEL, device="cuda"):
+def run_cli(tmp_path, monkeypatch, roi, panel=PANEL, stats_panel=PANEL, device="cuda", **scales):
     pytest.importorskip("spatialdata")
+    tmp_path.mkdir(exist_ok=True)
     fasta = tmp_path / "uniprot.fasta"
     fasta.write_text(FASTA)
     monkeypatch.setenv("VIRTUES_UNIPROT", str(fasta))
-    path = make_virtues_store(tmp_path, roi)
+    path = make_virtues_store(tmp_path, roi, **scales)
     out = tmp_path / "out"
     argv = [
         "--sdata", str(path), "--methods", "cellpose,stardist",
@@ -409,6 +422,19 @@ def test_cli_outputs_layout(tmp_path, monkeypatch):
     assert tissue.obs["n_niches"].iloc[0] == 1
     assert np.array_equal(tissue.X, nt.X)
     assert set(tissue.uns["virtues"]) == UNS_KEYS
+
+
+def test_cli_coarse_roi_and_cells_match_scale0(tmp_path, monkeypatch):
+    # sopa's tissue() keeps the ROI in its coarsest level's pixels; cells may sit on a level too
+    import anndata as ad
+
+    _, ref = run_cli(tmp_path / "ref", monkeypatch, roi=box(0, 0, 260, 300))
+    _, out = run_cli(tmp_path / "coarse", monkeypatch, roi=box(0, 0, 260, 300), roi_scale=16, cell_scale=2)
+    for f in ("cellpose_virtues", "stardist_virtues", "virtues_niches_table", "virtues_tissue"):
+        a, b = ad.read_h5ad(ref / f"{f}.h5ad"), ad.read_h5ad(out / f"{f}.h5ad")
+        assert np.array_equal(np.asarray(a.X), np.asarray(b.X), equal_nan=True), f
+    nt = ad.read_h5ad(out / "virtues_niches_table.h5ad")
+    assert list(nt.obs["tissue_fraction"]) == [1.0]
 
 
 def test_cli_no_niche_writes_no_niche_files(tmp_path, monkeypatch):

@@ -18,7 +18,15 @@ from pathlib import Path
 
 import numpy as np
 
-from virtues_stats import MODEL_UM_PER_PX, TISSUE_KEY, load_stats, model_shape, resample_window, tissue_mask
+from virtues_stats import (
+    MODEL_UM_PER_PX,
+    TISSUE_KEY,
+    load_stats,
+    model_shape,
+    resample_window,
+    tissue_mask,
+    to_image_pixels,
+)
 
 CROP = 128
 PATCH = 8
@@ -452,7 +460,10 @@ def main(argv=None, encode=None) -> int:
     def read_input(y0, y1, x0, x1):
         return model_input(read_raw, st, y0, y1, x0, x1, padded)
 
-    tissue_polys = list(sdata.shapes[TISSUE_KEY].geometry)
+    try:
+        tissue_polys = to_image_pixels(sdata.shapes[TISSUE_KEY], image)
+    except ValueError as e:
+        fail(f"{TISSUE_KEY}: {e}")
 
     def read_tissue(y0, y1, x0, x1):
         return tissue_mask(tissue_polys, y0, y1, x0, x1, ps)
@@ -461,11 +472,15 @@ def main(argv=None, encode=None) -> int:
     for m in args.methods:
         table = sdata.tables[f"{m}_table"]
         rows = [str(n) for n in table.obs_names]
-        by_id = sdata.shapes[f"{m}_cells"].set_axis(sdata.shapes[f"{m}_cells"].index.astype(str))
+        shapes = sdata.shapes[f"{m}_cells"]
+        try:
+            by_id = pd.Series(to_image_pixels(shapes, image), index=shapes.index.astype(str))
+        except ValueError as e:
+            fail(f"{m}_cells: {e}")
         missing = [n for n in rows if n not in by_id.index]
         if missing:
             fail(f"{m}: {len(missing)} table cells have no shape, e.g. {missing[:3]}")
-        sources[m] = cell_source(list(by_id.loc[rows].geometry), ps, model_hw)
+        sources[m] = cell_source(list(by_id.loc[rows]), ps, model_hw)
         obs[m] = table.obs[[c for c in OBS_COLUMNS if c in table.obs.columns]]
 
     cells = cell_embeddings(read_input, sources, padded, encode, batch=args.batch_size)
