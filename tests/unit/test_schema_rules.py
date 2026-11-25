@@ -14,6 +14,7 @@ MARKERS = ("**Requires:**", "**Conflicts:**", "**Ignored unless:**")
 # Read by a check but needing no rule line. Keep minimal; each entry needs a reason.
 WARN_ONLY = {
     # name: reason
+    "use_tissue_segmentation": "only read as a requirement of use_virtues, whose help_text lists it",
 }
 
 

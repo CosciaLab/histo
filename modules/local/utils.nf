@@ -216,6 +216,16 @@ def defaultNimbusChannels(List rows) {
     return rows.findAll { it.channel_role == 'marker' }.collect { it.marker_name }
 }
 
+// [marker_name, uniprot_id] of each row VirTues embeds, in sheet order.
+def virtuesChannels(List rows) {
+    return rows.findAll { it.uniprot_id }.collect { [it.marker_name, it.uniprot_id] }
+}
+
+// Marker names VirTues leaves out: the rows without a uniprot_id.
+def virtuesUnembedded(List rows) {
+    return rows.findAll { !it.uniprot_id }.collect { it.marker_name }
+}
+
 // One spec per learned-features model.
 def featureSpecs(Map args) {
     def specs = []
@@ -225,6 +235,16 @@ def featureSpecs(Map args) {
             model: 'nimbus',
             channels: getChannels(args.nimbus_channels, true),
             pixel_size: pixelSize(args),
+            gpu: args.use_gpu ? true : false,
+        ]
+    }
+    if (args.use_virtues) {
+        specs << [
+            name: 'virtues',
+            model: 'virtues',
+            channels: null,
+            pixel_size: pixelSize(args),
+            stats: args.virtues_stats ?: null,
             gpu: args.use_gpu ? true : false,
         ]
     }
