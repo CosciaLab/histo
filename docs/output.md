@@ -241,7 +241,8 @@ opening the store.
   with at least 30% tissue, one row each, with `tissue_fraction` in `obs`. Neither exists when no
   square qualifies.
 - `tables/virtues_tissue`: one row per store (a core on a TMA, else the image): the mean of the kept
-  squares, with `n_niches` in `obs`. NaN when no square is kept.
+  squares, with `n_niches` in `obs`. NaN when no square is kept, or when tissue segmentation found no
+  tissue in the store; its cells are still embedded.
 
 ```python
 sdata["cellpose_virtues"].X  # cells x 512, float16

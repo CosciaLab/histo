@@ -66,11 +66,12 @@ channel_number,cycle_number,marker_name,channel_role,channel_compartment,uniprot
 Intensities are first scaled per marker, with numbers taken over the tissue pixels of the whole
 slide: the 0.99 quantile caps each channel, then the log, then the mean and spread. On a tissue
 microarray every core of a slide shares them, so cells stay comparable across cores. The numbers
-are saved as `virtues_stats.json` in `learned_features/`.
+are saved as `{slide}_virtues_stats.json` in `learned_features/`.
 
 The image is then resampled to 1 µm per pixel and cut into 128 µm crops. The model embeds each
 crop in patches of 8 µm, and a cell's numbers are the average over the patches it covers. Large
-images are processed in [tiles](tiling.md) so memory does not grow with the image. Each cell gets
+images are processed in [tiles](tiling.md) so memory does not grow with image area; the cell results
+add about 2 GB per million cells for each segmentation method. Each cell gets
 the same crops as a run on the whole image; a test encoder confirms this exactly, and the real GPU model is still being checked on the cluster.
 
 Each square is the average of its patches, and the whole core or image is the average of its
@@ -85,15 +86,16 @@ The scaling differs from the model's training, which used statistics over whole 
 
 **Inputs and outputs.**
 
-| In                                    | Out                                                                                    |
-| ------------------------------------- | -------------------------------------------------------------------------------------- |
-| The full image, only the marked panel | A table `{method}_virtues` per method: one row per cell, 512 columns.                  |
-| The cells of each segmentation method | `virtues_niches` squares and their table `virtues_niches_table`.                       |
-| The tissue outline                    | `virtues_tissue`: one row for the whole core or image.                                 |
-| `pixel_size`                          | `virtues_stats.json` per slide and a settings file per sample, in `learned_features/`. |
+| In                                    | Out                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------ |
+| The full image, only the marked panel | A table `{method}_virtues` per method: one row per cell, 512 columns.                |
+| The cells of each segmentation method | `virtues_niches` squares and their table `virtues_niches_table`.                     |
+| The tissue outline                    | `virtues_tissue`: one row for the whole core or image.                               |
+| `pixel_size`                          | `{slide}_virtues_stats.json` and a settings file per sample, in `learned_features/`. |
 
 A cell with no pixel at 1 µm per pixel gets an empty row (NaN). A slide with no square that is 30%
-tissue has an empty `virtues_tissue` row. See [The SpatialData store](../outputs/zarr.md).
+tissue has an empty `virtues_tissue` row. So does a core where tissue segmentation finds no tissue;
+its cells are still embedded. See [The SpatialData store](../outputs/zarr.md).
 
 % source: docs/output.md#virtues-embeddings
 

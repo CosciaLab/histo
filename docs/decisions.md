@@ -242,6 +242,11 @@ and mean and SD per dataset; per-slide statistics depart from that, and `virtues
 back to dataset-wide ones. Statistics come from integer histograms, equal to numpy's quantile on
 the pooled pixels.
 
+**A core with no tissue does not stop the run.** sopa writes no ROI when it finds no tissue; such a
+store counts as zero tissue, with a warning, and its cells are still embedded. A slide with no tissue
+at all stops, naming it. sopa keeps the ROI on its coarsest pyramid level, so it is mapped to image
+pixels first.
+
 **One task per store, every method at once.** The GPU pass does not depend on cell masks; only the
 averaging into cells does, and it is repeated per method. Per-tile tasks are on the ROADMAP.
 

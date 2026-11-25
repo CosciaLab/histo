@@ -347,7 +347,10 @@ segmentation method. Output is in
   `learned_features/{slide}_virtues_stats.json`. `virtues_stats` (advanced) takes one such file and
   applies it to every slide, e.g. to freeze a rerun or scale a cohort alike. It must cover every
   embedded marker with the same `uniprot_id`, and is an error without `use_virtues`.
-- One `VIRTUES` task per store, one GPU, memory flat in image size. Time is not yet measured.
+- One `VIRTUES` task per store, one GPU. Memory does not grow with image area; per-cell results take
+  about 2 GB per million cells per method. Time is not yet measured.
+- A core where tissue segmentation found no tissue still gets its cells embedded, with a warning;
+  a slide with no tissue at all stops with a message naming it.
 - The weights (`sp32`) are CC BY-NC 4.0.
 
 ### Fetching images
