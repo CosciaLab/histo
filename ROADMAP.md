@@ -6,30 +6,12 @@ troubleshootability. Sizes are focused working time, estimated before the releas
 
 ## Next releases
 
-Quantification, documentation, resources, segmentation defaults, learned features, then a QC
-report overhaul. Each release adds a QC report chapter for what it measures (MultiQC suits tool
-logs, not our figures). 2.0 is in the [CHANGELOG](CHANGELOG.md).
+Released work is in the [CHANGELOG](CHANGELOG.md); 3.2 shipped Nimbus, VirTues and Cellpose
+defaults from the segmentation benchmark. Next: tiling and resources, more learned features, then
+a QC report overhaul. Each release adds a QC report chapter for what it measures (MultiQC suits
+tool logs, not our figures).
 
-### 3.0: quantification of every cell from every method, then filtering
-
-1. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
-   `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_{method}_qc.json` and the report;
-   check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
-2. **Report chapters**, one per stage.
-
-### 3.1: documentation website
-
-The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What remains:
-
-1. **Figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
-   screenshots.
-2. **Odon.** Document it under Viewers in `site/outputs/reports.md`.
-3. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
-   (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
-   `docs/output.md` calls the profiles "fitted".
-4. **Pages.** Set GitHub Pages source to "GitHub Actions" in the repo settings (one-time, owner).
-
-### 3.2: tiling and resources
+### 3.3: tiling and resources
 
 1. **Resources by tile size.** Run exemplar-001 crops from 256 px to the whole image as single
    patches, CPU and GPU, and fit CPUs, memory, GPU memory and time to tile area. Replaces the
@@ -40,19 +22,11 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
    decision (decisions.md, Parameters): a value derived from the image alone is the same on any
    hardware. Needs item 1 for the cap.
 
-### 3.3: segmentation defaults
-
-1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
-   and cytoplasm. The cellpose docs say a third channel needs retraining; test it with
-   `tools/segmentation_benchmark` first.
-2. **Nuclear smoothing at the new thresholds.** `projection_sigma: 1` helped nuclei at 0.4 / 0
-   in the benchmark but was not tested at 0.6 / -1: two settings on the cluster.
-
 ### 3.4 onward: learned features
 
-KRONOS, on the stage Nimbus added in 3.2. One interface: image and shapes in, `obs`/`obsm` out.
-Reuses 3.2's GPU sizing and 3.3's baked weights. Not in bioconda, so expect a private image.
-Check weight licences first. VirTues lands in 3.2.
+KRONOS, on the stage Nimbus and VirTues use. One interface: image and shapes in, `obs`/`obsm`
+out. Reuses 3.3's GPU sizing; weights baked into the image, as for Nimbus and VirTues. Not in
+bioconda, so expect a private image. Check weight licences first.
 
 **VirTues follow-ups:**
 
@@ -63,6 +37,20 @@ Check weight licences first. VirTues lands in 3.2.
 5. **Per-slide statistics without waiting for the whole run.** Histograms are grouped with no
    size, so no `VIRTUES` starts until every store is histogrammed. `groupKey(slide, n_cores)`
    would pipeline multi-slide runs.
+
+### Carried over, not yet scheduled
+
+Left from 3.0 and 3.1.
+
+1. **Cell filtering.** One `obs` boolean per rule plus `keep`; never drop cells. Not
+   `passes_filtering`, which sopa deletes. Counts per rule in `{sample}_{method}_qc.json` and the
+   report; check `MERGE_SPATIALDATA` carries the columns. 2–3 days.
+2. **Site figures.** Fill the slots in `site/FIGURES.md` from exemplar-001 runs and viewer
+   screenshots.
+3. **Odon.** Document it under Viewers in `site/outputs/reports.md`.
+4. **Dark-field.** Decide whether BaSiCPy should fit one. It never does today
+   (`bin/basicpy_main.py` `--darkfield` is off, no parameter exposes it), yet
+   `docs/output.md` calls the profiles "fitted".
 
 ### Then: QC report overhaul
 
@@ -87,7 +75,8 @@ Images stay in our HTML reports: Depictio shows PNG/JPG only, not OME-TIFF or Za
 
 ### Separate track: dearray before Ashlar
 
-Ships in 3.0: it changes the preprocessing outputs. Likely to change, as is Longer term item 4.
+Not scheduled. It changes the preprocessing outputs, so it needs a major release. Likely to
+change, as is Longer term item 4.
 
 Most valuable and most dangerous. Today Ashlar registers about 1000 tiles × 7 cycles in one job;
 one failure ruins the slide. Per core it would be about 36 tiles × 7 cycles, giving per-core
@@ -148,6 +137,10 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
 7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
    channel across all cores, so a core with no positive cells is not stretched to [0, 1].
 8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.
+9. **Segmentation benchmark follow-ups.** Nuclear smoothing (`projection_sigma: 1`) helped
+   nuclei at 0.4 / 0 but is untested at the new 0.6 / -1: two settings on the cluster. A
+   three-channel CPSAM input (membrane and cytoplasm split) may need retraining, per the
+   cellpose docs; test with `tools/segmentation_benchmark` first.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
@@ -182,10 +175,10 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   `params` ignores writes to set keys (Nextflow 26.04.6). Use a params file.
 - **InstanSeg on GPU is capped at 10 channels.** A stopgap (`instansegGpuMaxChannels`): sopa
   runs a whole patch at once, an A40 has 48 GB, and on CPU 37 channels at 2000 px peak near
-  70 GB. 3.2 item 1 measures GPU peaks by channels and tile area; replace the cap with a warning
+  70 GB. 3.3 item 1 measures GPU peaks by channels and tile area; replace the cap with a warning
   or a patch width that fits, and size InstanSeg's GPU tasks (CPUs, host memory) from the same runs.
 - **Segmentation-time area filtering is off by decision.** `min_area_pixels2 = null` means
-  sopa's CLI uses 0. Filtering belongs after aggregation (3.0 item 1). Note:
+  sopa's CLI uses 0. Filtering belongs after aggregation (Cell filtering, above). Note:
   `sopa/cli/resolve.py` takes `min_area` in µm², the segmentation CLI in px².
 - **Resource profiles are estimates** except `size_tiny`; rewrite from large-slide runs (`-with-tower`).
 
@@ -204,7 +197,6 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### From 2.0
 
-- **Exemplar baselines are null** until 2.0's cluster runs, so the count checks are skipped.
 - **Repair geometry once in `RESOLVE`** (`make_valid`, polygonal parts), so `{m}_cells` and
   `{m}_nuclei` areas agree with the linking's; `LINK_COMPARTMENTS`' repair becomes a safety net.
 - **`uns['segmentation']` records the requested spec**, not sopa's defaults filled in later.

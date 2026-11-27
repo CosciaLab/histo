@@ -6,8 +6,8 @@ dearray and background subtraction, then segmentation, quantification and a QC r
 unattended on a cluster, on images of any size. It follows nf-core conventions and is not
 affiliated with or endorsed by nf-core.
 
-% source: README.md#what-this-is
-% source: README.md#steps
+% source: README.md#credits
+% source: README.md#what-it-does
 
 :::{figure} ../docs/images/pipeline_paths.svg
 :class: col-page-right

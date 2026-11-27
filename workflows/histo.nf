@@ -128,8 +128,9 @@ workflow HISTO {
         // QC needs the aggregated tables. Nothing writes to the store after the last write,
         // so QC and the merge can read it concurrently.
         if (params.use_qc) {
+            // Same sample keys as the stores, or QC's join on meta misses and drops the before-image.
             def ch_unsubtracted = params.use_preprocessing
-                ? PREPROCESS_IMAGES.out.unsubtracted
+                ? PREPROCESS_IMAGES.out.unsubtracted.map { meta, tif -> [addSampleKeys(meta), tif] }
                 : channel.empty()
 
             QC(ch_featured, ch_markers, ch_unsubtracted, ch_registration_qc, specs*.method.unique())

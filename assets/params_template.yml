@@ -1,5 +1,5 @@
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##     CosciaLab/histo 3.1.0
+##     CosciaLab/histo 3.2.0
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##     This is an example parameter file to pass to the `-params-file` option
 ##     of nextflow run with the CosciaLab/histo pipeline.

@@ -3,7 +3,7 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v3.2.0 - [unreleased]
+## v3.2.0 - [2026-11-27]
 
 ### Added
 
@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sheet. `virtues_stats` reuses one statistics file. Weights (`sp32`) are CC BY-NC 4.0.
 - `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive
   into Nextflow's cache, never replacing an image there. Logs go to the cache's `logs/`.
+- `tools/segmentation_benchmark/`: scores Cellpose-SAM settings against hand-drawn outlines on
+  SLURM. Results are on the site's Segmentation benchmark page.
 
 ### Changed
 
@@ -27,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `projection_sigma` 0). Mean F1 rises from 0.53 to 0.73 on mIF crops; cell counts shift. sopa's
   old values: `flow_threshold: 2`, `cellprob_threshold: -6`, `clip_limit: 0.2`,
   `gaussian_sigma: 1`, `projection_sigma: 1`.
+
+### Fixed
+
+- QC's before-and-after background subtraction comparison never ran: the
+  pre-subtraction image lacked the sample keys QC joins on. Broken since at least 2.0.0.
 
 ### Deprecated
 

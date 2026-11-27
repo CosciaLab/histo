@@ -127,7 +127,7 @@ Data:
 Assertions are properties, not checksums: channel names, TMA core count, which processes ran
 and how often, nuclear stain chosen by `channel_role`, subtraction blocks on every core,
 background channels unchanged by subtraction, `versions.yml` complete. Cell counts must stay within ±2% of the
-baselines in ROADMAP.
+baselines in the test files.
 
 ## Containers
 
@@ -222,8 +222,8 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 pip install nf-metro==2.1.0   # 1.1.0 aborts on the turns between rows
 nf-metro validate docs/pipeline_paths.mmd
 nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive \
-    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 85 --y-spacing 200 --section-y-gap 50 \
-    --diamond-style symmetric --height 1036   # --height pads to 1:2.2
+    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 111 --y-spacing 90 \
+    --diamond-style symmetric --compact-offsets --validate
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
