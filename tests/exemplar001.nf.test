@@ -36,8 +36,8 @@ nextflow_pipeline {
             def cells = methods.collectEntries { m ->
                 [(m): slurp.parse(file("${zarr}/tables/${m}_table/X/zarr.json")).shape[0]]
             }
-            // From the 3.2.0 cluster run (test14, b1baa0c, 2026-11-27).
-            def baseline = [cellpose: 16695, instanseg: 16455]
+            // From the 3.2.0 cluster run (test14, 2026-11-27). Cellpose pending the CD45 rerun.
+            def baseline = [cellpose: null, instanseg: 16455]
             def imageShape = slurp.parse(file("${zarr}/images/exemplar-001/s0/zarr.json")).shape
 
             def ran = workflow.trace.succeeded().collect { it.name }
