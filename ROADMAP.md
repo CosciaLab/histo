@@ -7,9 +7,9 @@ troubleshootability. Sizes are focused working time, estimated before the releas
 ## Next releases
 
 Released work is in the [CHANGELOG](CHANGELOG.md); 3.2 shipped Nimbus, VirTues and Cellpose
-defaults from the segmentation benchmark. Next: tiling and resources, segmentation defaults, more
-learned features, then a QC report overhaul. Each release adds a QC report chapter for what it
-measures (MultiQC suits tool logs, not our figures).
+defaults from the segmentation benchmark. Next: tiling and resources, more learned features, then
+a QC report overhaul. Each release adds a QC report chapter for what it measures (MultiQC suits
+tool logs, not our figures).
 
 ### 3.3: tiling and resources
 
@@ -22,15 +22,7 @@ measures (MultiQC suits tool logs, not our figures).
    decision (decisions.md, Parameters): a value derived from the image alone is the same on any
    hardware. Needs item 1 for the cap.
 
-### 3.4: segmentation defaults
-
-1. **Three-channel projection** for CPSAM: split `use_projection`'s `cell` channel into membrane
-   and cytoplasm. The cellpose docs say a third channel needs retraining; test it with
-   `tools/segmentation_benchmark` first.
-2. **Nuclear smoothing at the new thresholds.** `projection_sigma: 1` helped nuclei at 0.4 / 0
-   in the benchmark but was not tested at 0.6 / -1: two settings on the cluster.
-
-### 3.5 onward: learned features
+### 3.4 onward: learned features
 
 KRONOS, on the stage Nimbus and VirTues use. One interface: image and shapes in, `obs`/`obsm`
 out. Reuses 3.3's GPU sizing; weights baked into the image, as for Nimbus and VirTues. Not in
@@ -145,6 +137,10 @@ Not scheduled. The marker sheet already has the columns these need (`channel_rol
 7. **Slide-wide Nimbus normalisation**, as an option beside the per-core default. One factor per
    channel across all cores, so a core with no positive cells is not stretched to [0, 1].
 8. **Remove `instanseg_pixel_size`** at the next major release; `pixel_size` replaces it.
+9. **Segmentation benchmark follow-ups.** Nuclear smoothing (`projection_sigma: 1`) helped
+   nuclei at 0.4 / 0 but is untested at the new 0.6 / -1: two settings on the cluster. A
+   three-channel CPSAM input (membrane and cytoplasm split) may need retraining, per the
+   cellpose docs; test with `tools/segmentation_benchmark` first.
 
 Items 3, 4 and dearray-first all need richer marker sheet metadata: design the columns once. If
 dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` channel".
