@@ -15,8 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   so memory does not grow with the image. Needs `use_gpu`, `use_preprocessing`,
   `use_tissue_segmentation`, `segment_cells`, `pixel_size` and a `uniprot_id` column in the marker
   sheet. `virtues_stats` reuses one statistics file. Weights (`sp32`) are CC BY-NC 4.0.
-- `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive,
-  named for Nextflow's cache, outside the shared cache.
+- `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive
+  into Nextflow's cache, never replacing an image there. Logs go to the cache's `logs/`.
 
 ### Changed
 
