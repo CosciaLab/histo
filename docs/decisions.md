@@ -254,8 +254,8 @@ averaging into cells does, and it is repeated per method. Per-tile tasks are on 
 by 120 px) is built once on the whole padded image. A tile embeds every crop touching its cells, so
 each cell sees upstream's crop set. Attention never crosses crops, and resampling weights depend
 on global coordinates only, so tiles give identical rows to a whole-image run with exact arithmetic
-(tested with a fake encoder). Whether the fp16 GPU encoder is batch invariant is measured on the
-cluster with the parity tool; pending.
+(tested with a fake encoder). On an A40 the fp16 encoder is too: batch 32 vs 8 and tile 512 vs 2048
+give identical rows (parity tool).
 
 **ESM-2 without attention contacts.** Upstream's `embed` keeps every attention map (about 25 GB for
 Ki-67); we skip them. The embeddings are the same.
@@ -279,7 +279,9 @@ segmentation included, so outlines differ slightly from a CPU run.
 spora-io `ef15868`, FlashAttention 2.7.4.post1, torch 2.5.1+cu124, ESM-2 `esm2_t30_150M_UR50D`,
 human Swiss-Prot with isoforms (release 2026_04), `HF_HUB_OFFLINE=1`.
 
-**Open:** parity with upstream, determinism and exemplar runs on the cluster; usefulness on real data.
+**Checked on an A40:** every cell within cosine 0.99999999 of upstream's code; repeat runs identical.
+
+**Open:** usefulness on real data.
 
 ## Quantification
 

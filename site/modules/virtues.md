@@ -13,7 +13,8 @@ numbers, compare cells across patients, or give them to a classifier. They have 
 ## Parameters
 
 - [`use_virtues`](../inputs/parameters-full.md#use_virtues): turns VirTues on.
-- [`use_gpu`](../inputs/parameters-full.md#use_gpu), required: the model has no CPU version.
+- [`use_gpu`](../inputs/parameters-full.md#use_gpu), required: the model has no CPU version. It needs
+  a recent NVIDIA GPU, such as an A40 or A100; older cards such as the V100 do not work.
 - [`use_preprocessing`](../inputs/parameters-full.md#use_preprocessing), required: the marker sheet
   gives the UniProt IDs, and a stitched image has no sheet.
 - [`use_tissue_segmentation`](../inputs/parameters-full.md#use_tissue_segmentation), required:
@@ -66,13 +67,13 @@ channel_number,cycle_number,marker_name,channel_role,channel_compartment,uniprot
 Intensities are first scaled per marker, with numbers taken over the tissue pixels of the whole
 slide: the 0.99 quantile caps each channel, then the log, then the mean and spread. On a tissue
 microarray every core of a slide shares them, so cells stay comparable across cores. The numbers
-are saved as `{slide}_virtues_stats.json` in `learned_features/`.
+are saved as `{slide}_virtues_stats.json` in `learned_features/`, unless you give `virtues_stats`.
 
 The image is then resampled to 1 µm per pixel and cut into 128 µm crops. The model embeds each
 crop in patches of 8 µm, and a cell's numbers are the average over the patches it covers. Large
 images are processed in [tiles](tiling.md) so memory does not grow with image area; the cell results
 add about 2 GB per million cells for each segmentation method. Each cell gets
-the same crops as a run on the whole image; a test encoder confirms this exactly, and the real GPU model is still being checked on the cluster.
+the same crops as a run on the whole image, and its numbers match the authors' own code.
 
 Each square is the average of its patches, and the whole core or image is the average of its
 squares. A square is kept if at least 30% of it is tissue.
@@ -84,25 +85,34 @@ The scaling differs from the model's training, which used statistics over whole 
 % source: bin/virtues_cells.py
 % source: bin/virtues_stats.py
 
-**Inputs and outputs.**
+**Inputs.** The full image (only channels with a `uniprot_id`), the cells of each segmentation
+method, and the tissue outline.
 
-| In                                    | Out                                                                                  |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| The full image, only the marked panel | A table `{method}_virtues` per method: one row per cell, 512 columns.                |
-| The cells of each segmentation method | `virtues_niches` squares and their table `virtues_niches_table`.                     |
-| The tissue outline                    | `virtues_tissue`: one row for the whole core or image.                               |
-| `pixel_size`                          | `{slide}_virtues_stats.json` and a settings file per sample, in `learned_features/`. |
+**Outputs.**
 
-A cell with no pixel at 1 µm per pixel gets an empty row (NaN). A slide with no square that is 30%
-tissue has an empty `virtues_tissue` row. So does a core where tissue segmentation finds no tissue;
-its cells are still embedded. See [The SpatialData store](../outputs/zarr.md).
+- A table `{method}_virtues` per method: one row per cell, 512 columns.
+- `virtues_niches` squares and their table `virtues_niches_table`.
+- `virtues_tissue`: one row for the whole core or image.
+- In `learned_features/`: a settings file per sample, and `{slide}_virtues_stats.json`.
+
+A cell with no pixel at 1 µm per pixel gets an empty row (NaN). A core or image with no square that
+is 30% tissue has an empty `virtues_tissue` row. So does a core where tissue segmentation finds no
+tissue; its cells are still embedded. See [The Zarr store](../outputs/zarr.md).
 
 % source: docs/output.md#virtues-embeddings
 
+## If the run stops at the statistics
+
+"standard deviation is zero" means that at least 99% of a marker's tissue pixels are 0, so the
+marker carries no signal to scale. Usually background subtraction removed it: check that marker's
+`exposure` and `background` in the marker sheet. Otherwise leave its `uniprot_id` empty.
+
+% source: docs/usage.md#virtues
+% source: bin/virtues_stats.py
+
 ## Open points
 
-- The model's agreement with the authors' own code, and between two runs, is being measured on the
-  cluster. Whether the numbers help on your data has not yet been tested.
+- Whether the numbers help on your data has not yet been tested.
 - The weights (`sp32`) are licensed CC BY-NC 4.0: academic and non-commercial use only.
 
 % source: docs/decisions.md#learned-features

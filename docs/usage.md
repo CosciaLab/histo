@@ -345,10 +345,16 @@ segmentation method. Output is in
 - DNA stains are not embedded: a `dna` row with an ID stops the run.
 - Intensities are scaled with statistics per slide over tissue pixels, written to
   `learned_features/{slide}_virtues_stats.json`. `virtues_stats` (advanced) takes one such file and
-  applies it to every slide, e.g. to freeze a rerun or scale a cohort alike. It must cover every
-  embedded marker with the same `uniprot_id`, and is an error without `use_virtues`.
-- One `VIRTUES` task per store, one GPU. Memory does not grow with image area; per-cell results take
-  about 2 GB per million cells per method. Time is not yet measured.
+  applies it to every slide, e.g. to freeze a rerun or scale a cohort alike; no statistics file is
+  then written. It must cover every embedded marker with the same `uniprot_id`, and is an error
+  without `use_virtues`.
+- "standard deviation is zero (constant marker)" stops the run when at least 99% of a marker's tissue
+  pixels are 0, so its 0.99 cap is 0. Usually backsub removed the signal: check that marker's
+  `exposure` and `background`. Otherwise leave its `uniprot_id` empty.
+- One `VIRTUES` task per store, one GPU. FlashAttention 2 needs an Ampere or newer GPU: `mdc` asks
+  for an A40; elsewhere, request one in your config. On a V100 the task fails in the model.
+- Memory does not grow with image area; per-cell results take about 2 GB per million cells per
+  method. An exemplar-002 core (22 markers, A40): about 1 min, 3.5 GB peak.
 - A core where tissue segmentation found no tissue still gets its cells embedded, with a warning;
   a slide with no tissue at all stops with a message naming it.
 - The weights (`sp32`) are CC BY-NC 4.0.

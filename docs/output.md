@@ -277,8 +277,8 @@ sdata["cellpose_virtues"].X  # cells x 512, float16
 | `n_niches_kept`          | Squares kept.                                                          |
 | `n_niches_dropped`       | Squares dropped for too little tissue.                                 |
 
-Also published to `learned_features/`: `{sample}_virtues.json` with these keys, and
-`{slide}_virtues_stats.json` with the statistics used, one per slide.
+Also published to `learned_features/`: `{sample}_virtues.json` with these keys, and, unless
+`virtues_stats` is given, `{slide}_virtues_stats.json` with the statistics computed, one per slide.
 
 #### From 1.x
 

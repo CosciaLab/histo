@@ -36,11 +36,11 @@ Environment (read by the pipeline): `VIRTUES_WEIGHTS`, `VIRTUES_UNIPROT`, `VIRTU
   the bundled `.pt`: max abs difference 9.5e-07 for 39 of them (CPU float32 noise). One outlier,
   `P36402` (TCF7), 3.4e-02: UniProt 2026_04 has sequence version 4 (one residue differs from version
   3, release 2025_02). The version 3 sequence gives 1.5e-07. Isoform `P08575-8` matches.
-- **Token shape (from the code, cluster to confirm).** `encoder_output.patch_summary_tokens` is a list
-  with one `(16, 16, 512)` tensor per 128 px crop (`H W D`; dtype set by autocast, cluster prints it).
+- **Token shape (from the code; the A40 parity run passes with it).** `encoder_output.patch_summary_tokens`
+  is a list with one `(16, 16, 512)` tensor per 128 px crop (`H W D`; dtype set by autocast).
 - **Backsub (0.5.1, `background_sub.py`).** Output dtype equals input dtype: `data_type` read from the
   source (L171), integer results clipped then `.astype(ref_dtype)` (L243-246). The `--marker-output` CSV
   keeps unknown columns such as `uniprot_id`: it reads the sheet with `pd.read_csv` (L378) and drops only
   `keep`, `ind`, `processed`, `factor`, `bg_idx` (L383-385; `remove` earlier, L118), adds `channel_number`
   (L386); rows with `remove` true are dropped (L380).
-- **Cluster check.** Pending, run by the user.
+- **Cluster check.** `check_image.py` passed on an A40 (2026-11-25), and parity with upstream (2026-11-26).

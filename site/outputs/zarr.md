@@ -106,10 +106,12 @@ names unique, for example with `anndata.concat(..., index_unique="-")`.
 ## Names the pipeline owns
 
 Shapes and tables named `{cellpose,instanseg}_{cells,nuclei,cytoplasm,table}` belong to the
-pipeline: a run replaces those it writes and removes the rest. Do not give your own additions
-these names.
+pipeline: a run replaces those it writes and removes the rest. With VirTues, a run also replaces
+`{cellpose,instanseg}_virtues`, `virtues_niches`, `virtues_niches_table` and `virtues_tissue`. Do
+not give your own additions these names.
 
 % source: docs/output.md#spatialdata-directory
+% source: bin/write_features.py
 
 ## Why Zarr
 
