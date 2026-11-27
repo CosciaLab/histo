@@ -166,6 +166,7 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   the args for both `-stub` and `-stub-run`. Harmless.
 - **An unchanged `-resume` reruns everything from `MAKE_IMAGE_PATCHES`.** Only `TO_SPATIALDATA`
   is cached (seen in the Nimbus Mac run, 2026-11-12). Suspect the in-place Zarr mutation.
+  Also on the cluster (test13 07/08, 2026-11-27): the cache breaks at `SET_CHANNEL_NAMES`, same script.
 - **A spaced boolean (`--use_qc false`) is reported as a samplesheet error.** The startup check
   above catches it, but the message points at the wrong thing.
 - **`bin/project_channels.py` reads tissue polygons as full-resolution pixels.** sopa stores
