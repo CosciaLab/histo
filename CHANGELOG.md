@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   old values: `flow_threshold: 2`, `cellprob_threshold: -6`, `clip_limit: 0.2`,
   `gaussian_sigma: 1`, `projection_sigma: 1`.
 
+### Fixed
+
+- QC's before-and-after background subtraction comparison never ran: the
+  pre-subtraction image lacked the sample keys QC joins on. Broken since at least 2.0.0.
+
 ### Deprecated
 
 - `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still
