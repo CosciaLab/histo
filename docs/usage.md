@@ -131,7 +131,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide.      |
 | `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                      |
 | `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                            |
-| `pixel_size`               | none                 | You use `use_instanseg` or `use_nimbus`: µm per pixel of your image (OME PhysicalSizeX).                    |
+| `pixel_size`               | none                 | You use `use_instanseg`, `use_nimbus` or `use_virtues`: µm per pixel of your image (OME PhysicalSizeX).     |
 | `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                         |
 | `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                           |
 | `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                       |
@@ -139,6 +139,7 @@ pipeline stops at startup rather than letting that happen, for every boolean it 
 | `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                      |
 | `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                     |
 | `use_nimbus`               | `false`              | You want a per-cell marker positivity score. Needs `pixel_size` and `segment_cells`. See [Nimbus](#nimbus). |
+| `use_virtues`              | `false`              | You want 512-number embeddings per cell, tissue square and core. See [VirTues](#virtues).                   |
 | `use_gpu`                  | `false`              | On the cluster: one GPU per segmentation patch. See [GPU segmentation](#gpu-segmentation).                  |
 | `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                       |
 | `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                       |
@@ -290,7 +291,7 @@ a later run deleted ("projection removed by an earlier run"). Rerun those sample
 
 ### GPU segmentation
 
-`use_gpu: true` gives each Cellpose and InstanSeg patch task, and each Nimbus task, one GPU.
+`use_gpu: true` gives each Cellpose and InstanSeg patch task, and each Nimbus and VirTues task, one GPU.
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
 sopa image cannot run on the V100s. At most 16 patches per method run at once. Cellpose tasks get
 1 CPU and 8 GB on `size_tiny` and `size_small`, else 2 CPUs and 16 GB; InstanSeg tasks keep their
@@ -328,6 +329,35 @@ nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
   otherwise. This keeps differences between patients' cores. In a core with no positive cells, noise
   is stretched to [0, 1] and can score as signal.
 - NIMBUS has its own cap of 16 tasks at once, separate from the segmentation patches.
+
+### VirTues
+
+`use_virtues: true` embeds every cell, every 128 µm tissue square and each core or slide, per
+segmentation method. Output is in
+[output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#virtues-embeddings).
+
+- Required, or the run stops at startup: `use_gpu`, `use_preprocessing`, `use_tissue_segmentation`,
+  `segment_cells` and `pixel_size`. With `use_gpu`, segmentation runs on the GPU too.
+- Add a `uniprot_id` column to the marker sheet. A channel is embedded if and only if its row has
+  one, e.g. `P08246`; an isoform takes a suffix (`P08575-8`). IDs must be unique and the format is
+  checked. An ID missing from the bundled human Swiss-Prot sequences fails the task, naming it.
+  `tests/stub_data/markers_virtues.csv` is an example.
+- DNA stains are not embedded: a `dna` row with an ID stops the run.
+- Intensities are scaled with statistics per slide over tissue pixels, written to
+  `learned_features/{slide}_virtues_stats.json`. `virtues_stats` (advanced) takes one such file and
+  applies it to every slide, e.g. to freeze a rerun or scale a cohort alike; no statistics file is
+  then written. It must cover every embedded marker with the same `uniprot_id`, and is an error
+  without `use_virtues`.
+- "standard deviation is zero (constant marker)" stops the run when at least 99% of a marker's tissue
+  pixels are 0, so its 0.99 cap is 0. Usually backsub removed the signal: check that marker's
+  `exposure` and `background`. Otherwise leave its `uniprot_id` empty.
+- One `VIRTUES` task per store, one GPU. FlashAttention 2 needs an Ampere or newer GPU: `mdc` asks
+  for an A40; elsewhere, request one in your config. On a V100 the task fails in the model.
+- Memory does not grow with image area; per-cell results take about 2 GB per million cells per
+  method. An exemplar-002 core (22 markers, A40): about 1 min, 3.5 GB peak.
+- A core where tissue segmentation found no tissue still gets its cells embedded, with a warning;
+  a slide with no tissue at all stops with a message naming it.
+- The weights (`sp32`) are CC BY-NC 4.0.
 
 ### Fetching images
 
@@ -368,8 +398,9 @@ ls "$NXF_SINGULARITY_CACHEDIR"
 rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARITY_CACHEDIR/"
 ```
 
-Our own images (`docker.io/josenimo/sopa:2.3.0-1`, `docker.io/josenimo/nimbus:0.0.5`) are staged the
-same way. The Nimbus image is needed for `use_nimbus`, and has the weights (`V1.pt`) inside.
+Our own images (`docker.io/josenimo/sopa:2.3.0-1`, `docker.io/josenimo/nimbus:0.0.5`,
+`docker.io/josenimo/virtues:d2c25e1-2`) are staged the same way. The Nimbus image is needed for
+`use_nimbus` and the VirTues image for `use_virtues`; each has its weights inside.
 
 To build one SIF yourself, from a registry or a `docker save` tar, submit
 `tools/build_sif.sbatch` after sourcing the histo `setup.sh`. It builds straight into

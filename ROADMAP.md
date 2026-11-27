@@ -50,9 +50,19 @@ The site is built (`site/`, deployed by `.github/workflows/docs.yml`). What rema
 
 ### 3.4 onward: learned features
 
-KRONOS and VirTues, one per release, on the stage Nimbus added in 3.2. One interface: image and
-shapes in, `obs`/`obsm` out. Reuses 3.2's GPU sizing and 3.3's baked weights. Neither is in
-bioconda, so expect private images. Check weight licences first.
+KRONOS, on the stage Nimbus added in 3.2. One interface: image and shapes in, `obs`/`obsm` out.
+Reuses 3.2's GPU sizing and 3.3's baked weights. Not in bioconda, so expect a private image.
+Check weight licences first. VirTues lands in 3.2.
+
+**VirTues follow-ups:**
+
+1. **QC plots** for the embeddings, after real-data validation. Only facts are in the QC report now.
+2. **Per-tile tasks**, one GPU job per tile then a gather, if one task per store is too slow.
+3. **A crop-step parameter**, now fixed at upstream's 42 px.
+4. **Pre-stitched input**, which has no marker sheet and so no UniProt IDs.
+5. **Per-slide statistics without waiting for the whole run.** Histograms are grouped with no
+   size, so no `VIRTUES` starts until every store is histogrammed. `groupKey(slide, n_cores)`
+   would pipeline multi-slide runs.
 
 ### Then: QC report overhaul
 
@@ -156,8 +166,12 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
   the args for both `-stub` and `-stub-run`. Harmless.
 - **An unchanged `-resume` reruns everything from `MAKE_IMAGE_PATCHES`.** Only `TO_SPATIALDATA`
   is cached (seen in the Nimbus Mac run, 2026-11-12). Suspect the in-place Zarr mutation.
+  Also on the cluster (test13 07/08, 2026-11-27): the cache breaks at `SET_CHANNEL_NAMES`, same script.
 - **A spaced boolean (`--use_qc false`) is reported as a samplesheet error.** The startup check
   above catches it, but the message points at the wrong thing.
+- **`bin/project_channels.py` reads tissue polygons as full-resolution pixels.** sopa stores
+  `region_of_interest` at the coarsest pyramid level (`Scale(16)`), so its tissue mask covers
+  about 1/16 of the tissue, top left. Use `to_image_pixels` from `bin/virtues_stats.py`.
 - **`QC_IMAGES` on prestitched input needs a channel named `DAPI`.** `--nuclear-pattern` is not
   exposed as a parameter.
 

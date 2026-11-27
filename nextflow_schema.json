@@ -493,6 +493,20 @@
                     "type": ["string", "integer"],
                     "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters.",
                     "help_text": "**Ignored unless:** `use_nimbus`."
+                },
+                "use_virtues": {
+                    "type": "boolean",
+                    "description": "Embed each segmented cell with VirTues, a multiplex protein-marker foundation model.",
+                    "help_text": "**Requires:** `use_gpu`, `use_preprocessing`, `use_tissue_segmentation`, `segment_cells`, `pixel_size`, and a `uniprot_id` on at least one marker-sheet row."
+                },
+                "virtues_stats": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.json$",
+                    "hidden": true,
+                    "description": "A `{slide}_virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.",
+                    "help_text": "**Requires:** `use_virtues`."
                 }
             },
             "fa_icon": "fas fa-brain"

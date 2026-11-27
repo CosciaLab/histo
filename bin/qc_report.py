@@ -881,6 +881,31 @@ def nimbus_section(nimbus: dict[str, Any]) -> str:
 """
 
 
+def virtues_section(v: dict[str, Any]) -> str:
+    """VirTues facts: channels embedded, per-marker statistics, cells and squares counted."""
+    rows = [
+        [
+            esc(m),
+            esc(str(e["uniprot_id"])),
+            f"{e['cap']:g}",
+            f"{e['mean']:.3g}",
+            f"{e['sd']:.3g}",
+            f"{e['tissue_pixels']:,}",
+        ]
+        for m, e in v["stats"].items()
+    ]
+    unembedded = ", ".join(esc(m) for m in v["unembedded"]) or "none"
+    return f"""
+<section>
+  <h2>VirTues embeddings</h2>
+  <p class="note">Cells embedded: {v["n_cells"]:,} ({v["n_cells_without_pixel"]:,} without a pixel).
+  Tissue squares kept: {v["n_niches_kept"]:,}, dropped: {v["n_niches_dropped"]:,}.
+  Channels not embedded: {unembedded}.</p>
+  {table(["Marker", "UniProt", "Cap", "Mean", "SD", "Tissue pixels"], rows)}
+</section>
+"""
+
+
 def inline_png(path: Path) -> str:
     """Return a PNG or JPEG file as a base64 data URI."""
     import base64
@@ -1826,6 +1851,7 @@ def build(
 {linking_section(metrics["linking"]) if metrics.get("linking") else ""}
 
 {nimbus_section(metrics["nimbus"]) if "nimbus" in metrics else ""}
+{virtues_section(metrics["virtues"]) if "virtues" in metrics else ""}
 
 {patch_block}
 

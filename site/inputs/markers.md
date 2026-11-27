@@ -88,12 +88,16 @@ channel that is not `dna`, set [`skip_reference_dna_check`](parameters-full.md#s
   first `dna` channel is `nuclear`, and every `marker` whose compartment includes `membrane` or
   `cytoplasm` is `cell`. Once any row has a value, the column is the whole selection: blank rows
   are left out, the `dna` channel included. See [Many markers with Cellpose](parameters.md#many-markers-with-cellpose).
+- **`uniprot_id`**: only with [`use_virtues`](parameters-full.md#use_virtues). The human UniProt ID of
+  the protein a marker shows, such as `P08246`; channels without one are not embedded. See
+  [VirTues](../modules/virtues.md).
 - **`filter`**, **`excitation_wavelength`**, **`emission_wavelength`**: for your records.
 
 % source: assets/schema_marker.json
 % source: docs/usage.md#inputs
 % source: subworkflows/local/utils_nfcore_histo_pipeline/main.nf:394-427
 % source: bin/qc_metrics.py:320-322
+% source: docs/usage.md#virtues
 
 ## Background subtraction columns
 

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `use_nimbus`: per-cell marker positivity scores from Nimbus, one `{method}_nimbus` table per
   segmentation method, tiled so memory does not grow with the image. `nimbus_channels` picks the
   markers. Provenance is published to `learned_features/`.
+- `use_virtues`: 512-number VirTues embeddings per cell (`{method}_virtues`), per 128 µm tissue
+  square (`virtues_niches`, `virtues_niches_table`) and per core or slide (`virtues_tissue`), tiled
+  so memory does not grow with the image. Needs `use_gpu`, `use_preprocessing`,
+  `use_tissue_segmentation`, `segment_cells`, `pixel_size` and a `uniprot_id` column in the marker
+  sheet. `virtues_stats` reuses one statistics file. Weights (`sp32`) are CC BY-NC 4.0.
 - `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive
   into Nextflow's cache, never replacing an image there. Logs go to the cache's `logs/`.
 

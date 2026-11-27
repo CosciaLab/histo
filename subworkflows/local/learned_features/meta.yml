@@ -1,15 +1,21 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
 name: "learned_features"
-description: Score every segmented cell with learned models (Nimbus) per segmentation method and write the tables into the store once per sample
+description: Score every segmented cell with learned models (Nimbus, VirTues) per segmentation method and write the outputs into the store once per sample
 keywords:
   - nimbus
+  - virtues
   - features
   - spatial
   - imaging
 components:
   - nimbus
+  - virtues/histogram
+  - virtues/stats
+  - virtues
   - write/features
   - defaultnimbuschannels
+  - virtueschannels
+  - virtuesunembedded
 input:
   - ch_sdata:
       type: file
@@ -20,7 +26,8 @@ input:
       type: file
       description: |
         Channel containing each sample's marker sheet, read for the default Nimbus channels
-        when nimbus_channels is unset. May be empty otherwise.
+        when nimbus_channels is unset and for the VirTues channels (rows with a uniprot_id).
+        May be empty otherwise.
         Structure: [ val(meta), path(csv) ]
   - specs:
       type: list
@@ -34,7 +41,8 @@ output:
   - sdata:
       type: file
       description: |
-        Channel containing the SpatialData Zarr store with tables {method}_nimbus written.
+        Channel containing the SpatialData Zarr store with tables {method}_nimbus and
+        {method}_virtues written, and VirTues' niche and tissue elements when kept.
         Structure: [ val(meta), path(sdata_path) ]
   - versions:
       type: file

@@ -42,6 +42,7 @@ PAGES: dict[str, list[str]] = {
     "cellpose": ["modules/local/segment_patch"],
     "instanseg": ["modules/local/segment_patch"],
     "nimbus": ["modules/local/nimbus"],
+    "virtues": ["modules/local/virtues"],
     "projection": ["modules/local/project_channels"],
     "linking": ["modules/local/link_compartments"],
     "quantification": ["modules/local/aggregate"],

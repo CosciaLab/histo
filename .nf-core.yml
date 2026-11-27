@@ -79,6 +79,7 @@ lint:
     - tests/reference_channels.nf.test
     - tests/dearray_channel.nf.test
     - tests/validate_params.nf.test
+    - tests/validate_virtues_markers.nf.test
     - tests/args_cli.nf.test
     - tests/instanseg_memory.nf.test
     - tests/segmentation_specs.nf.test

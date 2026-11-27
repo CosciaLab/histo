@@ -349,6 +349,23 @@ class TestBuild:
         page = build(minimal_metrics())
         assert "Nimbus" not in page
 
+    def test_virtues_section_present_only_with_the_key(self):
+        m = minimal_metrics()
+        assert "VirTues" not in build(m)
+        m["virtues"] = {
+            "channels": ["CD3"],
+            "unembedded": ["DAPI"],
+            "stats": {"CD3": {"uniprot_id": "P1", "cap": 1.5, "mean": 0.1, "sd": 0.2, "tissue_pixels": 9000}},
+            "n_cells": 5,
+            "n_cells_without_pixel": 1,
+            "n_niches_kept": 3,
+            "n_niches_dropped": 2,
+        }
+        page = build(m)
+        assert "VirTues" in page
+        assert "<td>CD3</td><td>P1</td>" in page
+        assert "Channels not embedded: DAPI" in page
+
     def test_hero_number_is_present_unabbreviated(self):
         """The one number the page leads with is exact, not compacted."""
         m = minimal_metrics()

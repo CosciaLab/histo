@@ -179,7 +179,7 @@ only. Deck and results: `3_Projects/Segmentation_Benchmark` (lab share).
 `SEGMENTATION`, only when a model is enabled. `NIMBUS` writes files; `WRITE_FEATURES` alone writes
 `{method}_nimbus` into the store, after `WRITE_SEGMENTATIONS`. Scores are a table, not a layer: a
 layer must share `{method}_table`'s `var` (marker × statistic), and viewers colour cells by table.
-Later models (KRONOS, VirTues) add a flag and a spec.
+Later models (KRONOS) add a flag and a spec.
 
 **Tile windows are sized at model scale.** The image is resized by `pixel_size` before inference.
 Tile: 2048 model px, each cell owned by the tile holding its centroid. Window: the tile grown to its
@@ -231,6 +231,57 @@ and removed at the next major release.
 **Open: magnification.** The code sets `MODEL_UM_PER_PX = 1.0` in `bin/nimbus_cells.py`, treating Nimbus' "10x" as
 1 µm/px; resize scale, window sizes and `magnification = 10 * MODEL_UM_PER_PX / pixel_size` all follow it. Upstream never defines it ([issue #61](https://github.com/angelolab/Nimbus-Inference/issues/61)),
 and 10x is often 0.5 µm/px. Both are compared on real data before the default is chosen.
+
+### VirTues
+
+**Slide statistics over tissue pixels.** Intensities are capped at the 0.99 quantile, `log1p`
+transformed and z-scored per marker, per slide, over tissue pixels (`use_tissue_segmentation` is
+required). On a TMA every core of a slide shares them, unlike Nimbus's per-core factor, so cells
+stay comparable across cores and patients. The released weights were trained with the cap per image
+and mean and SD per dataset; per-slide statistics depart from that, and `virtues_stats` is the way
+back to dataset-wide ones. Statistics come from integer histograms, equal to numpy's quantile on
+the pooled pixels; off 1 µm/px, on resampled values rounded to integers (the model input is not rounded).
+
+**A core with no tissue does not stop the run.** sopa writes no ROI when it finds no tissue; such a
+store counts as zero tissue, with a warning, and its cells are still embedded. A slide with no tissue
+at all stops, naming it. sopa keeps the ROI on its coarsest pyramid level, so it is mapped to image
+pixels first.
+
+**One task per store, every method at once.** The GPU pass does not depend on cell masks; only the
+averaging into cells does, and it is repeated per method. Per-tile tasks are on the ROADMAP.
+
+**One global crop grid, so tiles match upstream.** Upstream's crop grid (128 px every 42 px, padded
+by 120 px) is built once on the whole padded image. A tile embeds every crop touching its cells, so
+each cell sees upstream's crop set. Attention never crosses crops, and resampling weights depend
+on global coordinates only, so tiles give identical rows to a whole-image run with exact arithmetic
+(tested with a fake encoder). On an A40 the fp16 encoder is too: batch 32 vs 8 and tile 512 vs 2048
+give identical rows (parity tool).
+
+**ESM-2 without attention contacts.** Upstream's `embed` keeps every attention map (about 25 GB for
+Ki-67); we skip them. The embeddings are the same.
+
+**Embed only channels with a `uniprot_id`, never DNA.** No parameter: the sheet decides. Upstream
+leaves DNA stains out, so a `dna` row with an ID is an error, and no Histone H3 mapping is made.
+
+**Cells only; cell, square and tissue embeddings.** Like upstream, no nuclei. A square is kept at
+30% tissue or more; the tissue embedding is the mean of the kept squares. Squares are shapes with a
+table, and the tissue vector has no region, as one row per store does not map onto the tissue polygons.
+
+**Float16, `sp32`.** Embeddings are stored as float16, half the size, and enough for 512 numbers
+per cell. `sp32` is the authors' default and benchmarked model; it is CC BY-NC 4.0, so non-commercial
+use only. `sp31` (MIT) and `imc14` are not wired in.
+
+**GPU, preprocessing and pixel size required.** FlashAttention has no CPU path. A stitched input has
+no marker sheet, so no UniProt IDs. The model runs at 1 µm/px. The whole run is then on GPU,
+segmentation included, so outlines differ slightly from a CPU run.
+
+**Weights and sequences are baked in.** `docker.io/josenimo/virtues:d2c25e1-2`: virtues `d2c25e1`,
+spora-io `ef15868`, FlashAttention 2.7.4.post1, torch 2.5.1+cu124, ESM-2 `esm2_t30_150M_UR50D`,
+human Swiss-Prot with isoforms (release 2026_04), `HF_HUB_OFFLINE=1`.
+
+**Checked on an A40:** every cell within cosine 0.99999999 of upstream's code; repeat runs identical.
+
+**Open:** usefulness on real data.
 
 ## Quantification
 

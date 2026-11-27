@@ -56,11 +56,16 @@ class TestRetargetTable:
         with pytest.raises(ValueError, match="not found"):
             retarget_table(FakeTable("some_other_element"), {"b": "c1__b"}, "c1")
 
-    def test_missing_attrs_refused(self):
+    def test_unannotated_table_copied_unchanged(self):
         t = FakeTable("b")
         t.uns = {}
-        with pytest.raises(ValueError, match="spatialdata_attrs"):
-            retarget_table(t, {"b": "c1__b"}, "c1")
+        assert retarget_table(t, {"b": "c1__b"}, "c1") is t
+        assert t.uns == {}
+
+    def test_table_with_no_region_unchanged(self):
+        t = FakeTable("b")
+        t.uns = {"spatialdata_attrs": {"region": None}}
+        assert retarget_table(t, {}, "c1").uns == {"spatialdata_attrs": {"region": None}}
 
 
 class TestMergeTwoTablesInOneCore:
@@ -172,3 +177,25 @@ class TestElementNaming:
         out = [self.new_name(c, n) for c in cores for n in names]
         out += [self.new_name(c, c) for c in cores]
         assert len(set(out)) == len(out)
+
+
+def test_tissue_table_renamed_per_core(tmp_path):
+    sd = pytest.importorskip("spatialdata", reason="merge() needs spatialdata")
+    import anndata as ad
+    import numpy as np
+    from merge_spatialdata import merge
+    from spatialdata.models import Image2DModel, TableModel
+
+    cores = []
+    for core in ("slide_c1", "slide_c2"):
+        sdata = sd.SpatialData()
+        sdata[core] = Image2DModel.parse(np.zeros((1, 8, 8), dtype="uint16"), dims=("c", "y", "x"))
+        adata = ad.AnnData(np.ones((1, 2), dtype="float32"), obs=pd.DataFrame(index=["tissue_0"]))
+        sdata["virtues_tissue"] = TableModel.parse(adata)
+        cores.append(tmp_path / f"{core}.zarr")
+        sdata.write(cores[-1])
+
+    out = tmp_path / "merged.zarr"
+    merge(out, cores)
+    merged = sd.read_zarr(out)
+    assert sorted(merged.tables) == [f"slide_c1{SEP}virtues_tissue", f"slide_c2{SEP}virtues_tissue"]

@@ -25,10 +25,10 @@ input:
         type: directory
         description: SpatialData Zarr store, modified in place
         pattern: "*.zarr"
-    - tables:
+    - features:
         type: file
-        description: Tables to write; the element name is the file stem (e.g. cellpose_nimbus)
-        pattern: "*.h5ad"
+        description: Tables (*.h5ad) and shapes (*.parquet) to write; the element name is the file stem
+        pattern: "*.{h5ad,parquet}"
 output:
   # main.nf declares no emit names: outputs are positional, in this order.
   sdata:
