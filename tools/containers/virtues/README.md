@@ -8,6 +8,7 @@ so no run needs the network. `check_image.py` is at `/opt/check_image.py`.
   `REL=$(curl -sI 'https://rest.uniprot.org/uniprotkb/stream?format=fasta&includeIsoform=true&query=(organism_id:9606)+AND+(reviewed:true)' | tr -d '\r' | awk -F': ' 'tolower($1)=="x-uniprot-release"{print $2}')`
   then `docker buildx build --platform linux/amd64 --build-arg UNIPROT_RELEASE=$REL --load -t docker.io/josenimo/virtues:d2c25e1-2 tools/containers/virtues`
 - Mac check (offline, no CUDA): `docker run --rm --platform linux/amd64 --network none docker.io/josenimo/virtues:d2c25e1-2 python /opt/check_image.py --cpu-only`
+- Push (public; CI and image staging pull it): `docker push docker.io/josenimo/virtues:d2c25e1-2`
 - Save: `docker save docker.io/josenimo/virtues:d2c25e1-2 -o virtues_d2c25e1-2.tar`
 - SIF on the cluster: `sbatch tools/build_sif.sbatch docker.io/josenimo/virtues:d2c25e1-2`, or from the tar with `--name docker.io-josenimo-virtues-d2c25e1-2.img virtues_d2c25e1-2.tar`
 - Cluster check (GPU node, as an `sbatch` or interactive job; the example core is read from the image):
