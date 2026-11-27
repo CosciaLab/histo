@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sheet. `virtues_stats` reuses one statistics file. Weights (`sp32`) are CC BY-NC 4.0.
 - `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive
   into Nextflow's cache, never replacing an image there. Logs go to the cache's `logs/`.
+- `tools/segmentation_benchmark/`: scores Cellpose-SAM settings against hand-drawn outlines on
+  SLURM. Results are on the site's Segmentation benchmark page.
 
 ### Changed
 
