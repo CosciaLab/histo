@@ -197,7 +197,6 @@ dearray-first happens, item 4 becomes "dearray the naive mosaic once per `dna` c
 
 ### From 2.0
 
-- **Exemplar baselines are null** until the 3.2.0 cluster runs, so the count checks are skipped.
 - **Repair geometry once in `RESOLVE`** (`make_valid`, polygonal parts), so `{m}_cells` and
   `{m}_nuclei` areas agree with the linking's; `LINK_COMPARTMENTS`' repair becomes a safety net.
 - **`uns['segmentation']` records the requested spec**, not sopa's defaults filled in later.

@@ -6,7 +6,7 @@
 //         --profile test_exemplar002,singularity,size_small,slurm
 // Repeat test_exemplar002 in --profile: nf-test's --profile replaces the directive.
 // Cycle 1 (autofluorescence) is subtracted from cycles 2 and 3, then dropped by remove: 12 channels become 9.
-// InstanSeg only, cells and nuclei. 1.x Cellpose baselines (DNA_1): 7472, 4779, 7604, 9678 cells (3717ea0).
+// InstanSeg only, cells and nuclei.
 
 nextflow_pipeline {
 
@@ -34,10 +34,10 @@ nextflow_pipeline {
             def coreMetrics = cores.collect {
                 slurp.parse(file("$outputDir/qc/${it}_instanseg_qc.json"))
             }
-            // PLACEHOLDER: InstanSeg cells per core, set from the 2.0 cluster run; null skips the count check.
+            // InstanSeg cells per core, from the 3.2.0 cluster run (test14, b1baa0c, 2026-11-27).
             def baseline = [
-                'exemplar-002_core001': null, 'exemplar-002_core002': null,
-                'exemplar-002_core003': null, 'exemplar-002_core004': null,
+                'exemplar-002_core001': 9213, 'exemplar-002_core002': 16118,
+                'exemplar-002_core003': 13689, 'exemplar-002_core004': 16634,
             ]
             def counts = cores.indices.collectEntries { i -> [(cores[i]): coreMetrics[i].cells.n_cells] }
 
