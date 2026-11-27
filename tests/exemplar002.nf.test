@@ -34,7 +34,7 @@ nextflow_pipeline {
             def coreMetrics = cores.collect {
                 slurp.parse(file("$outputDir/qc/${it}_instanseg_qc.json"))
             }
-            // InstanSeg cells per core, from the 3.2.0 cluster run (test14, b1baa0c, 2026-11-27).
+            // InstanSeg cells per core, from the 3.2.0 cluster run (test14, 79c05cd, 2026-11-27).
             def baseline = [
                 'exemplar-002_core001': 9213, 'exemplar-002_core002': 16118,
                 'exemplar-002_core003': 13689, 'exemplar-002_core004': 16634,
