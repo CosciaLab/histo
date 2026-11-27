@@ -505,7 +505,7 @@
                     "exists": true,
                     "pattern": "^\\S+\\.json$",
                     "hidden": true,
-                    "description": "A `virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.",
+                    "description": "A `{slide}_virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.",
                     "help_text": "**Requires:** `use_virtues`."
                 }
             },

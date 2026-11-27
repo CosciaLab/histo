@@ -71,13 +71,13 @@ Both are MIT licensed. This pipeline would not exist without them.
 
 - [VirTues](https://doi.org/10.1038/s41586-026-10884-y) — cell, tissue-square and tissue embeddings, under `use_virtues`
 
-  > VirTues, a foundation model for spatial proteomics (Bunne lab). Nature, https://doi.org/10.1038/s41586-026-10884-y; preprint arXiv:2501.06039, https://arxiv.org/abs/2501.06039
+  > Wenckstern J, Jain E, von Querfurth B, Cheng Y, Vasilev K, Pariset M, Cheng PF, Liakopoulos P, Michielin O, Wicki A, Gut G, Bunne C. The Virtual Tissues foundation model resolves spatial proteomics across scales. Nature 657(8132), 744–754 (2026). https://doi.org/10.1038/s41586-026-10884-y; preprint arXiv:2501.06039
 
   The weights (`sp32`) are CC BY-NC 4.0; the code is MIT. [VirTues on GitHub](https://github.com/bunnelab/virtues).
 
 - [spora](https://arxiv.org/abs/2610.24002) — the spatial proteomics data and tooling the released VirTues weights were trained with; its intensity recipe is followed
 
-  > spora, arXiv:2610.24002. https://arxiv.org/abs/2610.24002. Code: [spora-io](https://github.com/bunnelab/spora-io).
+  > von Querfurth B, Wenckstern J, Jain E, Klein L, Cheng P, Cheng Y, Vincent-Cuaz C, Haberecker M, Frossard P, Wicki A, Michielin O, Bunne C. spora: A Unified Multimodal Dataset and Platform for Spatial Proteomics. arXiv:2610.24002 (2026). https://arxiv.org/abs/2610.24002. Code: [spora-io](https://github.com/bunnelab/spora-io).
 
 - [ESM-2](https://doi.org/10.1126/science.ade2574) — protein sequence embeddings for each marker, under `use_virtues`
 

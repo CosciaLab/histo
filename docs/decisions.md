@@ -240,7 +240,7 @@ required). On a TMA every core of a slide shares them, unlike Nimbus's per-core 
 stay comparable across cores and patients. The released weights were trained with the cap per image
 and mean and SD per dataset; per-slide statistics depart from that, and `virtues_stats` is the way
 back to dataset-wide ones. Statistics come from integer histograms, equal to numpy's quantile on
-the pooled pixels.
+the pooled pixels; off 1 µm/px, on resampled values rounded to integers (the model input is not rounded).
 
 **A core with no tissue does not stop the run.** sopa writes no ROI when it finds no tissue; such a
 store counts as zero tissue, with a warning, and its cells are still embedded. A slide with no tissue

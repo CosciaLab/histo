@@ -708,8 +708,8 @@
 ## -----------------------------------------------------------------------------
 ## virtues_stats
 ## -----------------------------------------------------------------------------
-##     A `virtues_stats.json` from an earlier run, applied to every slide
-##     instead of computing per-slide statistics.
+##     A `{slide}_virtues_stats.json` from an earlier run, applied to every
+##     slide instead of computing per-slide statistics.
 ##     Type: string
 ## -----------------------------------------------------------------------------
 # virtues_stats: null

@@ -119,7 +119,7 @@ marker carries no signal to scale. Usually background subtraction removed it: ch
 
 ## Read more
 
-- VirTues: [Nature paper](https://doi.org/10.1038/s41586-026-10884-y) and
+- VirTues: [@doi:10.1038/s41586-026-10884-y], and the
   [preprint](https://arxiv.org/abs/2501.06039). The model code is MIT.
 - [VirTues on GitHub](https://github.com/bunnelab/virtues).
 - ESM-2, which turns each protein into a vector: [@doi:10.1126/science.ade2574].

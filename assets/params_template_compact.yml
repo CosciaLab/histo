@@ -100,7 +100,7 @@
 # use_nimbus: null       # Score per-cell marker positivity with Nimbus.
 # nimbus_channels: null  # Channel(s) to score with Nimbus.
 # use_virtues: null      # Embed each segmented cell with VirTues, a multiplex protein-marker foundation model.
-# virtues_stats: null    # A `virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.
+# virtues_stats: null    # A `{slide}_virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.
 
 ## QC report
 # use_qc: true         # Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report.
