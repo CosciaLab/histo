@@ -222,8 +222,8 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 pip install nf-metro==2.1.0   # 1.1.0 aborts on the turns between rows
 nf-metro validate docs/pipeline_paths.mmd
 nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive \
-    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 111 --y-spacing 110 --section-x-gap 20 \
-    --diamond-style symmetric --validate
+    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 111 --y-spacing 90 \
+    --diamond-style symmetric --compact-offsets --validate
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves
