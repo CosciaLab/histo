@@ -25,15 +25,15 @@ It does this in two halves:
 The two halves meet at a single stitched OME-TIFF per sample. If your images were already
 stitched elsewhere, you can start from the second half.
 
-% source: README.md#what-this-is
-% source: README.md#steps
+% source: README.md#credits
+% source: README.md#what-it-does
 % source: docs/decisions.md#architecture
 
 The preprocessing half comes from [nf-core/mcmicro](https://github.com/nf-core/mcmicro), the
 analysis half from [nf-core/sopa](https://github.com/nf-core/sopa). The pipeline follows nf-core
 conventions but is not an nf-core pipeline.
 
-% source: README.md#what-this-is
+% source: README.md#credits
 
 ## Who it is for
 
@@ -42,7 +42,6 @@ not program. You describe your experiment in two small tables and a short settin
 pipeline does the rest, on a computing cluster, without supervision. Images from 5 GB to
 100 GB have run the same way, because segmentation works patch by patch.
 
-% source: README.md#what-this-is
 % source: docs/decisions.md#architecture
 % source: conf/sizes.config
 
@@ -69,7 +68,7 @@ compute spatial statistics such as neighbourhoods. It stops at a table of measur
 the starting point for that analysis in tools such as [scanpy](https://scanpy.readthedocs.io) or
 [squidpy](https://squidpy.readthedocs.io).
 
-% source: README.md#steps
+% source: README.md#what-it-does
 
 ## mIF today, H&E planned
 
