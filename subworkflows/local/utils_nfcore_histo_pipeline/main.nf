@@ -19,6 +19,8 @@ include { segmentationTargets       } from '../../../modules/local/utils'
 include { defaultInstansegChannels  } from '../../../modules/local/utils'
 include { getChannels               } from '../../../modules/local/utils'
 include { instansegGpuMaxChannels   } from '../../../modules/local/utils'
+include { pixelSize                 } from '../../../modules/local/utils'
+include { virtuesChannels           } from '../../../modules/local/utils'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,10 +155,17 @@ workflow PIPELINE_INITIALISATION {
         def sheets_by_sample = markerSheetsBySample(cycle_rows)
 
         // Every marker sheet column is declared as meta, so each row is [meta], hence it[0].
+        // Parsed once: the same file is checked against every sample's sheet.
+        def virtues_stats = params.use_virtues && params.virtues_stats
+            ? new groovy.json.JsonSlurper().parse(new File(params.virtues_stats.toString()))
+            : null
         sheets_by_sample.each { sample, sheet ->
             def rows = samplesheetToList(sheet, "${projectDir}/assets/schema_marker.json").collect { it[0] }
             validateMarkersheet(rows, sample)
             checkReferenceChannels(rows, sample)
+            if (params.use_virtues) {
+                validateVirtuesMarkers(rows, "marker_sheet for sample '${sample}'", virtues_stats)
+            }
         }
 
         ch_markersheet = channel.fromList(
@@ -348,7 +357,7 @@ def validateMarkersheet(rows, sample = null) {
 
         // Segmentation runs after backsub, so a removed channel is no longer in the image.
         def removed = rows.findAll { it.remove }.collect { it.marker_name } as Set
-        ['cellpose_channels', 'instanseg_channels'].each { param ->
+        ['cellpose_channels', 'instanseg_channels', 'nimbus_channels'].each { param ->
             def value = params[param]
             if (!(value instanceof CharSequence)) {
                 return
@@ -388,6 +397,44 @@ def validateMarkersheet(rows, sample = null) {
     }
 
     return rows
+}
+
+// VirTues embeds a channel only when it has a uniprot_id; checked on the rows backsub keeps.
+def validateVirtuesMarkers(rows, where, stats = null) {
+    def kept = params.use_backsub ? rows.findAll { !it.remove } : rows
+
+    if (!kept.any { it.uniprot_id }) {
+        error("${where}: use_virtues needs a uniprot_id on at least one marker row; a channel is embedded only when it has one.")
+    }
+
+    def dna = kept.findAll { it.channel_role == 'dna' && it.uniprot_id }.collect { it.marker_name }
+    if (dna) {
+        error("${where}: DNA stains are not embedded; remove the uniprot_id from: ${dna}.")
+    }
+
+    def repeated = kept
+        .findAll { it.uniprot_id }
+        .groupBy { it.uniprot_id }
+        .findAll { _id, group -> group.size() > 1 }
+        .keySet()
+        .sort()
+    if (repeated) {
+        error("${where}: uniprot_id must be unique. Repeated: ${repeated}.")
+    }
+
+    if (stats != null) {
+        def recorded = stats.markers ?: [:]
+        def channels = virtuesChannels(kept)
+        def missing = channels.findAll { name, _id -> !recorded.containsKey(name) }.collect { name, _id -> name }
+        if (missing) {
+            error("${where}: virtues_stats has no statistics for: ${missing}.")
+        }
+        channels.each { name, id ->
+            if (recorded[name].uniprot_id != id) {
+                error("${where}: virtues_stats records a different uniprot_id for: ${name} (sheet ${id}, stats ${recorded[name].uniprot_id}).")
+            }
+        }
+    }
 }
 
 // Mirrors resolve_groups in bin/project_channels.py, so an empty group fails before stitching.
@@ -645,14 +692,53 @@ def validateParams(params) {
 
     // InstanSeg rescales to its training resolution; without it the objects are at the wrong scale
     // and the run succeeds with few or no cells.
-    assert !(params.use_instanseg && params.instanseg_pixel_size == null) :
-        "use_instanseg requires instanseg_pixel_size (microns per pixel of the image). Without it " +
+    // Called unconditionally so a conflicting pixel-size pair stops every run, not only InstanSeg's.
+    pixelSize(params)
+    if (params.instanseg_pixel_size != null) {
+        log.warn("instanseg_pixel_size is deprecated; use pixel_size.")
+    }
+    assert !(params.use_instanseg && pixelSize(params) == null) :
+        "use_instanseg requires pixel_size (microns per pixel of the image). Without it " +
         "InstanSeg does not rescale and may return no cells."
 
     // Channel roles come from the marker sheet, which pre-stitched input does not have.
     assert !(params.use_instanseg && params.instanseg_channels == null && !params.use_preprocessing) :
         "use_instanseg without use_preprocessing needs instanseg_channels: the default channels " +
         "come from the marker sheet. Name the channels, separated by space, comma or pipe."
+
+    // Nimbus scores each segmented cell, at the model's training resolution.
+    assert !(params.use_nimbus && pixelSize(params) == null) :
+        "use_nimbus requires pixel_size (microns per pixel of the image). Without it Nimbus " +
+        "cannot rescale to its training resolution."
+    assert !(params.use_nimbus && !('cells' in segmentationTargets(params))) :
+        "use_nimbus requires segment_cells: Nimbus scores cells, so there must be a cell segmentation."
+    assert !(params.use_nimbus && params.nimbus_channels == null && !params.use_preprocessing) :
+        "use_nimbus without use_preprocessing needs nimbus_channels: the default channels " +
+        "come from the marker sheet. Name the channels, separated by space, comma or pipe."
+    if (params.use_nimbus && !params.use_gpu) {
+        log.warn("use_nimbus without use_gpu: near-identical scores, but a whole slide can take days on CPU and may exceed the task time limit.")
+    }
+
+    if (params.use_virtues) {
+        if (!params.use_gpu) {
+            error("use_virtues requires use_gpu: VirTues runs on FlashAttention, which has no CPU path.")
+        }
+        if (!params.use_preprocessing) {
+            error("use_virtues requires use_preprocessing: UniProt IDs come from the marker sheet, which pre-stitched input does not have.")
+        }
+        if (!params.use_tissue_segmentation) {
+            error("use_virtues requires use_tissue_segmentation: intensity statistics are computed over tissue pixels.")
+        }
+        if (!('cells' in segmentationTargets(params))) {
+            error("use_virtues requires segment_cells: VirTues embeds cells, so there must be a cell segmentation.")
+        }
+        if (pixelSize(params) == null) {
+            error("use_virtues requires pixel_size (microns per pixel of the image): VirTues runs at 1 µm per pixel.")
+        }
+    }
+    if (params.virtues_stats && !params.use_virtues) {
+        error("virtues_stats is set but use_virtues is not.")
+    }
 
     if (params.preprocessing_only) {
         assert params.use_preprocessing : "preprocessing_only requires use_preprocessing: with " +

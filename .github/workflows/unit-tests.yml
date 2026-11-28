@@ -27,4 +27,5 @@ jobs:
 
       # --frozen fails if uv.lock is out of step with pyproject.toml instead of re-resolving.
       - name: Run
-        run: uv run --frozen --group dev pytest tests/unit -v
+        # build_sif.sbatch is a cluster helper, not pipeline code; its tests run locally only.
+        run: uv run --frozen --group dev pytest tests/unit -v --ignore=tests/unit/test_build_sif.py

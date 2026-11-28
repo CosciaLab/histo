@@ -112,7 +112,7 @@ input: /data/myproject/sheets/samplesheet.csv
 outdir: /data/myproject/results
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 ```
 
 - `input`: the samplesheet from step 3.
@@ -135,7 +135,7 @@ keeps going when you log out:
 ```bash
 cd /path/to/my/working/folder
 tmux new -s histo
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -143,7 +143,7 @@ nextflow run CosciaLab/histo -r v2.0.0 \
 What each part means:
 
 - `nextflow run CosciaLab/histo`: run this pipeline.
-- `-r v2.0.0`: this version of it, so a rerun next year gives the same result.
+- `-r v3.2.0`: this version of it, so a rerun next year gives the same result.
 - `-profile singularity,size_small,slurm`: run the software in Singularity containers, ask for
   resources sized for images up to about 50 GB, and send each step to the cluster's queue. See
   [Profiles](usage-guide.md#profiles); at the MDC add `mdc`.

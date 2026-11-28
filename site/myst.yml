@@ -46,10 +46,13 @@ project:
         - file: modules/tiling.md
         - file: modules/cellpose.md
         - file: modules/instanseg.md
+        - file: modules/nimbus.md
+        - file: modules/virtues.md
         - file: modules/projection.md
         - file: modules/linking.md
         - file: modules/quantification.md
         - file: modules/qc-report.md
+    - file: benchmark.md
     - file: mdc.md
     - title: Reference
       children:

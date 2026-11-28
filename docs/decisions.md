@@ -73,9 +73,7 @@ panel (0.35 µm/px, raw). No ground truth; outlines were judged by eye, with met
 - **Low percentile 1.** 50 changed little once zeros were excluded; it helps hazy raw images.
 - **Thresholds matter more than projection.** sopa's `flow_threshold: 2`,
   `cellprob_threshold: -6` and CLAHE 0.2 tile the tissue into cells with or without
-  projection (cells cover 94 to 96% of the crop). Cellpose's 0.4 and 0 with CLAHE off follow
-  membranes. Documented, not defaulted, since changing them would change runs without
-  projection.
+  projection (cells cover 94 to 96% of the crop). The segmentation benchmark set new ones.
 - **Projection over DNA only**, both at Cellpose thresholds, exemplar-001: nuclei inside a cell
   rose from 86% to 99%; CD45-positive pixels inside a cell from 65% to 84%.
 - Cellpose-SAM took about 24 s per 1200 px crop on Apple MPS, against 3 s for `cyto3`.
@@ -107,13 +105,15 @@ fails the task, since cellpose falls back to CPU silently.
 
 **Cellpose-SAM replaced Cellpose 3.** In the projection benchmark Cyto3 fell back to nuclei where
 Cellpose-SAM found cells, at ~8x the time. `diameter` is fixed at 30, cpsam's training size, so
-images are not rescaled.
+images are not rescaled. `cpsam_v2` is the default, following the cellpose developers; it is not
+benchmarked against `cpsam`.
 
 ## Segmentation
 
 **One spec per method × target**, built once from params (`segmentationSpecs`), so a new
-method is one more entry. Unset options keep sopa's per-method CLI defaults:
-`StainingSegmentation`'s own would blur and equalise InstanSeg's input.
+method is one more entry. Unset options keep sopa's per-method CLI defaults, except Cellpose's
+thresholds and preprocessing (Segmentation benchmark, below): `StainingSegmentation`'s own would
+blur and equalise InstanSeg's input.
 
 **One writer per store.** `sopa resolve` and `sopa aggregate` write into the store, and parallel
 writers race on its root metadata: last writer wins, silently. So patch, resolve, link and
@@ -150,6 +150,138 @@ Strings and params cannot be reassigned: `"3000" * 0.65` is string repetition, a
 the kwargs JSON fails sopa in every patch task.
 
 **StarDist was sunset in 2.0.** Cellpose and InstanSeg segment nuclei.
+
+## Segmentation benchmark
+
+Cellpose's defaults come from `tools/segmentation_benchmark`: 475 settings of `cpsam_v2` scored
+by F1 at IoU 0.5 against manual outlines. Data: Cross-platform mIF (119 Vectra and 10 CODEX
+crops), TissueNet 1.1 test (1324 tiles) and 10 tonsil crops, partly annotated, used as a check
+only. Deck and results: `3_Projects/Segmentation_Benchmark` (lab share).
+
+- **No smoothing, no CLAHE.** Round 1 (168 settings): `projection_sigma`, `gaussian_sigma` and
+  CLAHE 0.2 each lowered F1, and the smoothings add up; Cellpose-SAM normalises each patch itself.
+  Round 2: CLAHE 0.01 also lost near good thresholds. Max and percentile 1 stay.
+- **`flow_threshold: 0.6`, `cellprob_threshold: -1`.** Round 2 scored 7 × 8 pairs. Flow is flat
+  from 0.6; on cellprob, Cross-platform nuclei want -1 or less and TissueNet nuclei 0 or more.
+  The pair is the one with the smallest largest shortfall from each target's own best, a rule set
+  before the run: within 0.065 of the best for cells and nuclei on both datasets. Separate
+  nuclear thresholds would gain about 0.02 and add two parameters.
+- **Gain.** Cells on Cross-platform 0.53 to 0.73 (128 of 129 crops better), on TissueNet 0.60
+  to 0.87; nuclei 0.42 to 0.80 and 0.39 to 0.76.
+- **Leave autofluorescence out of the cell channel** (+0.012 F1, Vectra only); nuclear markers
+  too (+0.004). The marker sheet already chooses, so this is advice, not code.
+- **Open:** nuclear projection smoothing at -1 is untested (it helped at 0.4 / 0); percentiles
+  were per crop, not per slide.
+
+## Learned features
+
+**A stage after segmentation, one table per model and method.** `LEARNED_FEATURES` runs after
+`SEGMENTATION`, only when a model is enabled. `NIMBUS` writes files; `WRITE_FEATURES` alone writes
+`{method}_nimbus` into the store, after `WRITE_SEGMENTATIONS`. Scores are a table, not a layer: a
+layer must share `{method}_table`'s `var` (marker × statistic), and viewers colour cells by table.
+Later models (KRONOS) add a flag and a spec.
+
+**Tile windows are sized at model scale.** The image is resized by `pixel_size` before inference.
+Tile: 2048 model px, each cell owned by the tile holding its centroid. Window: the tile grown to its
+cells' bounds plus a margin of halo + 32 model px. The halo is measured from the loaded model, 96 px
+for `V1.pt`. Minimum window: 1056 model px, so the valid-padding path is always taken. Neighbours
+are rasterised too, since they shape the binary mask Nimbus sees; only owned cells are scored.
+
+**Tiling is meant to change nothing Nimbus computes; at 0.65 µm/px it does, measurably.**
+
+- The one global step, the per-channel factor, is computed once per store and shared by every
+  window. A channel with no factor is never passed on, or Nimbus would fall back to the window's
+  own quantile.
+- BatchNorm runs in eval mode on fixed statistics, and test-time augmentation averages within one
+  input. No statistic crosses windows.
+- A margin of at least the halo gives every owned cell the receptive field of whole-image inference.
+- Upstream uses reflect padding up to 1024 px and tile-and-stitch above it, with different results.
+  The minimum window keeps every window on the valid path, as upstream whole-slide inference is.
+
+Measured on exemplar-001 crops, scores in [0, 1], with the real model on CPU:
+
+| Pixel size | Crop        | Whole image against upstream | Tiled against whole image (2 × 2 windows) |
+| ---------- | ----------- | ---------------------------- | ----------------------------------------- |
+| 1.0        | 1280 × 1280 | max 7.2e-07                  | max 0 (window origins on the 16 px grid)  |
+| 0.65       | 2100 × 2100 | max 3.0e-08, mean 4.3e-09    | max 0.414, mean 0.0113 (origins off grid) |
+
+The 1.0 tiling result is uninformative: its window origins are multiples of the model's 16 px
+pooling period. At 0.65 the origins fall off that grid and some cells move by up to 0.41, so the
+claim "tiling changes no score" does not hold there. Cause not yet found; fixing it is open work
+(Task 11 follows up). The 0.65 test is marked xfail with these numbers.
+
+**Normalisation is per store.** Per core on a TMA, per image otherwise. A slide-wide factor would
+erase differences between patients' cores. The cost: a core with no positive cells has noise
+stretched to [0, 1]. The factor is the exact 0.999 quantile of nonzero pixels over a fixed-stride
+subsample, so it is deterministic. Slide-wide is a ROADMAP item. A channel with no nonzero pixel
+is NaN and listed in `uns`.
+
+**Test-time augmentation is fixed on, upstream code unchanged.** It is the Nimbus default, and
+it is the same setting on CPU and GPU. CPU against GPU agreement is still to be measured on the cluster. Upstream functions (`prepare_binary_mask`,
+`prepare_input_data`, `test_time_aug`, `segment_mean`) are called as `predict_fovs` calls them.
+
+**Cells only.** Nimbus was trained on whole-cell masks, so `use_nimbus` requires `segment_cells`.
+
+**One pixel size.** `pixel_size` serves InstanSeg and Nimbus. `instanseg_pixel_size` is deprecated,
+and removed at the next major release.
+
+**Weights are baked in.** `V1.pt` (MIT, from HF `JLrumberger/Nimbus-Inference`) is inside
+`docker.io/josenimo/nimbus:0.0.5`, with `HF_HUB_OFFLINE=1`.
+
+**Open: magnification.** The code sets `MODEL_UM_PER_PX = 1.0` in `bin/nimbus_cells.py`, treating Nimbus' "10x" as
+1 µm/px; resize scale, window sizes and `magnification = 10 * MODEL_UM_PER_PX / pixel_size` all follow it. Upstream never defines it ([issue #61](https://github.com/angelolab/Nimbus-Inference/issues/61)),
+and 10x is often 0.5 µm/px. Both are compared on real data before the default is chosen.
+
+### VirTues
+
+**Slide statistics over tissue pixels.** Intensities are capped at the 0.99 quantile, `log1p`
+transformed and z-scored per marker, per slide, over tissue pixels (`use_tissue_segmentation` is
+required). On a TMA every core of a slide shares them, unlike Nimbus's per-core factor, so cells
+stay comparable across cores and patients. The released weights were trained with the cap per image
+and mean and SD per dataset; per-slide statistics depart from that, and `virtues_stats` is the way
+back to dataset-wide ones. Statistics come from integer histograms, equal to numpy's quantile on
+the pooled pixels; off 1 µm/px, on resampled values rounded to integers (the model input is not rounded).
+
+**A core with no tissue does not stop the run.** sopa writes no ROI when it finds no tissue; such a
+store counts as zero tissue, with a warning, and its cells are still embedded. A slide with no tissue
+at all stops, naming it. sopa keeps the ROI on its coarsest pyramid level, so it is mapped to image
+pixels first.
+
+**One task per store, every method at once.** The GPU pass does not depend on cell masks; only the
+averaging into cells does, and it is repeated per method. Per-tile tasks are on the ROADMAP.
+
+**One global crop grid, so tiles match upstream.** Upstream's crop grid (128 px every 42 px, padded
+by 120 px) is built once on the whole padded image. A tile embeds every crop touching its cells, so
+each cell sees upstream's crop set. Attention never crosses crops, and resampling weights depend
+on global coordinates only, so tiles give identical rows to a whole-image run with exact arithmetic
+(tested with a fake encoder). On an A40 the fp16 encoder is too: batch 32 vs 8 and tile 512 vs 2048
+give identical rows (parity tool).
+
+**ESM-2 without attention contacts.** Upstream's `embed` keeps every attention map (about 25 GB for
+Ki-67); we skip them. The embeddings are the same.
+
+**Embed only channels with a `uniprot_id`, never DNA.** No parameter: the sheet decides. Upstream
+leaves DNA stains out, so a `dna` row with an ID is an error, and no Histone H3 mapping is made.
+
+**Cells only; cell, square and tissue embeddings.** Like upstream, no nuclei. A square is kept at
+30% tissue or more; the tissue embedding is the mean of the kept squares. Squares are shapes with a
+table, and the tissue vector has no region, as one row per store does not map onto the tissue polygons.
+
+**Float16, `sp32`.** Embeddings are stored as float16, half the size, and enough for 512 numbers
+per cell. `sp32` is the authors' default and benchmarked model; it is CC BY-NC 4.0, so non-commercial
+use only. `sp31` (MIT) and `imc14` are not wired in.
+
+**GPU, preprocessing and pixel size required.** FlashAttention has no CPU path. A stitched input has
+no marker sheet, so no UniProt IDs. The model runs at 1 µm/px. The whole run is then on GPU,
+segmentation included, so outlines differ slightly from a CPU run.
+
+**Weights and sequences are baked in.** `docker.io/josenimo/virtues:d2c25e1-2`: virtues `d2c25e1`,
+spora-io `ef15868`, FlashAttention 2.7.4.post1, torch 2.5.1+cu124, ESM-2 `esm2_t30_150M_UR50D`,
+human Swiss-Prot with isoforms (release 2026_04), `HF_HUB_OFFLINE=1`.
+
+**Checked on an A40:** every cell within cosine 0.99999999 of upstream's code; repeat runs identical.
+
+**Open:** usefulness on real data.
 
 ## Quantification
 

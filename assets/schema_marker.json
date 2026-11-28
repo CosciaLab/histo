@@ -90,6 +90,14 @@
                 "default": null,
                 "description": "Set true to drop this channel from downstream output.",
                 "meta": "remove"
+            },
+            "uniprot_id": {
+                "type": "string",
+                "default": null,
+                "pattern": "^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})(-[0-9]+)?$",
+                "description": "Optional. UniProt accession of the protein this channel stains, optionally with an isoform suffix. Read by use_virtues, which embeds a channel only when it has one. Leave empty for DNA stains and channels to skip.",
+                "errorMessage": "uniprot_id must be a UniProt accession, optionally with an isoform suffix (e.g. P08575 or P08575-8)",
+                "meta": "uniprot_id"
             }
         },
         "required": ["channel_number", "cycle_number", "marker_name", "channel_role"],

@@ -79,9 +79,12 @@ lint:
     - tests/reference_channels.nf.test
     - tests/dearray_channel.nf.test
     - tests/validate_params.nf.test
+    - tests/validate_virtues_markers.nf.test
     - tests/args_cli.nf.test
     - tests/instanseg_memory.nf.test
     - tests/segmentation_specs.nf.test
+    - tests/feature_specs.nf.test
+    - tests/pixel_size.nf.test
 
   multiqc_config: false
 
@@ -99,4 +102,4 @@ template:
     - igenomes
     - multiqc
     - fastqc
-  version: 2.0.0
+  version: 3.2.0

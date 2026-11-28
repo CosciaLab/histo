@@ -49,3 +49,5 @@ fixture/
 site/_build/
 site/_generated/
 site/node_modules/
+tests/unit/fixtures/nimbus_crop/
+tests/unit/fixtures/nimbus_crop_065/

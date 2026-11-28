@@ -6,13 +6,16 @@
 %%metro marker: PROJECT_CHANNELS | circle, #cccccc
 %%metro marker: LINK_COMPARTMENTS | circle, #cccccc
 %%metro marker: COMPARE_SEGMENTATIONS | circle, #cccccc
+%%metro marker: NIMBUS | circle, #cccccc
+%%metro marker: VIRTUES | circle, #cccccc
 %%metro marker_legend: circle, #cccccc | Optional step
-%%metro grid: preprocessing | 0,0
-%%metro grid: store | 1,0
-%%metro grid: segmentation | 2,0
-%%metro grid: output | 2,1
-%%metro grid: qc | 0,1,1,2
-%%metro legend: bl
+%%metro grid: preprocessing | 0,0,1,2
+%%metro grid: store | 2,0
+%%metro grid: features | 0,1
+%%metro grid: segmentation | 1,1,1,2
+%%metro grid: output | 0,2
+%%metro grid: qc | 1,2,1,2
+%%metro legend: 60,290
 
 graph LR
     subgraph preprocessing [Preprocessing]
@@ -32,23 +35,26 @@ graph LR
     end
 
     subgraph segmentation [Segmentation]
-
+        %%metro direction: RL
+        %%metro entry: top | wsi, tma
         PROJECT_CHANNELS([Channel projection])
         SEGMENT_PATCH_CELLPOSE([Cellpose-SAM])
         SEGMENT_PATCH_INSTANSEG([InstanSeg])
         LINK_COMPARTMENTS([Link nucleus ↔ cell])
-        AGGREGATE([Quantify per cell])
 
         PROJECT_CHANNELS -->|wsi, tma| SEGMENT_PATCH_CELLPOSE
         SEGMENT_PATCH_CELLPOSE -->|wsi, tma| LINK_COMPARTMENTS
         SEGMENT_PATCH_INSTANSEG -->|wsi, tma| LINK_COMPARTMENTS
-        LINK_COMPARTMENTS -->|wsi, tma| AGGREGATE
+    end
+
+    subgraph features [Cell features]
+        %%metro direction: RL
+        AGGREGATE([Quantify per cell])
+        NIMBUS([Nimbus scores])
+        VIRTUES([VirTues embeddings])
     end
 
     subgraph output [Output]
-        %%metro direction: RL
-        %%metro entry: right | wsi, tma
-        %%metro exit: left | wsi, tma
         MERGE_SPATIALDATA([Merge cores per slide])
         PUBLISH_SPATIALDATA([Publish SpatialData])
 
@@ -56,7 +62,6 @@ graph LR
     end
 
     subgraph qc [Quality control]
-        %%metro direction: RL
         QC_METRICS([QC metrics])
         QC_REPORT([QC report])
         COMPARE_SEGMENTATIONS([Compare methods])
@@ -70,15 +75,25 @@ graph LR
     BACKSUB -->|wsi, tma| TO_SPATIALDATA
     TO_SPATIALDATA -->|wsi, tma| PROJECT_CHANNELS
     TO_SPATIALDATA -->|wsi, tma| SEGMENT_PATCH_INSTANSEG
+    LINK_COMPARTMENTS -->|wsi, tma| AGGREGATE
+    LINK_COMPARTMENTS -->|wsi, tma| NIMBUS
+    LINK_COMPARTMENTS -->|wsi, tma| VIRTUES
     AGGREGATE -->|wsi| PUBLISH_SPATIALDATA
+    NIMBUS -->|wsi| PUBLISH_SPATIALDATA
+    VIRTUES -->|wsi| PUBLISH_SPATIALDATA
     AGGREGATE -->|tma| MERGE_SPATIALDATA
+    NIMBUS -->|tma| MERGE_SPATIALDATA
+    VIRTUES -->|tma| MERGE_SPATIALDATA
     PUBLISH_SPATIALDATA -->|wsi, tma| QC_METRICS
 
-    %% Two lines, two rows: left to right, then back right to left through Output and QC.
+    %% Two lines, three rows: left to right, back right to left, then left to right again.
     %% Grey stations are optional steps. Grouped stations:
     %%   COREOGRAPH       COREOGRAPH_DETECT, COREOGRAPH_SELECT, COREOGRAPH
     %%   TO_SPATIALDATA   TO_SPATIALDATA, SET_CHANNEL_NAMES, MAKE_IMAGE_PATCHES
     %%   AGGREGATE        RESOLVE, AGGREGATE, WRITE_SEGMENTATIONS
+    %%   NIMBUS           NIMBUS
+    %%   VIRTUES          VIRTUES_HISTOGRAM, VIRTUES_STATS, VIRTUES, WRITE_FEATURES (one write for both models)
     %%   QC_METRICS       QC_METRICS, QC_IMAGES
     %% Schematic, not wiring: QC reads the store alongside publishing, not after it.
+    %% Schematic: Nimbus and VirTues run after AGGREGATE; drawn beside it as per-cell outputs.
     %% Edges left out are described in docs/CONTRIBUTING.md#what-the-map-leaves-out.

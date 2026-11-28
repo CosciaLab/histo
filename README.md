@@ -1,68 +1,45 @@
-# CosciaLab/histo
-
-Processing, segmentation and quantification of multiplex immunofluorescence (mIF) images.
-Input is raw cycles in any format Ashlar reads (Bio-Formats), or a stitched OME-TIFF.
-H&E is planned and not supported.
-
-> [!WARNING]
-> **Version 2.0.0.** Runs end to end on real data (mIF, TMA, WSI). The samplesheet and marker
-> sheet columns are stable. QC thresholds were calibrated on a single slide, so check your results.
+# Histo
 
 [![Nextflow](https://img.shields.io/badge/version-%E2%89%A525.10.4-green?style=flat&logo=nextflow&logoColor=white&color=%230DC09D&link=https%3A%2F%2Fnextflow.io)](https://www.nextflow.io/)
 [![nf-test](https://img.shields.io/badge/unit_tests-nf--test-337ab7.svg)](https://www.nf-test.com)
 [![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
 
-## What this is
+Processing, segmentation and quantification of multiplex immunofluorescence (mIF) and H&E images from the same tissue.
+H&E is planned and not yet supported.
 
-A Nextflow pipeline for imaging data from human tissue, built to run unattended on colleagues'
-datasets as well as my own. It combines two existing projects:
-
-| Source                                                | What is taken from it                                                                                   |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [nf-core/mcmicro](https://github.com/nf-core/mcmicro) | Preprocessing: illumination correction, stitching and registration, background subtraction, TMA dearray |
-| [nf-core/sopa](https://github.com/nf-core/sopa)       | Everything from segmentation onward: SpatialData object, tiled segmentation, aggregation, reporting     |
-
-The handoff between the two halves is a single stitched OME-TIFF. Segmentation is tiled, so it is
-size independent: images from 5 GB to 100 GB run the same way.
-
-This is a **personal pipeline, not an nf-core pipeline**, and is not affiliated with or endorsed by
-nf-core. It follows nf-core conventions for reproducibility and to keep upstream contributions open.
-
-## Steps
+> [!WARNING]
+> Pipeline is still in heavy development: features, inputs, and outputs will change.
 
 ![Metro map of the whole-slide and TMA paths through the pipeline](docs/images/pipeline_paths.svg)
 
-Preprocessing (from mcmicro):
+## What it does
+
+Preprocessing:
 
 1. Illumination correction (BaSiCPy)
 2. Stitching and registration (Ashlar)
-3. TMA dearray (UNetCoreograph), optional: `--use_tma_dearray`; the downsample factor is chosen
-   from the expected core count and diameter
-4. Background subtraction (backsub), optional: `--use_backsub`; per core on a TMA
+3. TMA dearray (UNetCoreograph)
+4. Background subtraction (backsub)
 
-Downstream (from sopa):
+Downstream:
 
-5. SpatialData Zarr conversion and channel naming from the marker sheet
-6. Tiled segmentation of cells, nuclei or both, with Cellpose, InstanSeg or both, optionally
-   skipping empty tiles; nuclei are linked to their cells and the cytoplasm derived
-7. Aggregation of mean channel intensity per cell, and per nucleus and cytoplasm
-8. QC report per sample and method, a comparison when both methods segment cells, and for a TMA a merged
-   object per slide
-
-`use_preprocessing: false` starts from an already stitched image; `preprocessing_only: true` stops
-after preprocessing. At startup the run stops if the Ashlar or Coreograph channel is not `dna` in
-the marker sheet; `--skip_reference_dna_check` overrides.
+1. SpatialData Zarr conversion and channel naming from the marker sheet
+2. Tiled segmentation of cells, nuclei or both, with Cellpose, InstanSeg or both
+3. Resolve segmentation conflicts in tile overlaps
+4. Nuclei are linked to their cells and the cytoplasm derived
+5. Aggregation of channel intensity per cell, and per nucleus and cytoplasm
+6. QC report per sample and method
 
 ## Usage
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
-    -profile singularity,size_small,slurm \
+nextflow run CosciaLab/histo \
+    -profile <docker/singularity/.../institute> \
+    --input samplesheet.csv \
     -params-file params.yml
 ```
 
-Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch). Start
-`params.yml` from [assets/params_template_compact.yml](assets/params_template_compact.yml).
+Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at launch). Start `params.yml` from [assets/params_template_compact.yml](assets/params_template_compact.yml).
 
 ## Documentation
 
@@ -82,6 +59,9 @@ Needs Nextflow >= 25.10.4, a container engine and pre-staged images (no pulls at
 ## Credits
 
 Written by Jose Nimo at the Max Delbrück Center for Molecular Medicine, Berlin.
+
+This is a **personal pipeline, not an nf-core pipeline**, and is not affiliated with or endorsed by
+nf-core. It follows nf-core conventions for reproducibility and to keep upstream contributions open.
 
 This pipeline is derived from two MIT licensed projects and would not exist without them:
 

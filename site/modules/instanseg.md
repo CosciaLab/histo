@@ -11,7 +11,7 @@ multiplex panel at once, however many there are.
 ## Parameters
 
 - [`use_instanseg`](../inputs/parameters-full.md#use_instanseg): turns InstanSeg on.
-- [`instanseg_pixel_size`](../inputs/parameters-full.md#instanseg_pixel_size), required: your
+- [`pixel_size`](../inputs/parameters-full.md#pixel_size), required: your
   image's pixel size in µm. InstanSeg rescales the image to its model's resolution with it;
   without it, a run could finish with few or no cells, so the pipeline stops at startup instead.
 - [`instanseg_channels`](../inputs/parameters-full.md#instanseg_channels): the markers it reads.

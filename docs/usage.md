@@ -3,7 +3,7 @@
 ## Quick start
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```
@@ -111,7 +111,7 @@ Paths must be absolute.
 
 Required: `input`, `outdir` and, unless `preprocessing_only`, at least one segmentation method.
 Cellpose also needs `cellpose_channels` or `use_projection`; InstanSeg needs
-`instanseg_pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
+`pixel_size`. Everything else has a default. Parameters removed in 2.0 stop the run at
 startup; see [output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#from-1x).
 
 **Booleans on the command line follow Nextflow's rule: a bare flag means true, and anything else
@@ -121,26 +121,29 @@ not work and never did: Nextflow reads the flag on its own, sets it true, and th
 before the pipeline sees it, so `--use_backsub false` would perform background subtraction. The
 pipeline stops at startup rather than letting that happen, for every boolean it declares.
 
-| Parameter                  | Default              | Change it when                                                                                         |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------ |
-| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.  |
-| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.        |
-| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                   |
-| `use_backsub`              | `false`              | You have background channels to subtract.                                                              |
-| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                              |
-| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide. |
-| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                 |
-| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                       |
-| `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                    |
-| `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                      |
-| `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                  |
-| `use_instanseg`            | `false`              | You want InstanSeg. Needs `instanseg_pixel_size`; channels default from each sheet.                    |
-| `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                 |
-| `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                |
-| `use_gpu`                  | `false`              | On the cluster: one GPU per segmentation patch. See [GPU segmentation](#gpu-segmentation).             |
-| `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                  |
-| `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                  |
-| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                    |
+| Parameter                  | Default              | Change it when                                                                                              |
+| -------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `use_preprocessing`        | `true`               | Your image is already stitched. Then the samplesheet is one row per sample with a `data_path` column.       |
+| `preprocessing_only`       | `false`              | You only want stitched images. No segmentation, quantification or sample QC; Ashlar's QC stays.             |
+| `ashlar_args`              | `--maximum-shift 30` | Stitching misaligns.                                                                                        |
+| `use_backsub`              | `false`              | You have background channels to subtract.                                                                   |
+| `skip_reference_dna_check` | `false`              | Ashlar or Coreograph should deliberately use a channel that is not `dna`.                                   |
+| `use_tma_dearray`          | `false`              | Your slide is a tissue microarray. Each core is then processed alone and the results merged per slide.      |
+| `tma_expected_cores`       | none                 | With `use_tma_dearray`: how many cores the slide has. See [TMA dearray](#tma-dearray).                      |
+| `tma_core_diameter_mm`     | none                 | With `use_tma_dearray`: the core diameter in mm.                                                            |
+| `pixel_size`               | none                 | You use `use_instanseg`, `use_nimbus` or `use_virtues`: µm per pixel of your image (OME PhysicalSizeX).     |
+| `use_cellpose`             | `false`              | At least one of `use_cellpose` and `use_instanseg`; both may be on.                                         |
+| `cellpose_channels`        | none                 | Always, unless `use_projection`. Marker names, nuclear last, e.g. `"CD45 DNA_1"`.                           |
+| `use_projection`           | `false`              | Cellpose should see many markers, not one. See below.                                                       |
+| `use_instanseg`            | `false`              | You want InstanSeg. Needs `pixel_size`; channels default from each sheet.                                   |
+| `segment_cells`            | `true`               | You want nuclei only. See [Methods and targets](#methods-and-targets).                                      |
+| `segment_nuclei`           | `false`              | You want nuclei, linked to their cells.                                                                     |
+| `use_nimbus`               | `false`              | You want a per-cell marker positivity score. Needs `pixel_size` and `segment_cells`. See [Nimbus](#nimbus). |
+| `use_virtues`              | `false`              | You want 512-number embeddings per cell, tissue square and core. See [VirTues](#virtues).                   |
+| `use_gpu`                  | `false`              | On the cluster: one GPU per segmentation patch. See [GPU segmentation](#gpu-segmentation).                  |
+| `patch_width_pixel`        | `2000`               | Your slide is larger than a few TMA cores. See below.                                                       |
+| `patch_overlap_pixel`      | `100`                | Set to roughly twice a cell diameter.                                                                       |
+| `use_tissue_segmentation`  | `false`              | Large empty areas you want skipped.                                                                         |
 
 Every parameter and its default is in two generated files.
 [assets/params_template_compact.yml](https://github.com/CosciaLab/histo/blob/dev/assets/params_template_compact.yml) has one line each:
@@ -190,21 +193,22 @@ Cellpose takes a nuclear and a cell channel, but an mIF panel spreads cell bound
 markers, each on some cell types only. `--use_projection` builds the two channels from the marker
 sheet (see `segmentation` above) and segments those; quantification still reads every marker.
 
-Each marker is rescaled between its 1st and 99.9th percentile (zero padding ignored), smoothed with
-σ = 1 px, then combined per channel by maximum. Maximum keeps a marker found on one cell type at
-full brightness; `projection_method: mean` dims it and loses those cells. On hazy raw images,
+Each marker is rescaled between its 1st and 99.9th percentile (zero padding ignored), then
+combined per channel by maximum. Maximum keeps a marker found on one cell type at full
+brightness; `projection_method: mean` dims it and loses those cells. On hazy raw images,
 `projection_low_percentile: 50` removes the haze from the cell channel.
 
-**Set the Cellpose thresholds when projecting.** Unset, sopa's `flow_threshold: 2`,
-`cellprob_threshold: -6` and CLAHE (`clip_limit: 0.2`) tile the whole tissue into cells whatever
-the image shows. Cellpose's own values follow the membranes:
+**The Cellpose defaults suit projection.** `flow_threshold: 0.6`, `cellprob_threshold: -1`, no
+CLAHE and no smoothing come from a
+[benchmark](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#segmentation-benchmark)
+against manual outlines. sopa's own values (2, -6, CLAHE 0.2) tile the whole tissue into cells
+whatever the image shows. The default cell channel already leaves out autofluorescence and
+nuclear markers, which the benchmark favoured; keep them out when you set the `segmentation`
+column.
 
 ```yaml
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 ```
 
 Check `qc/{sample}_projection.png` first when cells look wrong: it is what Cellpose saw, nuclear in
@@ -287,7 +291,7 @@ a later run deleted ("projection removed by an earlier run"). Rerun those sample
 
 ### GPU segmentation
 
-`use_gpu: true` gives each Cellpose and InstanSeg patch task one GPU.
+`use_gpu: true` gives each Cellpose and InstanSeg patch task, and each Nimbus and VirTues task, one GPU.
 With `-profile …,slurm,mdc` that is an A40 (`--gres=gpu:a40:1`): every A40 node has Ceph, and the
 sopa image cannot run on the V100s. At most 16 patches per method run at once. Cellpose tasks get
 1 CPU and 8 GB on `size_tiny` and `size_small`, else 2 CPUs and 16 GB; InstanSeg tasks keep their
@@ -304,6 +308,56 @@ a queue wait:
 ```bash
 nextflow run /path/to/histo -profile laptop -stub -params-file params.yml
 ```
+
+### Nimbus
+
+`use_nimbus: true` scores every marker in every cell, per segmentation method. Output is in
+[output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#nimbus-scores).
+
+- `pixel_size` is required, in µm per pixel. Nimbus rescales the image with it.
+- `segment_cells` is required: Nimbus was trained on whole cells.
+- Markers come from the marker sheet (`marker` role). `nimbus_channels` overrides them, and is
+  required for a stitched image with no sheet.
+- Use `use_gpu`. CPU gives near-identical scores but a whole slide can take days, so it only warns.
+- Test-time augmentation is always on, with the same setting on CPU and GPU. It costs several forward
+  passes per window. On exemplar-002, CPU and GPU scores differed by 5e-4 on average and 0.11 at most,
+  with the same share of positive cells per marker. Cellpose ran on CPU too, so part of that is from
+  slightly different cell outlines. NIMBUS took ~12 min per core on CPU against ~1 min on an A40.
+- Tiling can shift scores: at 0.65 µm/px a tiled run differed from a whole-image run by up to 0.41
+  (mean 0.011) on a test crop. See [decisions](https://github.com/CosciaLab/histo/blob/dev/docs/decisions.md#learned-features).
+- Each channel is divided by its 0.999 quantile within one store: per core on a TMA, per image
+  otherwise. This keeps differences between patients' cores. In a core with no positive cells, noise
+  is stretched to [0, 1] and can score as signal.
+- NIMBUS has its own cap of 16 tasks at once, separate from the segmentation patches.
+
+### VirTues
+
+`use_virtues: true` embeds every cell, every 128 µm tissue square and each core or slide, per
+segmentation method. Output is in
+[output.md](https://github.com/CosciaLab/histo/blob/dev/docs/output.md#virtues-embeddings).
+
+- Required, or the run stops at startup: `use_gpu`, `use_preprocessing`, `use_tissue_segmentation`,
+  `segment_cells` and `pixel_size`. With `use_gpu`, segmentation runs on the GPU too.
+- Add a `uniprot_id` column to the marker sheet. A channel is embedded if and only if its row has
+  one, e.g. `P08246`; an isoform takes a suffix (`P08575-8`). IDs must be unique and the format is
+  checked. An ID missing from the bundled human Swiss-Prot sequences fails the task, naming it.
+  `tests/stub_data/markers_virtues.csv` is an example.
+- DNA stains are not embedded: a `dna` row with an ID stops the run.
+- Intensities are scaled with statistics per slide over tissue pixels, written to
+  `learned_features/{slide}_virtues_stats.json`. `virtues_stats` (advanced) takes one such file and
+  applies it to every slide, e.g. to freeze a rerun or scale a cohort alike; no statistics file is
+  then written. It must cover every embedded marker with the same `uniprot_id`, and is an error
+  without `use_virtues`.
+- "standard deviation is zero (constant marker)" stops the run when at least 99% of a marker's tissue
+  pixels are 0, so its 0.99 cap is 0. Usually backsub removed the signal: check that marker's
+  `exposure` and `background`. Otherwise leave its `uniprot_id` empty.
+- One `VIRTUES` task per store, one GPU. FlashAttention 2 needs an Ampere or newer GPU: `mdc` asks
+  for an A40; elsewhere, request one in your config. On a V100 the task fails in the model.
+- Memory does not grow with image area; per-cell results take about 2 GB per million cells per
+  method. An exemplar-002 core (22 markers, A40): about 1 min, 3.5 GB peak.
+- A core where tissue segmentation found no tissue still gets its cells embedded, with a warning;
+  a slide with no tissue at all stops with a message naming it.
+- The weights (`sp32`) are CC BY-NC 4.0.
 
 ### Fetching images
 
@@ -342,6 +396,20 @@ ls "$NXF_SINGULARITY_CACHEDIR"
 
 # copy in only new files, never overwriting an existing one
 rsync -av --ignore-existing ~/histo-download/singularity-images/ "$NXF_SINGULARITY_CACHEDIR/"
+```
+
+Our own images (`docker.io/josenimo/sopa:2.3.0-1`, `docker.io/josenimo/nimbus:0.0.5`,
+`docker.io/josenimo/virtues:d2c25e1-2`) are staged the same way. The Nimbus image is needed for
+`use_nimbus` and the VirTues image for `use_virtues`; each has its weights inside.
+
+To build one SIF yourself, from a registry or a `docker save` tar, submit
+`tools/build_sif.sbatch` after sourcing the histo `setup.sh`. It builds straight into
+`$NXF_SINGULARITY_CACHEDIR` under the name Nextflow looks for, renames the file only once it is
+verified, and refuses to replace an image already there. The log goes to the cache's `logs/`
+(`--help` for options, including building elsewhere):
+
+```bash
+sbatch tools/build_sif.sbatch docker.io/josenimo/nimbus:0.0.5
 ```
 
 `--ignore-existing` rather than plain `rsync` is deliberate: an image already in the cache is one a

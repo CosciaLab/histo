@@ -1,0 +1,241 @@
+// VirTues under -stub: histograms per store, statistics per slide, one VIRTUES per store, one write, QC after it.
+// use_virtues needs preprocessing (UniProt IDs come from the marker sheet), tissue segmentation and use_gpu.
+
+nextflow_pipeline {
+
+    name "VirTues"
+    script "../main.nf"
+    profile "test,laptop"
+    options "-stub"
+    tag "stub"
+    tag "pipeline"
+
+    // A two-cycle sample sheet naming the VirTues marker sheet; absolute paths, since nf-test launches elsewhere.
+    def writeSheet = { outputDir, baseDir ->
+        def data = "$baseDir/tests/stub_data"
+        def sheet = new File("$outputDir", "samplesheet.csv")
+        sheet.parentFile.mkdirs()
+        sheet.text = "sample,cycle_number,image_tiles,marker_sheet\n" +
+            "testslide,1,${data}/cycle01.ome.tiff,${data}/markers_virtues.csv\n" +
+            "testslide,2,${data}/cycle02.ome.tiff,${data}/markers_virtues.csv\n"
+        sheet.path
+    }
+
+    // Each task's work directory, from the trace hash (e.g. "ab/12cd34").
+    def taskDirs = { metaDir, workDir, proc ->
+        def rows = new File("$metaDir/trace.csv").readLines()*.split('\t')
+        def col = { name -> rows[0].findIndexOf { it == name } }
+        rows.tail().findAll { it[col('name')].contains(proc) }.collect { r ->
+            def hash = r[col('hash')].split('/')
+            new File("$workDir/${hash[0]}").listFiles().find { it.name.startsWith(hash[1]) }
+        }
+    }
+
+    // The trace has no timestamps; a task's .command.begin and .exitcode files mark its start and end.
+    def taskTimes = { metaDir, workDir, proc ->
+        taskDirs(metaDir, workDir, proc).collect { dir ->
+            [start: new File(dir, '.command.begin').lastModified(), end: new File(dir, '.exitcode').lastModified()]
+        }
+    }
+
+    test("one method: histogram, stats, one VIRTUES, one write") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+                use_virtues = true
+                use_gpu = true
+                use_tissue_segmentation = true
+                pixel_size = 0.65
+                use_qc = true
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            // "VIRTUES (" matches the VIRTUES task only, not VIRTUES_HISTOGRAM or VIRTUES_STATS.
+            def accelerator = { proc -> taskDirs(metaDir, workDir, proc).collect { new File(it, '.accelerator').text.trim() } }
+            def write_done = taskTimes(metaDir, workDir, 'WRITE_FEATURES')*.end.max()
+            def qc_start = taskTimes(metaDir, workDir, 'QC_METRICS')*.start.min()
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("VIRTUES_HISTOGRAM").size() == 1 },
+                { assert names("VIRTUES_STATS").size() == 1 },
+                { assert names("VIRTUES (").size() == 1 },
+                { assert names("WRITE_FEATURES").size() == 1 },
+                // The writes share the store's metadata, so QC must start after the last one.
+                { assert qc_start >= write_done },
+                { assert new File("$outputDir/learned_features/testslide_virtues_stats.json").exists() },
+                { assert new File("$outputDir/learned_features/testslide_virtues.json").exists() },
+                { assert path("$outputDir/pipeline_info/histo_software_versions.yml").text.contains('VIRTUES') },
+                { assert accelerator("VIRTUES (") == ['gpu'] },
+                { assert accelerator("VIRTUES_HISTOGRAM") == ['none'] },
+                { assert accelerator("VIRTUES_STATS") == ['none'] }
+            )
+        }
+    }
+
+    test("two methods: one VIRTUES for both") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+                use_instanseg = true
+                instanseg_channels = "DNA_6"
+                use_virtues = true
+                use_gpu = true
+                use_tissue_segmentation = true
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def staged = taskDirs(metaDir, workDir, 'WRITE_FEATURES').collect { new File(it, 'staged_inputs.txt').readLines()*.split(' ')*.getAt(0) }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("VIRTUES_HISTOGRAM").size() == 1 },
+                { assert names("VIRTUES_STATS").size() == 1 },
+                { assert names("VIRTUES (").size() == 1 },
+                { assert names("WRITE_FEATURES").size() == 1 },
+                // One write gets both methods' tables and the store-level elements.
+                { assert staged[0].containsAll(['cellpose_virtues.h5ad', 'instanseg_virtues.h5ad', 'virtues_niches.parquet']) }
+            )
+        }
+    }
+
+    test("TMA: one stats task per slide, one VIRTUES per core") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                use_tma_dearray = true
+                tma_expected_cores = 4
+                tma_core_diameter_mm = 1.5
+                cellpose_channels = "DNA_6"
+                use_virtues = true
+                use_gpu = true
+                use_tissue_segmentation = true
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                // The Coreograph stub emits two cores.
+                { assert names("VIRTUES_HISTOGRAM").size() == 2 },
+                { assert names("VIRTUES_STATS").size() == 1 },
+                { assert names("VIRTUES (").size() == 2 },
+                { assert names("WRITE_FEATURES").size() == 2 },
+                { assert new File("$outputDir/learned_features/testslide_virtues_stats.json").exists() },
+                // One provenance file per core, not one overwritten by the other.
+                { assert new File("$outputDir/learned_features/testslide_core001_virtues.json").exists() },
+                { assert new File("$outputDir/learned_features/testslide_core002_virtues.json").exists() }
+            )
+        }
+    }
+
+    test("virtues_stats given: no statistics tasks") {
+
+        when {
+            // Covers every marker with a uniprot_id in markers_virtues.csv, as validation requires.
+            def stats = new File("$outputDir", "given_stats.json")
+            stats.parentFile.mkdirs()
+            stats.text = '{"format": 1, "markers": {"ELANE": {"uniprot_id": "P08246"}, "CD11B": {"uniprot_id": "P11215"}}}'
+
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+                use_virtues = true
+                virtues_stats = stats.path
+                use_gpu = true
+                use_tissue_segmentation = true
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("VIRTUES_HISTOGRAM").isEmpty() },
+                { assert names("VIRTUES_STATS").isEmpty() },
+                { assert names("VIRTUES (").size() == 1 },
+                { assert names("WRITE_FEATURES").size() == 1 }
+            )
+        }
+    }
+
+    test("with Nimbus: both models, one write per store") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+                use_nimbus = true
+                use_virtues = true
+                use_gpu = true
+                use_tissue_segmentation = true
+                pixel_size = 0.65
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+            def names = { proc -> ran.findAll { it.contains(proc) } }
+            def staged = taskDirs(metaDir, workDir, 'WRITE_FEATURES').collect { new File(it, 'staged_inputs.txt').readLines()*.split(' ')*.getAt(0) }
+
+            assertAll(
+                { assert workflow.success },
+                { assert names("NIMBUS").size() == 1 },
+                { assert names("VIRTUES (").size() == 1 },
+                { assert names("WRITE_FEATURES").size() == 1 },
+                { assert staged[0].containsAll(['cellpose_nimbus.h5ad', 'cellpose_virtues.h5ad']) }
+            )
+        }
+    }
+
+    test("use_virtues off runs none of the three") {
+
+        when {
+            params {
+                outdir = "$outputDir"
+                input = writeSheet(outputDir, baseDir)
+                use_preprocessing = true
+                cellpose_channels = "DNA_6"
+            }
+        }
+
+        then {
+            def ran = workflow.trace.succeeded().collect { it.name }
+
+            assertAll(
+                { assert workflow.success },
+                { assert !ran.any { it.contains("VIRTUES") } },
+                { assert !ran.any { it.contains("WRITE_FEATURES") } }
+            )
+        }
+    }
+}

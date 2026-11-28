@@ -65,6 +65,28 @@ Both are MIT licensed. This pipeline would not exist without them.
 
   > Schmidt U, Weigert M, Broaddus C, Myers G. Cell Detection with Star-Convex Polygons. MICCAI 2018, LNCS 11071, 265–273 (2018). https://doi.org/10.1007/978-3-030-00934-2_30
 
+- [Nimbus](https://doi.org/10.1038/s41592-025-02826-9) — per-cell marker positivity, under `use_nimbus`
+
+  > Rumberger JL, Greenwald NF, Ranek JS, Boonrat P, Walker C, Franzen J, Varra SR, Kong A, Sowers C, Liu CC, Averbukh I, Piyadasa H, Vanguri R, Nederlof I, Wang XJ, Van Valen D, Kok M, Bendall SC, Hollmann TJ, Kainmueller D, Angelo M. Automated classification of cellular expression in multiplexed imaging data with Nimbus. Nat Methods 22(10), 2161–2170 (2025). https://doi.org/10.1038/s41592-025-02826-9
+
+- [VirTues](https://doi.org/10.1038/s41586-026-10884-y) — cell, tissue-square and tissue embeddings, under `use_virtues`
+
+  > Wenckstern J, Jain E, von Querfurth B, Cheng Y, Vasilev K, Pariset M, Cheng PF, Liakopoulos P, Michielin O, Wicki A, Gut G, Bunne C. The Virtual Tissues foundation model resolves spatial proteomics across scales. Nature 657(8132), 744–754 (2026). https://doi.org/10.1038/s41586-026-10884-y; preprint arXiv:2501.06039
+
+  The weights (`sp32`) are CC BY-NC 4.0; the code is MIT. [VirTues on GitHub](https://github.com/bunnelab/virtues).
+
+- [spora](https://arxiv.org/abs/2610.24002) — the spatial proteomics data and tooling the released VirTues weights were trained with; its intensity recipe is followed
+
+  > von Querfurth B, Wenckstern J, Jain E, Klein L, Cheng P, Cheng Y, Vincent-Cuaz C, Haberecker M, Frossard P, Wicki A, Michielin O, Bunne C. spora: A Unified Multimodal Dataset and Platform for Spatial Proteomics. arXiv:2610.24002 (2026). https://arxiv.org/abs/2610.24002. Code: [spora-io](https://github.com/bunnelab/spora-io).
+
+- [ESM-2](https://doi.org/10.1126/science.ade2574) — protein sequence embeddings for each marker, under `use_virtues`
+
+  > Lin Z, Akin H, Rao R, Hie B, Zhu Z, Lu W, Smetanin N, Verkuil R, Kabeli O, Shmueli Y, dos Santos Costa A, Fazel-Zarandi M, Sercu T, Candido S, Rives A. Evolutionary-scale prediction of atomic-level protein structure with a language model. Science 379, 1123–1130 (2023). https://doi.org/10.1126/science.ade2574
+
+- [UniProt](https://doi.org/10.1093/nar/gkae1010) — human reviewed protein sequences, with isoforms, bundled in the VirTues image
+
+  > The UniProt Consortium. UniProt: the Universal Protein Knowledgebase in 2025. Nucleic Acids Res 53(D1), D609–D619 (2025). https://doi.org/10.1093/nar/gkae1010
+
 - [SpatialData](https://www.nature.com/articles/s41592-024-02212-x) — the Zarr-backed data
   structure the whole downstream half is built on
 

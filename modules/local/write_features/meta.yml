@@ -1,0 +1,52 @@
+name: "write_features"
+description: Write the learned-feature tables of one sample into its SpatialData store, in place, after checking their rows match the method table.
+keywords:
+  - spatialdata
+  - zarr
+  - features
+  - write
+tools:
+  - "sopa":
+      description: "Technology-invariant pipeline for image-based spatial omics."
+      homepage: "https://prism-oncology.github.io/sopa"
+      documentation: "https://prism-oncology.github.io/sopa"
+      tool_dev_url: "https://github.com/prism-oncology/sopa"
+      doi: 10.1038/s41467-024-48981-z
+      licence:
+        - "BSD-3-Clause"
+      identifier: ""
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information
+          e.g. [ id:'sample1', sample:'sample1' ]
+    - sdata_path:
+        type: directory
+        description: SpatialData Zarr store, modified in place
+        pattern: "*.zarr"
+    - features:
+        type: file
+        description: Tables (*.h5ad) and shapes (*.parquet) to write; the element name is the file stem
+        pattern: "*.{h5ad,parquet}"
+output:
+  # main.nf declares no emit names: outputs are positional, in this order.
+  sdata:
+    - - meta:
+          type: map
+          description: |
+            Groovy Map containing sample information
+            e.g. [ id:'sample1', sample:'sample1' ]
+      - sdata_path:
+          type: directory
+          description: The same store, with the feature tables written
+          pattern: "*.zarr"
+  versions:
+    - versions.yml:
+        type: file
+        description: File containing software versions
+        pattern: "versions.yml"
+authors:
+  - "@josenimo"
+maintainers:
+  - "@josenimo"

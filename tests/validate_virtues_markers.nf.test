@@ -1,0 +1,164 @@
+// Marker sheet checks for use_virtues. Each rule is seen to fail with its message.
+
+nextflow_function {
+
+    name "validateVirtuesMarkers"
+    script "../subworkflows/local/utils_nfcore_histo_pipeline/main.nf"
+    function "validateVirtuesMarkers"
+    tag "unit"
+    tag "validation"
+
+    test("a sheet with unique IDs on markers is accepted") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna' ],
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                    [ marker_name: 'CD11B', channel_role: 'marker', uniprot_id: 'P11215' ],
+                ]
+                input[1] = 'sheet'
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("a sheet with no uniprot_id is rejected") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna' ],
+                    [ marker_name: 'ELANE', channel_role: 'marker' ],
+                ]
+                input[1] = 'sheet'
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("sheet: use_virtues needs a uniprot_id on at least one marker row; a channel is embedded only when it has one.") }
+        }
+    }
+
+    test("a DNA row with a uniprot_id is rejected") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna', uniprot_id: 'P08246' ],
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P11215' ],
+                ]
+                input[1] = 'sheet'
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("sheet: DNA stains are not embedded; remove the uniprot_id from: [DNA_1].") }
+        }
+    }
+
+    test("a repeated uniprot_id is rejected") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                    [ marker_name: 'ELANE2', channel_role: 'marker', uniprot_id: 'P08246' ],
+                ]
+                input[1] = 'sheet'
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("sheet: uniprot_id must be unique. Repeated: [P08246].") }
+        }
+    }
+
+    test("stats missing a marker are rejected") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                    [ marker_name: 'CD11B', channel_role: 'marker', uniprot_id: 'P11215' ],
+                ]
+                input[1] = 'sheet'
+                input[2] = [ format: 1, markers: [ ELANE: [ uniprot_id: 'P08246' ] ] ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("sheet: virtues_stats has no statistics for: [CD11B].") }
+        }
+    }
+
+    test("stats with a different uniprot_id are rejected") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                ]
+                input[1] = 'sheet'
+                input[2] = [ format: 1, markers: [ ELANE: [ uniprot_id: 'P11215' ] ] ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("sheet: virtues_stats records a different uniprot_id for: ELANE (sheet P08246, stats P11215).") }
+        }
+    }
+
+    test("matching stats are accepted") {
+        when {
+            params { use_backsub = false }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                ]
+                input[1] = 'sheet'
+                input[2] = [ format: 1, markers: [ ELANE: [ uniprot_id: 'P08246' ] ] ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("with use_backsub a removed row is ignored by every rule") {
+        when {
+            params { use_backsub = true }
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna', uniprot_id: 'P08246', remove: true ],
+                    [ marker_name: 'GONE', channel_role: 'marker', uniprot_id: 'P11215', remove: true ],
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P11215' ],
+                    [ marker_name: 'CD11B', channel_role: 'marker', uniprot_id: 'P08246', remove: true ],
+                ]
+                input[1] = 'sheet'
+                input[2] = [ format: 1, markers: [ ELANE: [ uniprot_id: 'P11215' ] ] ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+}

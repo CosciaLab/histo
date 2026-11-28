@@ -12,6 +12,11 @@
             "description": "Define where the pipeline should find input data and save output data.",
             "required": ["input", "outdir"],
             "properties": {
+                "pixel_size": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "µm per pixel of the image (OME PhysicalSizeX). Required by InstanSeg and Nimbus."
+                },
                 "input": {
                     "type": "string",
                     "format": "file-path",
@@ -322,16 +327,16 @@
         "image_preprocessing": {
             "title": "Image preprocessing",
             "type": "object",
-            "description": "Image preprocessing applied before segmentation (Cellpose, InstanSeg). Unset: sopa's per-method defaults (they differ for InstanSeg).",
+            "description": "Image preprocessing applied before segmentation (Cellpose, InstanSeg). Unset: none for either method.",
             "default": "",
             "properties": {
                 "gaussian_sigma": {
                     "type": "number",
-                    "description": "Parameter for scipy gaussian_filter (applied before running the segmentation method)"
+                    "description": "Parameter for scipy gaussian_filter (applied before running the segmentation method). Unset: 0, no smoothing."
                 },
                 "clip_limit": {
                     "type": "number",
-                    "description": "Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method)"
+                    "description": "Parameter for skimage.exposure.equalize_adapthist (applied before running the segmentation method). Unset: 0, no CLAHE."
                 },
                 "clahe_kernel_size": {
                     "type": "number",
@@ -378,7 +383,7 @@
                 },
                 "projection_sigma": {
                     "type": "number",
-                    "default": 1.0,
+                    "default": 0.0,
                     "minimum": 0,
                     "description": "Gaussian smoothing in pixels applied to each marker before combining; 0 for none."
                 }
@@ -422,15 +427,16 @@
                 },
                 "flow_threshold": {
                     "type": "number",
-                    "description": "Cellpose `flow_threshold` parameter"
+                    "description": "Cellpose `flow_threshold` parameter. Unset: 0.6, from the segmentation benchmark."
                 },
                 "cellprob_threshold": {
                     "type": "number",
-                    "description": "Cellpose `cellprob_threshold` parameter"
+                    "description": "Cellpose `cellprob_threshold` parameter. Unset: -1, from the segmentation benchmark."
                 },
                 "pretrained_model": {
                     "type": "string",
-                    "description": "Cellpose `pretrained_model` parameter"
+                    "default": "cpsam_v2",
+                    "description": "Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or a path"
                 },
                 "cellpose_kwargs": {
                     "type": "string",
@@ -448,7 +454,7 @@
                 "use_instanseg": {
                     "type": "boolean",
                     "description": "Segment with InstanSeg. May be combined with use_cellpose.",
-                    "help_text": "**Requires:** `instanseg_pixel_size`, `instanseg_channels` when `use_preprocessing` is false, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true. **Conflicts:** `use_gpu` on more than 10 channels."
+                    "help_text": "**Requires:** `pixel_size`, `instanseg_channels` when `use_preprocessing` is false, and `use_cellpose` or `use_instanseg` unless `preprocessing_only` is true. **Conflicts:** `use_gpu` on more than 10 channels."
                 },
                 "instanseg_model_type": {
                     "type": "string",
@@ -456,8 +462,9 @@
                 },
                 "instanseg_pixel_size": {
                     "type": "number",
-                    "description": "Image resolution in microns per pixel. Required: without it InstanSeg does not rescale and may find no cells",
-                    "help_text": "**Ignored unless:** `use_instanseg` is true."
+                    "description": "Deprecated: use pixel_size",
+                    "help_text": "**Conflicts:** `pixel_size` with a different value.",
+                    "hidden": true
                 },
                 "instanseg_channels": {
                     "type": ["string", "integer"],
@@ -470,6 +477,39 @@
                 }
             },
             "fa_icon": "fas fa-tools"
+        },
+        "learned_features": {
+            "title": "Learned features",
+            "type": "object",
+            "description": "Parameters related to learned-features models, which score each segmented cell",
+            "default": "",
+            "properties": {
+                "use_nimbus": {
+                    "type": "boolean",
+                    "description": "Score per-cell marker positivity with Nimbus.",
+                    "help_text": "**Requires:** `pixel_size`, `segment_cells`, and `nimbus_channels` when `use_preprocessing` is false."
+                },
+                "nimbus_channels": {
+                    "type": ["string", "integer"],
+                    "description": "Channel(s) to score with Nimbus. Unset takes the `marker` channels from each sample's marker sheet. Required without a marker sheet (`use_preprocessing = false`). Use marker names, separated by space, comma or pipe characters.",
+                    "help_text": "**Ignored unless:** `use_nimbus`."
+                },
+                "use_virtues": {
+                    "type": "boolean",
+                    "description": "Embed each segmented cell with VirTues, a multiplex protein-marker foundation model.",
+                    "help_text": "**Requires:** `use_gpu`, `use_preprocessing`, `use_tissue_segmentation`, `segment_cells`, `pixel_size`, and a `uniprot_id` on at least one marker-sheet row."
+                },
+                "virtues_stats": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "pattern": "^\\S+\\.json$",
+                    "hidden": true,
+                    "description": "A `{slide}_virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.",
+                    "help_text": "**Requires:** `use_virtues`."
+                }
+            },
+            "fa_icon": "fas fa-brain"
         },
         "qc_report": {
             "title": "QC report",
@@ -532,6 +572,9 @@
         },
         {
             "$ref": "#/$defs/instanseg"
+        },
+        {
+            "$ref": "#/$defs/learned_features"
         },
         {
             "$ref": "#/$defs/qc_report"

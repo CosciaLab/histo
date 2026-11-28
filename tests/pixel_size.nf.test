@@ -1,0 +1,67 @@
+// pixel_size, with instanseg_pixel_size as its deprecated alias.
+
+nextflow_function {
+
+    name "pixelSize"
+    script "../modules/local/utils.nf"
+    function "pixelSize"
+    tag "unit"
+    tag "validation"
+
+    test("pixel_size is returned") {
+        when {
+            function {
+                """
+                input[0] = [ pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == 0.65
+        }
+    }
+
+    test("the deprecated alias is parsed to a number") {
+        when {
+            function {
+                """
+                input[0] = [ instanseg_pixel_size: '0.65' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result instanceof Number
+            assert function.result == 0.65
+        }
+    }
+
+    test("both set and different fails") {
+        when {
+            function {
+                """
+                input[0] = [ pixel_size: 0.5, instanseg_pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("differ; set only pixel_size") }
+        }
+    }
+
+    test("neither set gives null") {
+        when {
+            function {
+                """
+                input[0] = [:]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == null
+        }
+    }
+}

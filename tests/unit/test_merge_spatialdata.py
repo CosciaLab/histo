@@ -56,11 +56,16 @@ class TestRetargetTable:
         with pytest.raises(ValueError, match="not found"):
             retarget_table(FakeTable("some_other_element"), {"b": "c1__b"}, "c1")
 
-    def test_missing_attrs_refused(self):
+    def test_unannotated_table_copied_unchanged(self):
         t = FakeTable("b")
         t.uns = {}
-        with pytest.raises(ValueError, match="spatialdata_attrs"):
-            retarget_table(t, {"b": "c1__b"}, "c1")
+        assert retarget_table(t, {"b": "c1__b"}, "c1") is t
+        assert t.uns == {}
+
+    def test_table_with_no_region_unchanged(self):
+        t = FakeTable("b")
+        t.uns = {"spatialdata_attrs": {"region": None}}
+        assert retarget_table(t, {}, "c1").uns == {"spatialdata_attrs": {"region": None}}
 
 
 class TestMergeTwoTablesInOneCore:
@@ -106,6 +111,52 @@ class TestMergeTwoTablesInOneCore:
             assert set(t.obs["region"]) == {want}
 
 
+class TestMergeLearnedFeaturesTable:
+    def test_nimbus_table_keeps_uns_and_is_retargeted(self, tmp_path):
+        sd = pytest.importorskip("spatialdata", reason="merge() needs spatialdata")
+        import anndata as ad
+        import geopandas as gpd
+        import numpy as np
+        from merge_spatialdata import merge
+        from shapely.geometry import Point
+        from spatialdata.models import Image2DModel, ShapesModel, TableModel
+
+        core, n = "slide_c1", 3
+        prov = {
+            "channels": ["CD45", "FOXP3"],
+            "factors": {"CD45": 1.5, "FOXP3": 2.5},
+            "halo": 96,
+            "test_time_aug": True,
+        }
+        sdata = sd.SpatialData()
+        sdata[core] = Image2DModel.parse(np.zeros((1, 8, 8), dtype="uint16"), dims=("c", "y", "x"))
+        gdf = gpd.GeoDataFrame(geometry=[Point(i, i) for i in range(n)])
+        gdf["radius"] = 1.0
+        sdata["m_cells"] = ShapesModel.parse(gdf)
+        for name in ("m_table", "m_nimbus"):
+            adata = ad.AnnData(np.ones((n, 2), dtype="float32"))
+            adata.obs["region"] = "m_cells"
+            adata.obs["cell_id"] = np.arange(n)
+            if name == "m_nimbus":
+                adata.uns["nimbus"] = prov
+            sdata[name] = TableModel.parse(
+                adata, region="m_cells", region_key="region", instance_key="cell_id"
+            )
+        core_dir = tmp_path / f"{core}.zarr"
+        sdata.write(core_dir)
+
+        out = tmp_path / "merged.zarr"
+        merge(out, [core_dir])
+        t = sd.read_zarr(out).tables[f"{core}{SEP}m_nimbus"]
+
+        want = f"{core}{SEP}m_cells"
+        assert t.uns["spatialdata_attrs"]["region"] == want
+        assert set(t.obs["region"]) == {want}
+        assert list(t.uns["nimbus"]["channels"]) == prov["channels"]
+        assert dict(t.uns["nimbus"]["factors"]) == prov["factors"]
+        assert t.uns["nimbus"]["halo"] == 96
+
+
 class TestElementNaming:
     """The rule that keeps core identity visible without doubling it."""
 
@@ -126,3 +177,25 @@ class TestElementNaming:
         out = [self.new_name(c, n) for c in cores for n in names]
         out += [self.new_name(c, c) for c in cores]
         assert len(set(out)) == len(out)
+
+
+def test_tissue_table_renamed_per_core(tmp_path):
+    sd = pytest.importorskip("spatialdata", reason="merge() needs spatialdata")
+    import anndata as ad
+    import numpy as np
+    from merge_spatialdata import merge
+    from spatialdata.models import Image2DModel, TableModel
+
+    cores = []
+    for core in ("slide_c1", "slide_c2"):
+        sdata = sd.SpatialData()
+        sdata[core] = Image2DModel.parse(np.zeros((1, 8, 8), dtype="uint16"), dims=("c", "y", "x"))
+        adata = ad.AnnData(np.ones((1, 2), dtype="float32"), obs=pd.DataFrame(index=["tissue_0"]))
+        sdata["virtues_tissue"] = TableModel.parse(adata)
+        cores.append(tmp_path / f"{core}.zarr")
+        sdata.write(cores[-1])
+
+    out = tmp_path / "merged.zarr"
+    merge(out, cores)
+    merged = sd.read_zarr(out)
+    assert sorted(merged.tables) == [f"slide_c1{SEP}virtues_tissue", f"slide_c2{SEP}virtues_tissue"]

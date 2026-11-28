@@ -65,7 +65,7 @@ sheet: removed channels are gone and `channel_number` is renumbered. See
 backsub came as an optional step with the preprocessing half from nf-core/mcmicro.
 
 % source: https://github.com/SchapiroLabor/Background_subtraction#introduction
-% source: README.md#what-this-is
+% source: README.md#credits
 
 ## Read more
 

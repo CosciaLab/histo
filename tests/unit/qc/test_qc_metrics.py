@@ -5,6 +5,8 @@ wherever a real value was available, so a regression shows up as a disagreement
 with something that actually happened rather than with a number someone invented.
 """
 
+import json
+
 import numpy as np
 import pytest
 from qc_metrics import (
@@ -17,6 +19,9 @@ from qc_metrics import (
     cycle_ratio_metrics,
     effective_bit_depth,
     linking_metrics,
+    nimbus_metrics,
+    read_uns,
+    virtues_metrics,
     nuclear_cycle_pair,
     patch_metrics,
     percentiles_from_histogram,
@@ -634,3 +639,55 @@ class TestLinkingMetrics:
         import json
 
         json.dumps(linking_metrics(np.array([1]), np.array([1.0]), np.int64(0)))
+
+
+class TestNimbusMetrics:
+    def test_fraction_and_median(self):
+        out = nimbus_metrics(np.array([[0.1], [0.6], [0.9]], dtype=np.float32), ["CD3"])
+        assert out["CD3"]["fraction_positive"] == pytest.approx(2 / 3)
+        assert out["CD3"]["median"] == pytest.approx(0.6)
+
+    def test_nan_cells_are_ignored(self):
+        out = nimbus_metrics(np.array([[0.9], [np.nan], [0.1]], dtype=np.float32), ["CD3"])
+        assert out["CD3"]["fraction_positive"] == 0.5
+
+    def test_all_nan_marker_is_none(self):
+        X = np.array([[np.nan, 0.7], [np.nan, 0.2]], dtype=np.float32)
+        out = nimbus_metrics(X, ["A", "B"])
+        assert out["A"] == {"fraction_positive": None, "median": None}
+        assert out["B"]["fraction_positive"] == 0.5
+
+
+VIRTUES_UNS = {
+    "channels": {"CD3": "P1", "PanCK": "P2"},
+    "unembedded": ["DAPI"],
+    "stats": {"CD3": {"uniprot_id": "P1", "cap": 1.5, "mean": 0.1, "sd": 0.2, "tissue_pixels": 9}},
+    "n_cells": {"cellpose": 5},
+    "n_cells_without_pixel": {"cellpose": 1},
+    "n_niches_kept": 3,
+    "n_niches_dropped": 2,
+}
+
+
+class TestVirtuesMetrics:
+    def test_picks_the_method(self):
+        out = virtues_metrics(VIRTUES_UNS, "cellpose")
+        assert out["channels"] == ["CD3", "PanCK"]
+        assert out["unembedded"] == ["DAPI"]
+        assert out["stats"]["CD3"]["cap"] == 1.5
+        assert (out["n_cells"], out["n_cells_without_pixel"]) == (5, 1)
+        assert (out["n_niches_kept"], out["n_niches_dropped"]) == (3, 2)
+
+    def test_json_serialisable(self):
+        json.dumps(virtues_metrics(VIRTUES_UNS, "cellpose"))
+
+    def test_read_uns_round_trips_an_anndata_zarr(self, tmp_path):
+        import anndata as ad
+        import zarr
+
+        a = ad.AnnData(np.zeros((2, 2), dtype=np.float16))
+        a.uns["virtues"] = {**VIRTUES_UNS, "n_cells": {"cellpose": np.int64(5)}, "unembedded": ["DAPI", "X"]}
+        a.write_zarr(tmp_path / "t.zarr")
+        got = read_uns(zarr.open_group(str(tmp_path / "t.zarr"), mode="r")["uns"]["virtues"])
+        assert got["unembedded"] == ["DAPI", "X"]
+        assert virtues_metrics(got, "cellpose")["n_cells"] == 5

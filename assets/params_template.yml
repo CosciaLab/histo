@@ -1,5 +1,5 @@
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-##     CosciaLab/histo 2.0.0
+##     CosciaLab/histo 3.2.0
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##     This is an example parameter file to pass to the `-params-file` option
 ##     of nextflow run with the CosciaLab/histo pipeline.
@@ -16,6 +16,15 @@
 ## Input/output options
 ## =============================================================================
 ## Define where the pipeline should find input data and save output data.
+
+## -----------------------------------------------------------------------------
+## pixel_size
+## -----------------------------------------------------------------------------
+##     µm per pixel of the image (OME PhysicalSizeX). Required by InstanSeg
+##     and Nimbus.
+##     Type: number
+## -----------------------------------------------------------------------------
+# pixel_size: null
 
 ## -----------------------------------------------------------------------------
 ## input
@@ -426,13 +435,13 @@
 ## Image preprocessing
 ## =============================================================================
 ## Image preprocessing applied before segmentation (Cellpose, InstanSeg).
-## Unset: sopa's per-method defaults (they differ for InstanSeg).
+## Unset: none for either method.
 
 ## -----------------------------------------------------------------------------
 ## gaussian_sigma
 ## -----------------------------------------------------------------------------
 ##     Parameter for scipy gaussian_filter (applied before running the
-##     segmentation method)
+##     segmentation method). Unset: 0, no smoothing.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # gaussian_sigma: null
@@ -441,7 +450,7 @@
 ## clip_limit
 ## -----------------------------------------------------------------------------
 ##     Parameter for skimage.exposure.equalize_adapthist (applied before
-##     running the segmentation method)
+##     running the segmentation method). Unset: 0, no CLAHE.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # clip_limit: null
@@ -516,7 +525,7 @@
 ##     0 for none.
 ##     Type: number
 ## -----------------------------------------------------------------------------
-# projection_sigma: 1.0
+# projection_sigma: 0.0
 
 
 ## =============================================================================
@@ -571,7 +580,8 @@
 ## -----------------------------------------------------------------------------
 ## flow_threshold
 ## -----------------------------------------------------------------------------
-##     Cellpose `flow_threshold` parameter
+##     Cellpose `flow_threshold` parameter. Unset: 0.6, from the segmentation
+##     benchmark.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # flow_threshold: null
@@ -579,7 +589,8 @@
 ## -----------------------------------------------------------------------------
 ## cellprob_threshold
 ## -----------------------------------------------------------------------------
-##     Cellpose `cellprob_threshold` parameter
+##     Cellpose `cellprob_threshold` parameter. Unset: -1, from the
+##     segmentation benchmark.
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # cellprob_threshold: null
@@ -587,10 +598,11 @@
 ## -----------------------------------------------------------------------------
 ## pretrained_model
 ## -----------------------------------------------------------------------------
-##     Cellpose `pretrained_model` parameter
+##     Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or
+##     a path
 ##     Type: string
 ## -----------------------------------------------------------------------------
-# pretrained_model: null
+# pretrained_model: "cpsam_v2"
 
 ## -----------------------------------------------------------------------------
 ## cellpose_kwargs
@@ -605,6 +617,9 @@
 ## InstanSeg
 ## =============================================================================
 ## Parameters related to the InstanSeg segmentation method
+
+## (1 hidden parameters are not shown)
+
 
 ## -----------------------------------------------------------------------------
 ## use_instanseg
@@ -626,8 +641,7 @@
 ## -----------------------------------------------------------------------------
 ## instanseg_pixel_size
 ## -----------------------------------------------------------------------------
-##     Image resolution in microns per pixel. Required: without it InstanSeg
-##     does not rescale and may find no cells
+##     Deprecated: use pixel_size
 ##     Type: number
 ## -----------------------------------------------------------------------------
 # instanseg_pixel_size: null
@@ -652,6 +666,53 @@
 ##     Type: string
 ## -----------------------------------------------------------------------------
 # instanseg_kwargs: null
+
+
+## =============================================================================
+## Learned features
+## =============================================================================
+## Parameters related to learned-features models, which score each segmented
+## cell
+
+## (1 hidden parameters are not shown)
+
+
+## -----------------------------------------------------------------------------
+## use_nimbus
+## -----------------------------------------------------------------------------
+##     Score per-cell marker positivity with Nimbus.
+##     Type: boolean
+## -----------------------------------------------------------------------------
+# use_nimbus: null
+
+## -----------------------------------------------------------------------------
+## nimbus_channels
+## -----------------------------------------------------------------------------
+##     Channel(s) to score with Nimbus. Unset takes the `marker` channels
+##     from each sample's marker sheet. Required without a marker sheet
+##     (`use_preprocessing = false`). Use marker names, separated by space,
+##     comma or pipe characters.
+##     Type: ['string', 'integer']
+## -----------------------------------------------------------------------------
+# nimbus_channels: null
+
+## -----------------------------------------------------------------------------
+## use_virtues
+## -----------------------------------------------------------------------------
+##     Embed each segmented cell with VirTues, a multiplex protein-marker
+##     foundation model.
+##     Type: boolean
+## -----------------------------------------------------------------------------
+# use_virtues: null
+
+## -----------------------------------------------------------------------------
+## virtues_stats
+## -----------------------------------------------------------------------------
+##     A `{slide}_virtues_stats.json` from an earlier run, applied to every
+##     slide instead of computing per-slide statistics.
+##     Type: string
+## -----------------------------------------------------------------------------
+# virtues_stats: null
 
 
 ## =============================================================================

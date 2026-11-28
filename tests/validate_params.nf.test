@@ -63,11 +63,81 @@ nextflow_function {
         }
     }
 
+    test("use_instanseg without pixel_size is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_instanseg: true, use_preprocessing: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_instanseg requires pixel_size") }
+        }
+    }
+
+    test("use_nimbus without pixel_size is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_nimbus: true, nimbus_channels: 'CD3' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_nimbus requires pixel_size") }
+        }
+    }
+
+    test("use_nimbus without segment_cells is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', pixel_size: 0.65, segment_cells: false, segment_nuclei: true, use_nimbus: true, nimbus_channels: 'CD3' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_nimbus requires segment_cells") }
+        }
+    }
+
+    test("use_nimbus without preprocessing needs nimbus_channels") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_nimbus: true, pixel_size: 0.65, use_preprocessing: false ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_nimbus without use_preprocessing needs nimbus_channels") }
+        }
+    }
+
+    test("conflicting pixel sizes stop every run") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', pixel_size: 0.5, instanseg_pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("differ; set only pixel_size") }
+        }
+    }
+
     test("both methods with use_gpu are accepted") {
         when {
             function {
                 """
-                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true, instanseg_pixel_size: 0.65,
+                input[0] = [ use_cellpose: true, cellpose_channels: 'DAPI', use_instanseg: true, pixel_size: 0.65,
                              instanseg_channels: 'DAPI', use_gpu: true ]
                 """
             }
@@ -81,7 +151,7 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [ use_instanseg: true, instanseg_pixel_size: 0.65, use_gpu: true,
+                input[0] = [ use_instanseg: true, pixel_size: 0.65, use_gpu: true,
                              instanseg_channels: (1..10).collect { "M\$it" }.join(' ') ]
                 """
             }
@@ -95,7 +165,7 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [ use_instanseg: true, instanseg_pixel_size: 0.65, use_gpu: true,
+                input[0] = [ use_instanseg: true, pixel_size: 0.65, use_gpu: true,
                              instanseg_channels: (1..11).collect { "M\$it" }.join(' ') ]
                 """
             }
@@ -293,6 +363,103 @@ nextflow_function {
         then {
             assert function.failed
             assert function.stdout.any { it.contains("quantification_statistics lists mean twice") }
+        }
+    }
+
+    test("use_virtues with every requirement is accepted") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: true, use_preprocessing: true, use_tissue_segmentation: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("use_virtues without use_gpu is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: false, use_preprocessing: true, use_tissue_segmentation: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_virtues requires use_gpu: VirTues runs on FlashAttention, which has no CPU path.") }
+        }
+    }
+
+    test("use_virtues without use_preprocessing is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: true, use_preprocessing: false, use_tissue_segmentation: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_virtues requires use_preprocessing: UniProt IDs come from the marker sheet, which pre-stitched input does not have.") }
+        }
+    }
+
+    test("use_virtues without use_tissue_segmentation is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: true, use_preprocessing: true, use_tissue_segmentation: false, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_virtues requires use_tissue_segmentation: intensity statistics are computed over tissue pixels.") }
+        }
+    }
+
+    test("use_virtues without segment_cells is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: true, use_preprocessing: true, use_tissue_segmentation: true, pixel_size: 0.65, segment_cells: false, segment_nuclei: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_virtues requires segment_cells: VirTues embeds cells, so there must be a cell segmentation.") }
+        }
+    }
+
+    test("use_virtues without pixel_size is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_virtues: true, use_gpu: true, use_preprocessing: true, use_tissue_segmentation: true ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("use_virtues requires pixel_size (microns per pixel of the image): VirTues runs at 1 µm per pixel.") }
+        }
+    }
+
+    test("virtues_stats without use_virtues is rejected") {
+        when {
+            function {
+                """
+                input[0] = [ use_cellpose: true, use_gpu: true, use_preprocessing: true, use_tissue_segmentation: true, pixel_size: 0.65, virtues_stats: '/x/s.json' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+            assert function.stdout.any { it.contains("virtues_stats is set but use_virtues is not.") }
         }
     }
 }

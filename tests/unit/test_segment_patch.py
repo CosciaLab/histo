@@ -1,7 +1,13 @@
 """Tests for bin/segment_patch.py: the image element a spec names and sopa's CLI defaults."""
 
 import pytest
-from segment_patch import image_key_for, method_arguments, require_image, segmentation_arguments
+from segment_patch import (
+    check_weights,
+    image_key_for,
+    method_arguments,
+    require_image,
+    segmentation_arguments,
+)
 
 
 def test_image_key_full_and_projected():
@@ -31,13 +37,13 @@ def test_missing_full_image_lists_the_images():
         require_image("img", {"other": None}, "full")
 
 
-def test_cellpose_defaults_are_sopa_cli_defaults():
+def test_cellpose_defaults_follow_sopa_cli_except_model_and_benchmarked():
     spec = {"method": "cellpose", "channels": ["a"], "method_kwargs": {"diameter": 30}}
     kw = method_arguments(spec)
-    assert kw["flow_threshold"] == 2
-    assert kw["cellprob_threshold"] == -6
+    assert kw["flow_threshold"] == 0.6
+    assert kw["cellprob_threshold"] == -1
     assert kw["model_type"] == "cyto3"
-    assert kw["pretrained_model"] is None
+    assert kw["pretrained_model"] == "cpsam_v2"  # ours; sopa's is None
     assert kw["gpu"] is False
     assert kw["diameter"] == 30
     assert kw["channels"] == ["a"]
@@ -103,7 +109,7 @@ def test_extra_kwargs_must_be_a_dict_literal(text):
 
 def test_segmentation_defaults_per_method():
     cp = segmentation_arguments({"method": "cellpose"})
-    assert cp == {"min_area": 0, "clip_limit": 0.2, "clahe_kernel_size": None, "gaussian_sigma": 1}
+    assert cp == {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0}
     ins = segmentation_arguments({"method": "instanseg", "segmentation_kwargs": {}})
     assert ins == {"min_area": 0, "clip_limit": 0, "clahe_kernel_size": None, "gaussian_sigma": 0}
 
@@ -114,3 +120,25 @@ def test_segmentation_override():
     assert kw["gaussian_sigma"] == 2
     assert kw["min_area"] == 15
     assert kw["clip_limit"] == 0
+
+
+def test_cellpose_defaults_to_cpsam_v2():
+    assert method_arguments({"method": "cellpose"})["pretrained_model"] == "cpsam_v2"
+
+
+def test_missing_weights_name_the_model(tmp_path):
+    with pytest.raises(
+        ValueError, match=r"pretrained_model 'cpsam_v2' has no weights in .*CELLPOSE_LOCAL_MODELS_PATH"
+    ):
+        check_weights("cpsam_v2", str(tmp_path))
+
+
+def test_weights_present_or_path_pass(tmp_path):
+    (tmp_path / "cpsam_v2").write_bytes(b"x")
+    check_weights("cpsam_v2", str(tmp_path))
+    check_weights(str(tmp_path / "cpsam_v2"), None)  # an existing path needs no models dir
+
+
+def test_unset_models_dir_fails_for_a_name():
+    with pytest.raises(ValueError, match="CELLPOSE_LOCAL_MODELS_PATH is not set"):
+        check_weights("cpsam_v2", None)

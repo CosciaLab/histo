@@ -21,7 +21,7 @@ Pick one or both **methods**:
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | Cells from one membrane marker and DNA     | `use_cellpose: true`, `cellpose_channels: "CD45 DNA_6"`, nuclear stain last                                          |
 | Cells from many markers, with Cellpose     | `use_cellpose: true`, `use_projection: true`; see [Many markers](../inputs/parameters.md#many-markers-with-cellpose) |
-| Cells from every marker, no channel choice | `use_instanseg: true`, `instanseg_pixel_size` in µm per pixel                                                        |
+| Cells from every marker, no channel choice | `use_instanseg: true`, `pixel_size` in µm per pixel                                                                  |
 | A second opinion                           | Both. The QC then compares them                                                                                      |
 
 Then the **targets**. Cells are on by default.
@@ -52,12 +52,9 @@ outdir: /path/to/results/exemplar-001-both
 
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 
 segment_nuclei: true
 patch_width_pixel: 1500
@@ -67,8 +64,6 @@ patch_width_pixel: 1500
   built from the marker sheet ([Channel projection](../modules/projection.md)): `DNA_6` as
   nuclear, and every `marker` whose `channel_compartment` is `membrane` or `cytoplasm` as cell.
   `FOXP3` is nuclear, so it stays out.
-- The three thresholds are Cellpose's own values. Left unset, sopa's defaults tile the whole
-  tissue into cells, whatever the image shows.
 - [`segment_nuclei`](../inputs/parameters-full.md#segment_nuclei) adds nuclei to the cells.
   Each nucleus is then [linked](../modules/linking.md) to its cell, and the cytoplasm is the cell
   minus its nuclei.
@@ -83,7 +78,7 @@ patch_width_pixel: 1500
 ## Run
 
 ```bash
-nextflow run CosciaLab/histo -r v2.0.0 \
+nextflow run CosciaLab/histo -r v3.2.0 \
     -profile singularity,size_small,slurm \
     -params-file params.yml
 ```

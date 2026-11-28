@@ -132,7 +132,7 @@ table is what you analyse. See [Outputs](../outputs/outputs.md).
 
 ### Pixel size
 
-- **InstanSeg needs the pixel size from you** (`instanseg_pixel_size`); it does not read it from
+- **InstanSeg needs the pixel size from you** (`pixel_size`); it does not read it from
   the image.
 - **Finding TMA cores reads it from the image.** Without it, core detection stops and asks for
   manual settings.

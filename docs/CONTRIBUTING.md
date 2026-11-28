@@ -127,7 +127,7 @@ Data:
 Assertions are properties, not checksums: channel names, TMA core count, which processes ran
 and how often, nuclear stain chosen by `channel_role`, subtraction blocks on every core,
 background channels unchanged by subtraction, `versions.yml` complete. Cell counts must stay within ±2% of the
-baselines in ROADMAP.
+baselines in the test files.
 
 ## Containers
 
@@ -153,11 +153,11 @@ tools/container_manifest.py --check    # fail if stale; the container-manifest p
 
 Regenerate it after adding or removing a module, or bumping a container.
 
-**Five images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
+**Six images are Docker-only.** `basicpy`, `coreograph` and `backsub` come from mcmicro and have no
 BioContainers Singularity build. `ashlar` uses our own public `josenimo/ashlar` image, built from
 the `Dockerfile` in [josenimo/ashlar](https://github.com/josenimo/ashlar) (branch `histo-qc`).
-`josenimo/sopa:2.3.0` (Cellpose-SAM and InstanSeg, weights baked in) is also ours. Their
-`singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
+`josenimo/sopa:2.3.0-1` (Cellpose-SAM and InstanSeg, weights baked in, plus `cpsam_v2`) and `josenimo/nimbus:0.0.5`
+(Nimbus, `V1.pt` baked in) are also ours. Their `singularity_uri` column is empty. They have to be converted from Docker rather than downloaded
 directly, which is slower and subject to Docker Hub rate limiting. Budget for that.
 
 ### Building an image
@@ -222,8 +222,8 @@ The map is authored in [`pipeline_paths.mmd`](pipeline_paths.mmd) and rendered w
 pip install nf-metro==2.1.0   # 1.1.0 aborts on the turns between rows
 nf-metro validate docs/pipeline_paths.mmd
 nf-metro render docs/pipeline_paths.mmd -o docs/images/pipeline_paths.svg --animate --responsive \
-    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 85 --y-spacing 200 --section-y-gap 50 \
-    --diamond-style symmetric --height 1036   # --height pads to 1:2.2
+    --font-scale 1.7 --stroke-scale 1.8 --x-spacing 111 --y-spacing 90 \
+    --diamond-style symmetric --compact-offsets --validate
 ```
 
 **Re-render this after any rewiring, and look at the result.** A change to the graph that leaves

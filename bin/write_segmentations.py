@@ -23,7 +23,11 @@ from pathlib import Path
 # spatialdata is imported inside functions so the module imports without it.
 
 SEGMENTATION_ATTR = "cell_segmentation_image"  # sopa's SopaAttrs.CELL_SEGMENTATION
-RESERVED = re.compile(r"^(cellpose|instanseg)_(cells|nuclei|cytoplasm|table)$")
+LEARNED_MODELS = ("nimbus", "virtues")  # a new learned-features model adds its name here
+RESERVED = re.compile(
+    rf"^((cellpose|instanseg)_(cells|nuclei|cytoplasm|table|{'|'.join(LEARNED_MODELS)})"
+    r"|virtues_(niches|niches_table|tissue))$"
+)
 ELEMENT_KINDS = ("shapes", "tables")
 
 
@@ -94,6 +98,21 @@ def drop_projection(sdata, image_key: str) -> None:
         print(f"[write_segmentations] dropped {name}")
 
 
+def image_transformations(sdata_path: Path):
+    """The segmentation image's key and transformations, which new shapes must carry."""
+    import spatialdata as sd
+    from spatialdata.transformations import get_transformation
+
+    # Images only: other elements may be stale or half-written, and are dealt with by the caller.
+    images = sd.read_zarr(sdata_path, selection=("images",))
+    image_key = images.attrs.get(SEGMENTATION_ATTR)
+    if image_key is None:
+        raise ValueError(f"{sdata_path} has no '{SEGMENTATION_ATTR}' attribute: no image to place shapes on")
+    if image_key not in images.images:
+        raise ValueError(f"'{SEGMENTATION_ATTR}' is '{image_key}' but {sdata_path} has no such image")
+    return image_key, get_transformation(images.images[image_key], get_all=True)
+
+
 def write_segmentations(
     sdata_path: Path, shapes: list[Path], tables: list[Path], keep_projection: bool = False
 ) -> None:
@@ -101,16 +120,8 @@ def write_segmentations(
     import geopandas as gpd
     import spatialdata as sd
     from spatialdata.models import ShapesModel
-    from spatialdata.transformations import get_transformation
 
-    # Images only: other elements may be stale or half-written, and are dealt with below.
-    images = sd.read_zarr(sdata_path, selection=("images",))
-    image_key = images.attrs.get(SEGMENTATION_ATTR)
-    if image_key is None:
-        raise ValueError(f"{sdata_path} has no '{SEGMENTATION_ATTR}' attribute: no image to place shapes on")
-    if image_key not in images.images:
-        raise ValueError(f"'{SEGMENTATION_ATTR}' is '{image_key}' but {sdata_path} has no such image")
-    transformations = get_transformation(images.images[image_key], get_all=True)
+    image_key, transformations = image_transformations(sdata_path)
 
     # Read and validate everything before touching the store.
     gdfs = {p.stem: gpd.read_parquet(p) for p in shapes}

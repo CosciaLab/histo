@@ -3,7 +3,59 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## v3.0.0 - [unreleased]
+## v3.2.0 - [2026-11-27]
+
+### Added
+
+- `use_nimbus`: per-cell marker positivity scores from Nimbus, one `{method}_nimbus` table per
+  segmentation method, tiled so memory does not grow with the image. `nimbus_channels` picks the
+  markers. Provenance is published to `learned_features/`.
+- `use_virtues`: 512-number VirTues embeddings per cell (`{method}_virtues`), per 128 µm tissue
+  square (`virtues_niches`, `virtues_niches_table`) and per core or slide (`virtues_tissue`), tiled
+  so memory does not grow with the image. Needs `use_gpu`, `use_preprocessing`,
+  `use_tissue_segmentation`, `segment_cells`, `pixel_size` and a `uniprot_id` column in the marker
+  sheet. `virtues_stats` reuses one statistics file. Weights (`sp32`) are CC BY-NC 4.0.
+- `tools/build_sif.sbatch`: builds a SIF from a registry ref or a local `docker save` / OCI archive
+  into Nextflow's cache, never replacing an image there. Logs go to the cache's `logs/`.
+- `tools/segmentation_benchmark/`: scores Cellpose-SAM settings against hand-drawn outlines on
+  SLURM. Results are on the site's Segmentation benchmark page.
+
+### Changed
+
+- Cellpose uses `cpsam_v2` (cellpose's own default); cell counts shift. `pretrained_model: cpsam`
+  restores the old model.
+- Cellpose defaults from a segmentation benchmark against manual outlines: `flow_threshold`
+  0.6, `cellprob_threshold` -1, no CLAHE (`clip_limit` 0), no smoothing (`gaussian_sigma` 0,
+  `projection_sigma` 0). Mean F1 rises from 0.53 to 0.73 on mIF crops; cell counts shift. sopa's
+  old values: `flow_threshold: 2`, `cellprob_threshold: -6`, `clip_limit: 0.2`,
+  `gaussian_sigma: 1`, `projection_sigma: 1`.
+
+### Fixed
+
+- QC's before-and-after background subtraction comparison never ran: the
+  pre-subtraction image lacked the sample keys QC joins on. Broken since at least 2.0.0.
+
+### Deprecated
+
+- `instanseg_pixel_size` is now `pixel_size`, shared by InstanSeg and Nimbus. The old name still
+  works and warns; setting both to different values is an error.
+
+## v3.1.0 - [2026-11-07]
+
+### Added
+
+- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
+  reports, tutorials on the exemplar data, one page per module, and a parameter reference
+  generated from the schema. Parameter rules
+  (requires, conflicts, ignored unless) are in the schema `help_text`.
+
+### Changed
+
+- Docs site navigation restructured: inputs, outputs by kind, tutorials on the exemplar data, one
+  page per module; how-to guides dropped.
+- Metro map redrawn as two lines on two rows, larger and with higher contrast.
+
+## v3.0.0 - [2026-11-07]
 
 ### Breaking
 
@@ -15,10 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Documentation website (MyST, GitHub Pages): getting started, inputs, outputs and their
-  reports, tutorials on the exemplar data, one page per module, and a parameter reference
-  generated from the schema. Parameter rules
-  (requires, conflicts, ignored unless) are in the schema `help_text`.
 - `quantification_statistics` (default `mean,median,std`; also `min`, `max`, `q25`, `q75`,
   `q90`) sets the statistics per marker. `mean` is required.
 - Shape features in `obs` for the cell and, where linked, the nucleus: `cell_*` and `nucleus_*`

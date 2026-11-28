@@ -8,9 +8,10 @@
 # default; docs/usage.md lists the few you must set.
 
 ## Input/output options
-# input: null   # Path to a comma-separated samplesheet. Required.
-# outdir: null  # The output directory where the results will be saved. Required.
-# email: null   # Email address for completion summary.
+# pixel_size: null  # µm per pixel of the image (OME PhysicalSizeX).
+# input: null       # Path to a comma-separated samplesheet. Required.
+# outdir: null      # The output directory where the results will be saved. Required.
+# email: null       # Email address for completion summary.
 
 ## Preprocessing
 # use_preprocessing: true            # Run the preprocessing half: illumination correction, stitching and registration, and the optional steps below.
@@ -74,26 +75,32 @@
 # projection_method: "max"          # How the rescaled markers of a channel are combined. max keeps markers that stain only one cell type at full brightness; mean averages out noise but dims them. One of: max, mean.
 # projection_low_percentile: 1.0    # Per-marker percentile mapped to 0 before combining.
 # projection_high_percentile: 99.9  # Per-marker percentile mapped to 1 before combining.
-# projection_sigma: 1.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
+# projection_sigma: 0.0             # Gaussian smoothing in pixels applied to each marker before combining; 0 for none.
 
 ## Segmentation targets
 # segment_cells: true   # Segment whole cells with each enabled method: shapes `{method}_cells`.
 # segment_nuclei: null  # Segment nuclei with each enabled method: shapes `{method}_nuclei`.
 
 ## Cellpose
-# use_cellpose: null        # Segment with Cellpose.
-# cellpose_channels: null   # Channel(s) to segment with Cellpose.
-# flow_threshold: null      # Cellpose `flow_threshold` parameter.
-# cellprob_threshold: null  # Cellpose `cellprob_threshold` parameter.
-# pretrained_model: null    # Cellpose `pretrained_model` parameter.
-# cellpose_kwargs: null     # Additional cellpose parameters as a python dict string.
+# use_cellpose: null            # Segment with Cellpose.
+# cellpose_channels: null       # Channel(s) to segment with Cellpose.
+# flow_threshold: null          # Cellpose `flow_threshold` parameter.
+# cellprob_threshold: null      # Cellpose `cellprob_threshold` parameter.
+# pretrained_model: "cpsam_v2"  # Cellpose weights: a name baked into the image (`cpsam_v2`, `cpsam`) or a path.
+# cellpose_kwargs: null         # Additional cellpose parameters as a python dict string.
 
 ## InstanSeg
 # use_instanseg: null         # Segment with InstanSeg.
 # instanseg_model_type: null  # Name of the pretrained InstanSeg model, or path to a local model. sopa defaults to `fluorescence_nuclei_and_cells`.
-# instanseg_pixel_size: null  # Image resolution in microns per pixel.
+# instanseg_pixel_size: null  # Deprecated: use pixel_size.
 # instanseg_channels: null    # Channel(s) to segment with InstanSeg.
 # instanseg_kwargs: null      # Additional InstanSeg parameters as a python dict string.
+
+## Learned features
+# use_nimbus: null       # Score per-cell marker positivity with Nimbus.
+# nimbus_channels: null  # Channel(s) to score with Nimbus.
+# use_virtues: null      # Embed each segmented cell with VirTues, a multiplex protein-marker foundation model.
+# virtues_stats: null    # A `{slide}_virtues_stats.json` from an earlier run, applied to every slide instead of computing per-slide statistics.
 
 ## QC report
 # use_qc: true         # Whether to compute QC metrics, write Ashlar's stitching and registration QC, and render the QC report.

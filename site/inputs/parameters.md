@@ -7,7 +7,7 @@ input: /data/myproject/sheets/samplesheet.csv
 outdir: /data/myproject/results
 
 use_instanseg: true
-instanseg_pixel_size: 0.65
+pixel_size: 0.65
 ```
 
 Every run needs `input` (the [samplesheet](samplesheet.md)) and `outdir` (where results go), and
@@ -48,7 +48,7 @@ Pick one method or both. Unless `preprocessing_only`, at least one is needed.
 | Method                               | Set                                                                                                                                                          | Channels it reads                                                      |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | [Cellpose](../modules/cellpose.md)   | [`use_cellpose`](parameters-full.md#use_cellpose)`: true` and [`cellpose_channels`](parameters-full.md#cellpose_channels), e.g. `"CD45 DNA_1"`, nuclear last | the two you name, or two [projected](#many-markers-with-cellpose) ones |
-| [InstanSeg](../modules/instanseg.md) | [`use_instanseg`](parameters-full.md#use_instanseg)`: true` and [`instanseg_pixel_size`](parameters-full.md#instanseg_pixel_size), your pixel size in µm     | every `dna` and `marker` channel of the marker sheet                   |
+| [InstanSeg](../modules/instanseg.md) | [`use_instanseg`](parameters-full.md#use_instanseg)`: true` and [`pixel_size`](parameters-full.md#pixel_size), your pixel size in µm                         | every `dna` and `marker` channel of the marker sheet                   |
 
 Then pick what to find. Cells are on by default.
 
@@ -81,17 +81,14 @@ channels:
 ```yaml
 use_cellpose: true
 use_projection: true
-flow_threshold: 0.4
-cellprob_threshold: 0
-clip_limit: 0
 ```
 
 - [`use_projection`](parameters-full.md#use_projection) builds the nuclear channel from the first
   `dna` channel and the cell channel from every `marker` whose compartment is `membrane` or
   `cytoplasm`. To choose by hand, use the marker sheet's
   [`segmentation` column](markers.md#optional-columns).
-- **Keep the three thresholds.** Without them, Cellpose runs with settings that divide the whole
-  tissue into cells, whatever the image shows.
+- The default grouping leaves autofluorescence and nuclear markers out of the cell channel, as
+  the [segmentation benchmark](../benchmark.md) favours. Keep them out when choosing by hand.
 - After the run, open `qc/{sample}_projection.png`, what Cellpose saw. If one marker is listed
   under `dominant` in `qc/{sample}_projection.json`, it drowns the others: set its
   `segmentation` to `none` and run again.

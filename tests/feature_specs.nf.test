@@ -1,0 +1,188 @@
+// One spec per learned-features model, built from params.
+
+nextflow_function {
+
+    name "featureSpecs"
+    script "../modules/local/utils.nf"
+    function "featureSpecs"
+    tag "unit"
+    tag "validation"
+
+    test("no model gives no specs") {
+        when {
+            function {
+                """
+                input[0] = [:]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == []
+        }
+    }
+
+    test("Nimbus with marker-sheet channels") {
+        when {
+            function {
+                """
+                input[0] = [ use_nimbus: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'nimbus'
+            assert function.result[0].model == 'nimbus'
+            assert function.result[0].channels == null
+            assert function.result[0].pixel_size == 0.65
+        }
+    }
+
+    test("Nimbus channels are split and pixel_size parsed") {
+        when {
+            function {
+                """
+                input[0] = [ use_nimbus: true, pixel_size: '0.65', nimbus_channels: 'CD3, CD45' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result[0].channels == ['CD3', 'CD45']
+            assert function.result[0].pixel_size == 0.65
+        }
+    }
+
+    test("VirTues has no channel list and no stats file by default") {
+        when {
+            function {
+                """
+                input[0] = [ use_virtues: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result.size() == 1
+            assert function.result[0].name == 'virtues'
+            assert function.result[0].model == 'virtues'
+            assert function.result[0].channels == null
+            assert function.result[0].stats == null
+            assert function.result[0].pixel_size == 0.65
+        }
+    }
+
+    test("virtues_stats reaches the VirTues spec") {
+        when {
+            function {
+                """
+                input[0] = [ use_virtues: true, pixel_size: 0.65, virtues_stats: '/x/s.json' ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result[0].stats == '/x/s.json'
+        }
+    }
+
+    test("Nimbus and VirTues together give two specs, Nimbus first") {
+        when {
+            function {
+                """
+                input[0] = [ use_nimbus: true, use_virtues: true, pixel_size: 0.65 ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result*.name == ['nimbus', 'virtues']
+        }
+    }
+}
+
+nextflow_function {
+
+    name "defaultNimbusChannels"
+    script "../modules/local/utils.nf"
+    function "defaultNimbusChannels"
+    tag "unit"
+    tag "validation"
+
+    test("only marker channels, in order") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DAPI', channel_role: 'dna' ],
+                    [ marker_name: 'CD3', channel_role: 'marker' ],
+                    [ marker_name: 'AF488', channel_role: 'autofluorescence' ],
+                    [ marker_name: 'CD45', channel_role: 'marker' ],
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == ['CD3', 'CD45']
+        }
+    }
+}
+
+nextflow_function {
+
+    name "virtuesChannels"
+    script "../modules/local/utils.nf"
+    function "virtuesChannels"
+    tag "unit"
+    tag "validation"
+
+    test("rows with a uniprot_id give [name, id] pairs in sheet order") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna' ],
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                    [ marker_name: 'CD11B', channel_role: 'marker', uniprot_id: 'P11215' ],
+                    [ marker_name: 'FOXP3', channel_role: 'marker' ],
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == [['ELANE', 'P08246'], ['CD11B', 'P11215']]
+        }
+    }
+}
+
+nextflow_function {
+
+    name "virtuesUnembedded"
+    script "../modules/local/utils.nf"
+    function "virtuesUnembedded"
+    tag "unit"
+    tag "validation"
+
+    test("rows without a uniprot_id are the unembedded names") {
+        when {
+            function {
+                """
+                input[0] = [
+                    [ marker_name: 'DNA_1', channel_role: 'dna' ],
+                    [ marker_name: 'ELANE', channel_role: 'marker', uniprot_id: 'P08246' ],
+                    [ marker_name: 'CD11B', channel_role: 'marker', uniprot_id: 'P11215' ],
+                    [ marker_name: 'FOXP3', channel_role: 'marker' ],
+                ]
+                """
+            }
+        }
+        then {
+            assert function.success
+            assert function.result == ['DNA_1', 'FOXP3']
+        }
+    }
+}
